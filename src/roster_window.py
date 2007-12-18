@@ -2006,14 +2006,16 @@ class RosterWindow:
 			self.draw_account(account)
 
 	def on_send_single_message_menuitem_activate(self, widget, account,
-	contact = None):
+	contact=None, resource=None):
 		if contact is None:
 			dialogs.SingleMessageWindow(account, action = 'send')
 		elif type(contact) == type([]):
 			dialogs.SingleMessageWindow(account, contact, 'send')
 		else:
 			jid = contact.jid
-			if contact.jid == gajim.get_jid_from_account(account):
+			if resource:
+				jid += '/' + resource
+			elif contact.jid == gajim.get_jid_from_account(account):
 				jid += '/' + contact.resource
 			dialogs.SingleMessageWindow(account, jid, 'send')
 
@@ -4435,6 +4437,7 @@ class RosterWindow:
 					else:
 						child_iter = model.iter_next(child_iter)
 			session = None
+			chat_messages_waiting = False
 			if first_ev:
 				if first_ev.type_ in ('chat', 'normal'):
 					session = first_ev.parameters[8]
@@ -4443,12 +4446,22 @@ class RosterWindow:
 					fjid += '/' + resource
 				if self.open_event(account, fjid, first_ev):
 					return
+				elif first_ev.type_ == 'chat':
+					chat_messages_waiting = True
 			c = gajim.contacts.get_contact(account, jid, resource)
 			if not c or isinstance(c, list):
 				c = gajim.contacts.get_contact_with_highest_priority(account, jid)
 			if jid == gajim.get_jid_from_account(account):
 				resource = c.resource
-			self.on_open_chat_window(widget, c, account, resource = resource, session = session)
+			default_outgoing_messages_type = gajim.config.get(
+				'default_outgoing_messages_type')
+			if default_outgoing_messages_type == 'normal' and not \
+			chat_messages_waiting:
+				self.on_send_single_message_menuitem_activate(widget, account, c,
+					resource=resource)
+			else:
+				self.on_open_chat_window(widget, c, account, resource=resource,
+					session=session)
 
 	def on_roster_treeview_row_activated(self, widget, path, col = 0):
 		'''When an iter is double clicked: open the first event window'''

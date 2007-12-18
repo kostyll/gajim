@@ -1623,7 +1623,7 @@ class ChatControl(ChatControlBase):
 	def prepare_context_menu(self):
 		'''sets compact view menuitem active state
 		sets active and sensitivity state for toggle_gpg_menuitem
-		sets sensitivity for history_menuitem (False for tranasports)
+		sets sensitivity for history_menuitem (False for transports)
 		and file_transfer_menuitem
 		and hide()/show() for add_to_roster_menuitem
 		'''

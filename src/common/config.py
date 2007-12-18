@@ -47,6 +47,7 @@ opt_bool = [ 'boolean', 0 ]
 opt_color = [ 'color', '^(#[0-9a-fA-F]{6})|()$' ]
 opt_one_window_types = ['never', 'always', 'peracct', 'pertype']
 opt_treat_incoming_messages = ['', 'chat', 'normal']
+opt_default_outgoing_messages_type = ['chat', 'normal']
 
 class Config:
 
@@ -246,6 +247,7 @@ class Config:
 		'use_gnomekeyring': [opt_bool, True, _('If True, Gajim will use Gnome Keyring (if available) to store account passwords.')],
 		'show_contacts_number': [opt_bool, True, _('If True, Gajim will show number of online and total contacts in account and group rows.')],
 		'treat_incoming_messages': [ opt_str, '', _('Can be empty, \'chat\' or \'normal\'. If not empty, treat all incoming messages as if they were of this type')],
+		'default_outgoing_messages_type': [ opt_str, 'chat', _('Can be \'chat\' or \'normal\'. Default type of outgoing messages.')],
 		'scroll_roster_to_last_message': [opt_bool, True, _('If True, Gajim will scroll and select the contact who sent you the last message, if chat window is not already opened.')],
 		'use_latex': [opt_bool, False, _('If True, Gajim will convert string between $$ and $$ to an image using dvips and convert before insterting it in chat window.')],
 		'change_status_window_timeout': [opt_int, 15, _('Time of inactivity needed before the change status window closes down.')],

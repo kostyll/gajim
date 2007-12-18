@@ -72,6 +72,8 @@ class PreferencesWindow:
 		self.notebook = self.xml.get_widget('preferences_notebook')
 		self.treat_incoming_messages_combobox =\
 			self.xml.get_widget('treat_incoming_messages_combobox')
+		self.default_outgoing_messages_type_combobox =\
+			self.xml.get_widget('default_outgoing_messages_type_combobox')
 		self.one_window_type_combobox =\
 			self.xml.get_widget('one_window_type_combobox')
 		self.iconset_combobox = self.xml.get_widget('iconset_combobox')
@@ -140,6 +142,15 @@ class PreferencesWindow:
 			self.treat_incoming_messages_combobox.set_active(choices.index(type))
 		else:
 			self.treat_incoming_messages_combobox.set_active(0)
+
+		# Set default for send outgoing messages
+		choices = common.config.opt_default_outgoing_messages_type
+		type = gajim.config.get('default_outgoing_messages_type')
+		if type in choices:
+			self.default_outgoing_messages_type_combobox.set_active(
+				choices.index(type))
+		else:
+			self.default_outgoing_messages_type_combobox.set_active(0)
 
 		# Set default for single window type
 		choices = common.config.opt_one_window_types
@@ -641,6 +652,11 @@ class PreferencesWindow:
 		active = widget.get_active()
 		config_type = common.config.opt_treat_incoming_messages[active]
 		gajim.config.set('treat_incoming_messages', config_type)
+
+	def on_default_outgoing_messages_type_combobox_changed(self, widget):
+		active = widget.get_active()
+		config_type = common.config.opt_default_outgoing_messages_type[active]
+		gajim.config.set('default_outgoing_messages_type', config_type)
 
 	def on_one_window_type_combo_changed(self, widget):
 		active = widget.get_active()
