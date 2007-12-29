@@ -164,16 +164,17 @@ class NormalControl(ChatControlBase):
 			else:
 				self.to_entry.set_text(to)
 
-		if gajim.config.get('use_speller') and HAS_GTK_SPELL and action == 'send':
-			try:
-				spell1 = gtkspell.Spell(self.conversation_textview.tv)
-				spell2 = gtkspell.Spell(self.message_textview)
-				lang = gajim.config.get('speller_language')
-				if lang:
-					spell1.set_language(lang)
-					spell2.set_language(lang)
-			except gobject.GError, msg:
-				AspellDictError(lang)
+#TODO:
+#		if gajim.config.get('use_speller') and HAS_GTK_SPELL and action == 'send':
+#			try:
+#				spell1 = gtkspell.Spell(self.conversation_textview.tv)
+#				spell2 = gtkspell.Spell(self.message_textview)
+#				lang = gajim.config.get('speller_language')
+#				if lang:
+#					spell1.set_language(lang)
+#					spell2.set_language(lang)
+#			except gobject.GError, msg:
+#				AspellDictError(lang)
 
 		self.prepare_widgets_for(self.action)
 
@@ -202,20 +203,146 @@ class NormalControl(ChatControlBase):
 			self.completion_dict = {}
 		self.xml.signal_autoconnect(self)
 
-		if gajim.config.get('saveposition'):
-			# get window position and size from config
-			# Makes absolutely no sense when dealing with multiple windows
-			# (for example when hitting "reply" the orig window stays)
-			#gtkgui_helpers.move_window(self.window,
-			#	gajim.config.get('single-msg-x-position'),
-			#	gajim.config.get('single-msg-y-position'))
-			gtkgui_helpers.resize_window(self.window,
-				gajim.config.get('single-msg-width'),
-				gajim.config.get('single-msg-height'))
 		self.window.show_all()
+
+	def on_avatar_eventbox_enter_notify_event(self, widget, event):
+		# TODO: same code as in chat window
+		pass
+
+	def on_avatar_eventbox_leave_notify_event(self, widget, event):
+		# TODO: same code as in chat window
+		pass
+
+	def on_avatar_eventbox_button_press_event(self, widget, event):
+		# TODO: same code as in chat window
+		pass
 
 	def on_single_message_window_destroy(self, widget):
 		pass
+
+	def update_ui(self):
+		# The name banner is drawn here
+		ChatControlBase.update_ui(self)
+
+	def _update_banner_state_image(self):
+		# TODO: same code as in chat window
+		pass
+
+	def draw_banner_text(self):
+		'''Draw the text in the fat line at the top of the window that 
+		houses the name, jid. 
+		'''
+
+		banner_name_label = self.xml.get_widget('banner_name_label')
+		banner_eventbox = self.xml.get_widget('banner_eventbox')
+
+		name = contact.get_shown_name()
+		if self.resource:
+			name += '/' + self.resource
+		name = gobject.markup_escape_text(name)
+
+		# We know our contacts nick, but if another contact has the same nick
+		# in another account we need to also display the account.
+		# except if we are talking to two different resources of the same contact
+		acct_info = ''
+		for account in gajim.contacts.get_accounts():
+			if account == self.account:
+				continue
+			if acct_info: # We already found a contact with same nick
+				break
+			for jid in gajim.contacts.get_jid_list(account):
+				contact_ = gajim.contacts.get_first_contact_from_jid(account, jid)
+				if contact_.get_shown_name() == self.contact.get_shown_name():
+					acct_info = ' (%s)' % \
+						gobject.markup_escape_text(self.account)
+					break
+
+		status = contact.status
+		if status is not None:
+			banner_name_label.set_ellipsize(pango.ELLIPSIZE_END)
+			self.banner_status_label.set_ellipsize(pango.ELLIPSIZE_END)
+			status_reduced = helpers.reduce_chars_newlines(status, max_lines=1)
+		status_escaped = gobject.markup_escape_text(status_reduced)
+
+		font_attrs, font_attrs_small = self.get_font_attrs()
+
+		# weight="heavy" size="x-large"
+		label_text = '<span %s>%s</span><span %s>%s</span>' % \
+			(font_attrs, name, font_attrs_small, acct_info)
+
+		if status_escaped:
+			if gajim.HAVE_PYSEXY:
+				status_text = self.urlfinder.sub(self.make_href, status_escaped)
+				status_text = '<span %s>%s</span>' % (font_attrs_small, status_text)
+			else:
+				status_text = '<span %s>%s</span>' % (font_attrs_small,
+					status_escaped)
+			self.status_tooltip.set_tip(banner_eventbox, status)
+			self.banner_status_label.show()
+			self.banner_status_label.set_no_show_all(False)
+		else:
+			status_text = ''
+			self.status_tooltip.disable()
+			self.banner_status_label.hide()
+			self.banner_status_label.set_no_show_all(True)
+
+		self.banner_status_label.set_markup(status_text)
+		# setup the label that holds name and jid
+		banner_name_label.set_markup(label_text)
+
+	def _update_gpg(self):
+		# TODO: same code as in chat window
+		pass
+
+	def get_tab_label(self, chatstate):
+		# TODO: same code as in chat window
+		unread = ''
+		if self.resource:
+			jid = self.contact.get_full_jid()
+		else:
+			jid = self.contact.jid
+		num_unread = len(gajim.events.get_events(self.account, jid,
+			[self.type_id]))
+		if num_unread == 1 and not gajim.config.get('show_unread_tab_icon'):
+			unread = '*'
+		elif num_unread > 1:
+			unread = '[' + unicode(num_unread) + ']'
+		color = self.parent_win.notebook.style.fg[gtk.STATE_ACTIVE]
+
+		name = self.contact.get_shown_name()
+		if self.resource:
+			name += '/' + self.resource
+		label_str = gobject.markup_escape_text(name)
+		if num_unread: # if unread, text in the label becomes bold
+			label_str = '<b>' + unread + label_str + '</b>'
+		return (label_str, color)
+
+	def get_tab_image(self):
+		# TODO: same code as in chat window
+		if self.resource:
+			jid = self.contact.get_full_jid()
+		else:
+			jid = self.contact.jid
+		num_unread = len(gajim.events.get_events(self.account, jid,
+			['printed_' + self.type_id, self.type_id]))
+		# Set tab image (always 16x16); unread messages show the 'event' image
+		tab_img = None
+
+		if num_unread and gajim.config.get('show_unread_tab_icon'):
+			img_16 = gajim.interface.roster.get_appropriate_state_images(
+				self.contact.jid, icon_name = 'event')
+			tab_img = img_16['event']
+		else:
+			contact = gajim.contacts.get_contact_with_highest_priority(
+				self.account, self.contact.jid)
+			if not contact or self.resource:
+				# For transient contacts
+				contact = self.contact
+			img_16 = gajim.interface.roster.get_appropriate_state_images(
+				self.contact.jid, icon_name = contact.show)
+			tab_img = img_16[contact.show]
+
+		return tab_img
 
 	def set_cursor_to_end(self):
 			end_iter = self.message_tv_buffer.get_end_iter()
@@ -713,7 +840,85 @@ class NormalControl(ChatControlBase):
 		self.save_pos()
 		self.window.destroy()
 
-	def on_single_message_window_key_press_event(self, widget, event):
-		if event.keyval == gtk.keysyms.Escape: # ESCAPE
-			self.save_pos()
-			self.window.destroy()
+	def shutdown(self):
+		# destroy banner tooltip - bug #pygtk for that!
+		self.status_tooltip.destroy()
+		# Send 'gone' chatstate
+		self.send_chatstate('gone', self.contact)
+		self.contact.chatstate = None
+		self.contact.our_chatstate = None
+		# Disconnect timer callbacks
+		gobject.source_remove(self.possible_paused_timeout_id)
+		gobject.source_remove(self.possible_inactive_timeout_id)
+		# Remove bigger avatar window
+		if self.bigger_avatar_window:
+			self.bigger_avatar_window.destroy()
+		# Clean events
+		gajim.events.remove_events(self.account, self.get_full_jid(),
+		types = [self.type_id])
+		# remove all register handlers on wigets, created by self.xml
+		# to prevent circular references among objects
+		for i in self.handlers.keys():
+			if self.handlers[i].handler_is_connected(i):
+				self.handlers[i].disconnect(i)
+			del self.handlers[i]
+		self.conv_textview.del_handlers()
+		self.msg_textview.destroy()
+
+	def allow_shutdown(self, method):
+		if time.time() - gajim.last_message_time[self.account]\
+		[self.get_full_jid()] < 2:
+			# 2 seconds
+			dialog = dialogs.ConfirmationDialog(
+				#%s is being replaced in the code with JID
+				_('You just received a new message from "%s"') % self.contact.jid,
+				_('If you close this tab and you have history disabled, '\
+				'this message will be lost.'))
+			if dialog.get_response() != gtk.RESPONSE_OK:
+				return 'no' # stop the propagation of the event
+		return 'yes'
+	
+	def show_avatar(self, resource = None):
+		if not gajim.config.get('show_avatar_in_chat'):
+			return
+
+		jid_with_resource = self.contact.jid
+		if resource:
+			jid_with_resource += '/' + resource
+
+		# we assume contact has no avatar
+		scaled_pixbuf = None
+
+		pixbuf = gtkgui_helpers.get_avatar_pixbuf_from_cache(jid_with_resource,
+			False)
+		if pixbuf == 'ask':
+			# we don't have the vcard
+			gajim.connections[self.account].request_vcard(jid_with_resource)
+			return
+		if pixbuf is not None:
+			scaled_pixbuf = gtkgui_helpers.get_scaled_pixbuf(pixbuf, 'chat')
+
+		image = self.xml.get_widget('avatar_image')
+		image.set_from_pixbuf(scaled_pixbuf)
+		image.show_all()
+
+	def show_bigger_avatar(self, small_avatar):
+		# TODO: same code as in chat window
+		pass
+
+	def _on_window_avatar_leave_notify_event(self, widget, event):
+		# TODO: same code as in chat window
+		pass
+
+	def _on_window_motion_notify_event(self, widget, event):
+		# TODO: same code as in chat window
+		pass
+
+	def got_connected(self):
+		ChatControlBase.got_connected(self)
+		# Refreshing contact
+		contact = gajim.contacts.get_contact_with_highest_priority(
+			self.account, self.contact.jid)
+		if contact:
+			self.contact = contact
+			self.draw_banner()
