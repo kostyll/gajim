@@ -4,8 +4,6 @@ AC_PREREQ([2.59])
 AC_CONFIG_HEADER(config.h)
 AC_CONFIG_MACRO_DIR([m4])
 
-PKG_PROG_PKG_CONFIG([0.19])
-
 AC_ENABLE_SHARED(yes)
 AC_ENABLE_STATIC(no)
 
@@ -19,6 +17,7 @@ AC_CHECK_HEADERS([libintl.h])
 AC_PATH_X
 
 IT_PROG_INTLTOOL([0.35.0])
+PKG_PROG_PKG_CONFIG([0.19])
 
 GETTEXT_PACKAGE=gajim
 AC_SUBST([GETTEXT_PACKAGE])
@@ -115,6 +114,7 @@ AM_PATH_PYTHON([2.4])
 if test "x$PYTHON" = "x:"; then
 	AC_MSG_ERROR([Python not found])
 fi
+AC_SUBST(PYTHON_FLAGS, $PYTHON_FLAGS)
 
 dnl ****
 dnl tray icon
