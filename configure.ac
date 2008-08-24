@@ -1,18 +1,11 @@
 AC_INIT([Gajim - A Jabber Instant Messager],
 		[0.12-alpha1],[http://trac.gajim.org/],[gajim])
 AC_PREREQ([2.59])
-AM_INIT_AUTOMAKE([1.8])
 AC_CONFIG_HEADER(config.h)
 AC_CONFIG_MACRO_DIR([m4])
-AM_MAINTAINER_MODE
 
-dnl Make Objective-C work with automake
-AM_CONDITIONAL([am__fastdepOBJC], false)
-
-IT_PROG_INTLTOOL([0.35.0])
 PKG_PROG_PKG_CONFIG([0.19])
 
-AM_DISABLE_STATIC
 AC_ENABLE_SHARED(yes)
 AC_ENABLE_STATIC(no)
 
@@ -25,6 +18,7 @@ AC_C_CONST
 AC_CHECK_HEADERS([libintl.h])
 AC_PATH_X
 
+IT_PROG_INTLTOOL([0.35.0])
 
 GETTEXT_PACKAGE=gajim
 AC_SUBST([GETTEXT_PACKAGE])
@@ -221,21 +215,9 @@ AC_SUBST(DOCDIR)
 AS_AC_EXPAND(DOCDIR, "${DOCDIR}")
 
 AC_CONFIG_FILES([ 
-	Makefile
-	data/Makefile
-	data/glade/Makefile
-	data/emoticons/Makefile
-	data/pixmaps/Makefile
-	data/iconsets/Makefile
-	data/moods/Makefile
-	data/activities/Makefile
+	buildsys.mk
 	data/gajim.desktop.in
 	data/defs.py
-	src/Makefile
-	src/common/Makefile
-	src/osx/Makefile
-	src/osx/growl/Makefile
-	src/osx/syncmenu/Makefile
 	scripts/gajim
 	scripts/gajim-remote
 	po/Makefile.in
