@@ -1,20 +1,18 @@
 AC_INIT([Gajim - A Jabber Instant Messager],
 		[0.12-alpha1],[http://trac.gajim.org/],[gajim])
 AC_PREREQ([2.59])
+AC_CONFIG_MACRO_DIR(m4)
+AC_CONFIG_SRCDIR(src)
 AC_CONFIG_HEADER(config.h)
-AC_CONFIG_MACRO_DIR([m4])
-
-AC_ENABLE_SHARED(yes)
-AC_ENABLE_STATIC(no)
+AC_CONFIG_AUX_DIR(.)
 
 AC_ISC_POSIX
 AC_PROG_CC
-AC_PROG_INSTALL
-AC_PROG_MAKE_SET
-AC_PROG_LIBTOOL
+AC_PROG_OBJC
 AC_C_CONST
 AC_CHECK_HEADERS([libintl.h])
-AC_PATH_X
+
+BUILDSYS_SHARED_LIB
 
 IT_PROG_INTLTOOL([0.35.0])
 PKG_PROG_PKG_CONFIG([0.19])
@@ -216,6 +214,7 @@ AS_AC_EXPAND(DOCDIR, "${DOCDIR}")
 
 AC_CONFIG_FILES([ 
 	buildsys.mk
+	extra.mk
 	data/gajim.desktop.in
 	data/defs.py
 	scripts/gajim
