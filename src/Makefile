@@ -1,6 +1,6 @@
 # FIXME: Install files
 
-SUBDIRS = common trayiconmodule osx
+SUBDIRS = common traymodule osx
 
 SRCS = adhoc_commands.py		\
        advanced.py			\
