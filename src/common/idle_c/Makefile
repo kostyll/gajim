@@ -8,5 +8,5 @@ include ../../../buildsys.mk
 include ../../../extra.mk
 
 CFLAGS += ${PLUGIN_CFLAGS} ${PYTHON_CFLAGS}
-LIBS += ${PYTHON_LIBS}
+LIBS += ${PYTHON_LIBS} ${XSCRNSAVER_LIBS}
 LDFLAGS += ${PLUGIN_LDFLAGS}
