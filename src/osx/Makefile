@@ -1,6 +1,7 @@
 # FIXME: Install files
+include ../../extra.mk
 
-SUBDIRS = idle_c growl nsapp_m syncmenu
+SUBDIRS = ${OSX_IDLEMODULE} ${OSX_MODULES}
 
 SRCS = __init__.py	\
        dbus.py		\

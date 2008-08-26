@@ -1,4 +1,5 @@
 # FIXME: Install files
+include ../extra.mk
 
 SUBDIRS = common ${TRAYMODULE} ${SPELLMODULE} osx
 

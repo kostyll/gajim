@@ -139,7 +139,7 @@ AC_ARG_ENABLE([cocoa],
   [  --disable-cocoa         do not build cocoa integration [default auto]],
   enable_cocoa=$enableval, enable_cocoa=yes)
 
-if test "x$enable_cocoa" = "xyes";then 
+if test "x$enable_cocoa" = "xyes"; then
   dnl There is no pkgconfig for cocoa; lets do a header check
   temp_save_cflags="$CFLAGS"
   CFLAGS="$CFLAGS -ObjC"
@@ -147,18 +147,12 @@ if test "x$enable_cocoa" = "xyes";then
   AC_CHECK_HEADER(AppKit/AppKit.h, [have_appkit=true], [have_appkit=false])
   CFLAGS="$temp_save_cflags"
 
-  if test "x$have_cocoa" = "xtrue";then
-     COCOA_LIBS="$COCOA_LIBS -Xlinker -framework -Xlinker Cocoa"
-  fi
-  if test "x$have_appkit" = "xtrue";then
-     COCOA_LIBS="$COCOA_LIBS -Xlinker -framework -Xlinker AppKit"
-  fi
-  if test "x$COCOA_LIBS" != "x";then
-	 AC_SUBST(COCOA_LIBS)
-     true
+  if test x"$have_cocoa" = x"true" -a x"$have_appkit" = x"true"; then
+    AC_SUBST(OSX_MODULES, "growl nsapp_m syncmenu")
+  else
+    AC_SUBST(OSX_MODULES, "")
   fi
 fi
-AM_CONDITIONAL(BUILD_COCOA, $have_cocoa)
 
 dnl ****
 dnl Carbon
@@ -167,34 +161,27 @@ AC_ARG_ENABLE([carbon],
   [  --disable-carbon        do not build with carbon [default auto]],
   enable_carbon=$enableval, enable_carbon=yes)
 
-if test "x$enable_carbon" = "xyes";then 
+if test x"$enable_carbon" = x"yes";then 
   dnl There is no pkgconfig for carbon; lets do a header check
   AC_CHECK_HEADER(Carbon/Carbon.h, [have_carbon=true], [have_carbon=false])
   AC_CHECK_HEADER(IOKit/IOKitLib.h, [have_iokit=true], [have_iokit=false])
 
-  if test "x$have_carbon" = "xtrue";then
-     CARBON_LIBS="$CARBON_LIBS -Xlinker -framework -Xlinker Carbon"
-  fi
-  if test "x$have_iokit" = "xtrue";then
-     CARBON_LIBS="$CARBON_LIBS -Xlinker -framework -Xlinker IOKit"
-  fi
-  if test "x$CARBON_LIBS" != "x";then
-	 AC_SUBST(CARBON_LIBS)
+  if test x"$have_carbon" = x"true" -a x"$have_iokit" = x"true"; then
      have_idle_osx=true
      dnl Disable X11 idle
      have_idle=false
-     AM_CONDITIONAL(BUILD_IDLE, false)
      dnl Disable custom trayicon
      have_trayicon=gtk+
-     AM_CONDITIONAL(BUILD_TRAYICON, false)
      dnl Hack to work around failure in gettext package detection on OS/X
      if test "x$GMSGFMT" = "x";then
         AC_SUBST(GMSGFMT, msgfmt)
         AC_SUBST(MSGFMT, msgfmt)
         AC_SUBST(XGETTEXT, xgettext)
      fi
+     AC_SUBST(OSX_IDLEMODULE, "idle")
   else
-	 have_carbon=false
+     AC_SUBST(OSX_IDLEMODULE, "")
+     have_carbon=false
      have_idle_osx=false
   fi
 fi
