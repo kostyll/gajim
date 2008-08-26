@@ -71,11 +71,12 @@ if test "x$enable_gtkspell" = "xyes";then
 	PKG_CHECK_MODULES([GTKSPELL], [gtkspell-2.0])
 	AC_SUBST(GTKSPELL_CFLAGS)
 	AC_SUBST(GTKSPELL_LIBS)
+	AC_SUBST(SPELLMODULE, spellmodule)
 	have_gtkspell=true
 else
+	AC_SUBST(SPELLMODULE,)
 	have_gtkspell=false
 fi
-AM_CONDITIONAL(BUILD_GTKSPELL, $have_gtkspell)
 
 
 dnl ****
@@ -123,8 +124,13 @@ dnl ****
 AC_ARG_ENABLE(trayicon,
   [  --disable-trayicon      do not build trayicon module [default yes]],
   enable_trayicon=$enableval, enable_trayicon=yes)
-test "x$enable_trayicon" = "xyes" && have_trayicon=true || have_trayicon=false
-AM_CONDITIONAL(BUILD_TRAYICON, $have_trayicon)
+if test "x$enable_trayicon" = "xyes"; then
+	have_trayicon=true
+	AC_SUBST(TRAYMODULE, traymodule)
+else
+	have_trayicon=false
+	AC_SUBST(TRAYMODULE,)
+fi
 
 dnl ****
 dnl Cocoa
