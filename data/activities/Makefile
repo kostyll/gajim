@@ -1,3 +1,3 @@
-SUBDIRS = default
+# FIXME: Install files
 
 include ../../buildsys.mk
