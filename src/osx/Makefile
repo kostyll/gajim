@@ -1,15 +1,21 @@
 # FIXME: Install files
 
-SUBDIRS = growl syncmenu
+SUBDIRS = idle_c growl nsapp_m syncmenu
 
 SRCS = __init__.py	\
        dbus.py		\
        growler.py	\
        prep_py2app.py
-# FIXME: Compile C part
-#       idle.c		\
-#       nsapp.m
+DISTCLEAN = idle.so nsapp.so
 
 include ../../buildsys.mk
 
-all: ${OBJS}
+all: ${OBJS} idle.so nsapp.so
+
+# Don't depend on the actual file, we can create the symlink anyway
+idle.so:
+	rm -f idle.so
+	ln -s idle_c/idle.so idle.so
+nsapp.so:
+	rm -f nsapp.so
+	ln -s nsapp_m/nsapp.so nsapp.so

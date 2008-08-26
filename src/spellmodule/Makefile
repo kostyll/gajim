@@ -1,7 +1,7 @@
 # FIXME: Install files
 
 # Python calls these .so, even on OS X, which is very wrong. It should be .impl!
-PLUGIN = ../gtkspell.so
+PLUGIN = gtkspell.so
 SRCS = gtkspellmodule.c
 
 include ../../buildsys.mk
