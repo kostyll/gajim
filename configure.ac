@@ -93,6 +93,7 @@ if test "x$enable_idle" = "xyes";then
 		PKG_CHECK_MODULES([XSCRNSAVER], xscrnsaver)
 		AC_SUBST(XSCRNSAVER_LIBS)
 		have_idle=true
+		AC_SUBST(IDLEMODULE, "idle_c")
 	else
 		# Checks for libraries.
 		LIBS=-L$x_libraries
@@ -102,15 +103,17 @@ if test "x$enable_idle" = "xyes";then
 		XSCRNSAVER_LIBS="$LIBS"
 		AC_SUBST([XSCRNSAVER_LIBS])
 		if test "x$XSCRNSAVER_LIBS" = "x-L";then 
+			AC_SUBST(IDLEMODULE, "")
 			have_idle=false
 		else
+			AC_SUBST(IDLEMODULE, "idle_c")
 			have_idle=true
 		fi
 	fi
 else
+	AC_SUBST(IDLEMODULE, "")
 	have_idle=false
 fi
-AM_CONDITIONAL(BUILD_IDLE, $have_idle)
 
 AM_PATH_PYTHON([2.4])
 if test "x$PYTHON" = "x:"; then

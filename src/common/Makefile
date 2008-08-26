@@ -1,6 +1,7 @@
 # FIXME: Install files
+include ../../extra.mk
 
-SUBDIRS = xmpp zeroconf
+SUBDIRS = xmpp zeroconf ${IDLEMODULE}
 
 SRCS = GnuPG.py			\
        GnuPGInterface.py	\
@@ -41,3 +42,8 @@ SRCS = GnuPG.py			\
 include ../../buildsys.mk
 
 all: ${OBJS}
+
+# Don't depend on the actual file, we can create the symlink anyway
+idle.so:
+	rm -f idle.so
+	ln -s idle_c/idle.so idle.so
