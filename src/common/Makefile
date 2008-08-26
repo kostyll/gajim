@@ -41,7 +41,7 @@ SRCS = GnuPG.py			\
 
 include ../../buildsys.mk
 
-all: ${OBJS}
+all: ${OBJS} idle.so
 
 # Don't depend on the actual file, we can create the symlink anyway
 idle.so:
