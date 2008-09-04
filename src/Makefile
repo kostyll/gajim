@@ -1,4 +1,3 @@
-# FIXME: Install files
 include ../extra.mk
 
 SUBDIRS = common ${TRAYMODULE} ${SPELLMODULE} osx
@@ -48,6 +47,9 @@ SRCS = adhoc_commands.py		\
 DISTCLEAN = gtkspell.so trayicon.so
 
 include ../buildsys.mk
+
+PACKAGE := ${PACKAGE}/src
+DATA = ${OBJS}
 
 all: ${OBJS} gtkspell.so trayicon.so
 

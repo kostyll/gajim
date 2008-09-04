@@ -1,5 +1,3 @@
-# FIXME: Install files
-
 # Python calls these .so, even on OS X, which is very wrong. It should be .impl!
 PLUGIN = trayicon.so
 SRCS = eggtrayicon.c	\

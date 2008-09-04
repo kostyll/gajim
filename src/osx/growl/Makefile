@@ -1,5 +1,3 @@
-# FIXME: Install files
-
 SUBDIRS = growl_c growlImage_m
 
 SRCS = Growl.py		\
@@ -7,6 +5,9 @@ SRCS = Growl.py		\
 DISTCLEAN = _growl.so _growlImage.so
 
 include ../../../buildsys.mk
+
+PACKAGE := ${PACKAGE}/osx/growl
+DATA = ${OBJS}
 
 all: ${OBJS} _growl.so _growlImage.so
 

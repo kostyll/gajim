@@ -1,11 +1,12 @@
-# FIXME: Install files
-
 SUBDIRS = syncmenu
 
 SRCS = test-menu.py
 DISTCLEAN = syncmenu.so
 
 include ../../../buildsys.mk
+
+PACKAGE := ${PACKAGE}/src/osx/syncmenu
+DATA = ${OBJS}
 
 all: ${OBJS} syncmenu.so
 

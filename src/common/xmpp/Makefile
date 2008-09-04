@@ -1,5 +1,3 @@
-# FIXME: Install files
-
 SRCS = __init__.py	\
        auth.py		\
        auth_nb.py	\
@@ -24,5 +22,8 @@ SRCS = __init__.py	\
        transports_nb.py
 
 include ../../../buildsys.mk
+
+PACKAGE := ${PACKAGE}/src/common/xmpp
+DATA = ${OBJS}
 
 all: ${OBJS}

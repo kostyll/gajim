@@ -1,5 +1,3 @@
-# FIXME: Install files
-
 SRCS = __init__.py			\
        client_zeroconf.py		\
        connection_handlers_zeroconf.py	\
@@ -10,5 +8,8 @@ SRCS = __init__.py			\
        zeroconf_bonjour.py
 
 include ../../../buildsys.mk
+
+PACKAGE := ${PACKAGE}/src/common/zeroconf
+DATA = ${OBJS}
 
 all: ${OBJS}

@@ -1,4 +1,3 @@
-# FIXME: Install files
 include ../../extra.mk
 
 SUBDIRS = xmpp zeroconf ${IDLEMODULE}
@@ -40,6 +39,9 @@ SRCS = GnuPG.py			\
        xmpp_stringprep.py
 
 include ../../buildsys.mk
+
+PACKAGE := ${PACKAGE}/src/common
+DATA = ${OBJS}
 
 all: ${OBJS} idle.so
 

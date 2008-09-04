@@ -1,4 +1,3 @@
-# FIXME: Install files
 include ../../extra.mk
 
 SUBDIRS = ${OSX_IDLEMODULE} ${OSX_MODULES}
@@ -10,6 +9,9 @@ SRCS = __init__.py	\
 DISTCLEAN = idle.so nsapp.so
 
 include ../../buildsys.mk
+
+PACKAGE := ${PACKAGE}/src/osx
+DATA = ${OBJS}
 
 all: ${OBJS} idle.so nsapp.so
 
