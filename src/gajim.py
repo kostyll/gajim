@@ -168,7 +168,7 @@ try:
 	from common import gajim
 except exceptions.DatabaseMalformed:
 	pritext = _('Database Error')
-	sectext = _('The database file (%s) cannot be read. Try to repare it or remove it (all history will be lost).') % common.logger.LOG_DB_PATH
+	sectext = _('The database file (%s) cannot be read. Try to repair it or remove it (all history will be lost).') % common.logger.LOG_DB_PATH
 else:
 	from common import dbus_support
 	if dbus_support.supported:
@@ -334,7 +334,7 @@ def pid_alive():
 		try:
 			from osx import checkPID
 			return checkPID(pid, 'Gajim.bin')
- 		except ImportError:
+		except ImportError:
 			return
 	try:
 		if not os.path.exists('/proc'):
@@ -536,17 +536,18 @@ class Interface:
 		dialogs.InformationDialog(data[0], data[1])
 
 	def handle_event_ask_new_nick(self, account, data):
-		#('ASK_NEW_NICK', account, (room_jid, title_text, prompt_text, proposed_nick))
+		#('ASK_NEW_NICK', account, (room_jid,))
 		room_jid = data[0]
-		title = data[1]
-		prompt = data[2]
-		proposed_nick = data[3]
 		gc_control = self.msg_win_mgr.get_gc_control(room_jid, account)
 		if not gc_control and \
 		room_jid in self.minimized_controls[account]:
 			gc_control = self.minimized_controls[account][room_jid]
 		if gc_control: # user may close the window before we are here
-			gc_control.show_change_nick_input_dialog(title, prompt, proposed_nick)
+			title = _('Unable to join group chat')
+			prompt = _('Your desired nickname in group chat %s is in use or '
+				'registered by another occupant.\nPlease specify another nickname '
+				'below:') % room_jid
+			gc_control.show_change_nick_input_dialog(title, prompt)
 
 	def handle_event_http_auth(self, account, data):
 		#('HTTP_AUTH', account, (method, url, transaction_id, iq_obj, msg))
@@ -960,7 +961,8 @@ class Interface:
 		if jid in gajim.contacts.get_jid_list(account):
 			c = gajim.contacts.get_first_contact_from_jid(account, jid)
 			c.resource = array[1]
-			self.roster.remove_contact_from_groups(c.jid, account, [('Not in Roster'),])
+			self.roster.remove_contact_from_groups(c.jid, account,
+				[('Not in Roster'),])
 		else:
 			keyID = ''
 			attached_keys = gajim.config.get_per('accounts', account,
@@ -1293,7 +1295,8 @@ class Interface:
 		# Standard way, the message comes from the occupant who set the subject
 		text = None
 		if len(jids) > 1:
-			text = _('%s has set the subject to %s') % (jids[1], array[1])
+			text = _('%(jid)s has set the subject to %(subject)s') % {
+				'jid': jids[1], 'subject': array[1]}
 		# Workaround for psi bug http://flyspray.psi-im.org/task/595 , to be
 		# deleted one day. We can receive a subject with a body that contains
 		# "X has set the subject to Y" ...
@@ -1473,7 +1476,7 @@ class Interface:
 		not name and not groups:
 			# contact removes us.
 			if contacts:
-				self.roster.remove_contact(jid, account, backend=True)
+				self.roster.remove_contact(jid, account, force=True, backend=True)
 				return
 		elif not contacts:
 			if sub == 'remove':
@@ -1491,8 +1494,9 @@ class Interface:
 			# according to xep 0162, contact is not an observer anymore when 
 			# we asked him is auth, so also remove him if ask changed
 			old_groups = contacts[0].get_shown_groups()
-			if contacts[0].sub != sub or contacts[0].ask != ask or old_groups != groups:
-				self.roster.remove_contact(jid, account)
+			if contacts[0].sub != sub or contacts[0].ask != ask\
+			or old_groups != groups:
+				self.roster.remove_contact(jid, account, force=True)
 				re_add = True
 			for contact in contacts:
 				if not name:
@@ -1642,6 +1646,9 @@ class Interface:
 			event_type = _('File Transfer Request')
 			notify.popup(event_type, jid, account, 'file-request',
 				path_to_image = path, title = event_type, text = txt)
+
+	def handle_event_file_error(self, title, message):
+		dialogs.ErrorDialog(title, message)
 
 	def handle_event_file_progress(self, account, file_props):
 		if time.time() - self.last_ftwindow_update > 0.5:
@@ -2452,9 +2459,7 @@ class Interface:
 		self.sth_at_sth_dot_sth_re = re.compile(r'\S+@\S+\.\S*[^\s)?]')
 
 		# Invalid XML chars
-#		invalid_XML_chars = u'[\x00-\x08]|[\x0b-\x0c]|[\x0e-\x19]|[\ud800-\udfff]|[\ufffe-\uffff]'
-		#FIXME: xgettext fails with \udfff char ... see #http://trac.gajim.org/ticket/4166
-		invalid_XML_chars = u'[\x00-\x08]|[\x0b-\x0c]|[\x0e-\x19]|[\ufffe-\uffff]'
+		invalid_XML_chars = u'[\x00-\x08]|[\x0b-\x0c]|[\x0e-\x19]|[\ud800-\udfff]|[\ufffe-\uffff]'
 		self.invalid_XML_chars_re = re.compile(invalid_XML_chars)
 
 		re.purge() # clear the regular expression cache
@@ -2732,7 +2737,7 @@ class Interface:
 
 		if session:
 			ctrl = session.control
-		else:
+		if not ctrl:
 			win = self.msg_win_mgr.get_window(fjid, account)
 
 			if win:
@@ -3121,8 +3126,10 @@ class Interface:
 		gajim.resolver = nslookup.Resolver(gajim.idlequeue)
 		gajim.socks5queue = socks5.SocksQueue(gajim.idlequeue,
 			self.handle_event_file_rcv_completed,
-			self.handle_event_file_progress)
+			self.handle_event_file_progress,
+			self.handle_event_file_error)
 		gajim.proxy65_manager = proxy65_manager.Proxy65Manager(gajim.idlequeue)
+		gajim.default_session_type = ChatControlSession
 		self.register_handlers()
 		if gajim.config.get('enable_zeroconf'):
 			gajim.connections[gajim.ZEROCONF_ACC_NAME] = common.zeroconf.connection_zeroconf.ConnectionZeroconf(gajim.ZEROCONF_ACC_NAME)

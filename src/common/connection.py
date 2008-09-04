@@ -206,7 +206,7 @@ class Connection(ConnectionHandlers):
 
 	# We are doing disconnect at so many places, better use one function in all
 	def disconnect(self, on_purpose=False):
-		gajim.interface.roster.music_track_changed(None, None)
+		gajim.interface.roster.music_track_changed(None, None, self.name)
 		self.on_purpose = on_purpose
 		self.connected = 0
 		self.time_to_reconnect = None
@@ -1182,10 +1182,8 @@ class Connection(ConnectionHandlers):
 
 		msg_id = self.connection.send(msg_iq)
 		if not forward_from and session and session.is_loggable():
-			no_log_for = gajim.config.get_per('accounts', self.name, 'no_log_for')\
-				.split()
 			ji = gajim.get_jid_without_resource(jid)
-			if self.name not in no_log_for and ji not in no_log_for:
+			if gajim.config.should_log(self.name, ji):
 				log_msg = msg
 				if original_message != None:
 					log_msg = original_message
@@ -1515,11 +1513,9 @@ class Connection(ConnectionHandlers):
 		# last date/time in history to avoid duplicate
 		if not self.last_history_time.has_key(room_jid):
 			# Not in memory, get it from DB
-			no_log_for = gajim.config.get_per('accounts', self.name, 'no_log_for')\
-				.split()
 			last_log = None
 			# Do not check if we are not logging for this room
-			if self.name not in no_log_for and room_jid not in no_log_for:
+			if gajim.config.should_log(self.name, room_jid):
 				# Check time first in the FAST table
 				last_log = gajim.logger.get_room_last_message_time(room_jid)
 				if last_log is None:

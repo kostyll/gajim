@@ -188,7 +188,7 @@ class EditGroupsDialog:
 		self.list.append_column(column)
 		renderer = gtk.CellRendererText()
 		column.pack_start(renderer)
-		column.set_attributes(renderer, text = 0)
+		column.set_attributes(renderer, text=0)
 
 		column = gtk.TreeViewColumn(_('In the group'))
 		column.set_expand(False)
@@ -197,7 +197,7 @@ class EditGroupsDialog:
 		column.pack_start(renderer)
 		renderer.set_property('activatable', True)
 		renderer.connect('toggled', self.group_toggled_cb)
-		column.set_attributes(renderer, active = 1, inconsistent = 2)
+		column.set_attributes(renderer, active=1, inconsistent=2)
 
 class PassphraseDialog:
 	'''Class for Passphrase dialog'''
@@ -280,7 +280,7 @@ class ChooseGPGKeyDialog:
 		col.set_sort_column_id(0)
 		renderer = gtk.CellRendererText()
 		col = self.keys_treeview.insert_column_with_attributes(-1,
-			_('Contact name'), renderer, text = 1)
+			_('Contact name'), renderer, text=1)
 		col.set_sort_column_id(1)
 		self.keys_treeview.set_search_column(1)
 		self.fill_tree(secret_keys, selected)
@@ -529,7 +529,7 @@ class ChangeMoodDialog:
 		self.window.destroy()
 
 class ChangeStatusMessageDialog:
-	def __init__(self, on_response, show = None):
+	def __init__(self, on_response, show=None):
 		self.show = show
 		self.on_response = on_response
 		self.xml = gtkgui_helpers.get_glade('change_status_message_dialog.glade')
@@ -673,8 +673,7 @@ class AddNewContactWindow:
 		'icq': _('ICQ Number:'),
 		'msn': _('MSN Address:'),
 		'yahoo': _('Yahoo! Address:')}
-	def __init__(self, account = None, jid = None, user_nick = None,
-	group = None):
+	def __init__(self, account=None, jid=None, user_nick=None, group=None):
 		self.account = account
 		if account is None:
 			# fill accounts with active accounts
@@ -1057,7 +1056,7 @@ class AboutDialog:
 			return None
 
 class Dialog(gtk.Dialog):
-	def __init__(self, parent, title, buttons, default = None,
+	def __init__(self, parent, title, buttons, default=None,
 	on_response_ok=None, on_response_cancel=None):
 		gtk.Dialog.__init__(self, title, parent, gtk.DIALOG_DESTROY_WITH_PARENT | gtk.DIALOG_NO_SEPARATOR)
 
@@ -1149,8 +1148,8 @@ class FileChooserDialog(gtk.FileChooserDialog):
 	select_multiple = False, current_folder = None, on_response_ok = None,
 	on_response_cancel = None):
 
-		gtk.FileChooserDialog.__init__(self, title = title_text,
-			action = action, buttons = buttons)
+		gtk.FileChooserDialog.__init__(self, title=title_text, action=action,
+			buttons=buttons)
 
 		self.set_default_response(default_response)
 		self.set_select_multiple(select_multiple)
@@ -1185,12 +1184,6 @@ class FileChooserDialog(gtk.FileChooserDialog):
 
 	def just_destroy(self, widget):
 		self.destroy()
-
-class BindPortError:
-	def __init__(self, port):
-		ErrorDialog(_('Unable to bind to port %s.') % port,
-			_('Maybe you have another running instance of Gajim. '
-			'File Transfer will be cancelled.'))
 
 class AspellDictError:
 	def __init__(self, lang):
@@ -1230,8 +1223,8 @@ class ConfirmationDialog(HigDialog):
 
 class NonModalConfirmationDialog(HigDialog):
 	'''HIG compliant non modal confirmation dialog.'''
-	def __init__(self, pritext, sectext='', on_response_ok = None,
-	on_response_cancel = None):
+	def __init__(self, pritext, sectext='', on_response_ok=None,
+	on_response_cancel=None):
 		self.user_response_ok = on_response_ok
 		self.user_response_cancel = on_response_cancel
 		HigDialog.__init__(self, None,
@@ -1324,8 +1317,8 @@ class YesNoDialog(HigDialog):
 
 class ConfirmationDialogCheck(ConfirmationDialog):
 	'''HIG compliant confirmation dialog with checkbutton.'''
-	def __init__(self, pritext, sectext='', checktext = '',
-	on_response_ok = None, on_response_cancel = None, is_modal = True):
+	def __init__(self, pritext, sectext='', checktext='',
+	on_response_ok=None, on_response_cancel=None, is_modal=True):
 		self.user_response_ok = on_response_ok
 		self.user_response_cancel = on_response_cancel
 
@@ -1339,7 +1332,7 @@ class ConfirmationDialogCheck(ConfirmationDialog):
 		ok_button.grab_focus()
 
 		self.checkbutton = gtk.CheckButton(checktext)
-		self.vbox.pack_start(self.checkbutton, expand = False, fill = True)
+		self.vbox.pack_start(self.checkbutton, expand=False, fill=True)
 		self.set_modal(is_modal)
 		self.popup()
 
@@ -1369,8 +1362,8 @@ class ConfirmationDialogCheck(ConfirmationDialog):
 
 class ConfirmationDialogDubbleCheck(ConfirmationDialog):
 	'''HIG compliant confirmation dialog with 2 checkbuttons.'''
-	def __init__(self, pritext, sectext='', checktext1 = '', checktext2 = '',
-	on_response_ok = None, on_response_cancel = None, is_modal = True):
+	def __init__(self, pritext, sectext='', checktext1='', checktext2='',
+	on_response_ok=None, on_response_cancel=None, is_modal=True):
 		self.user_response_ok = on_response_ok
 		self.user_response_cancel = on_response_cancel
 
@@ -1385,12 +1378,12 @@ class ConfirmationDialogDubbleCheck(ConfirmationDialog):
 
 		if checktext1:
 			self.checkbutton1 = gtk.CheckButton(checktext1)
-			self.vbox.pack_start(self.checkbutton1, expand = False, fill = True)
+			self.vbox.pack_start(self.checkbutton1, expand=False, fill=True)
 		else:
 			self.checkbutton1 = None
 		if checktext2:
 			self.checkbutton2 = gtk.CheckButton(checktext2)
-			self.vbox.pack_start(self.checkbutton2, expand = False, fill = True)
+			self.vbox.pack_start(self.checkbutton2, expand=False, fill=True)
 		else:
 			self.checkbutton2 = None
 
@@ -1564,7 +1557,7 @@ class DubbleInputDialog:
 		self.dialog.show_all()
 
 	def on_dubbleinput_dialog_destroy(self, widget):
-		if not cancel_handler:
+		if not self.cancel_handler:
 			return False
 		if isinstance(self.cancel_handler, tuple):
 			self.cancel_handler[0](*self.cancel_handler[1:])
@@ -1575,7 +1568,7 @@ class DubbleInputDialog:
 		user_input1 = self.input_entry1.get_text().decode('utf-8')
 		user_input2 = self.input_entry2.get_text().decode('utf-8')
 		self.dialog.destroy()
-		if not ok_handler:
+		if not self.ok_handler:
 			return
 		if isinstance(self.ok_handler, tuple):
 			self.ok_handler[0](user_input1, user_input2, *self.ok_handler[1:])
@@ -1819,10 +1812,10 @@ class SynchroniseSelectAccountDialog:
 		# columns
 		renderer = gtk.CellRendererText()
 		self.accounts_treeview.insert_column_with_attributes(-1,
-					_('Name'), renderer, text = 0)
+					_('Name'), renderer, text=0)
 		renderer = gtk.CellRendererText()
 		self.accounts_treeview.insert_column_with_attributes(-1,
-					_('Server'), renderer, text = 1)
+					_('Server'), renderer, text=1)
 
 		self.xml.signal_autoconnect(self)
 		self.init_accounts()
@@ -1880,10 +1873,10 @@ class SynchroniseSelectContactsDialog:
 		renderer1.set_property('activatable', True)
 		renderer1.connect('toggled', self.toggled_callback)
 		self.contacts_treeview.insert_column_with_attributes(-1,
-					_('Synchronise'), renderer1, active = 0)
+					_('Synchronise'), renderer1, active=0)
 		renderer2 = gtk.CellRendererText()
 		self.contacts_treeview.insert_column_with_attributes(-1,
-					_('Name'), renderer2, text = 1)
+					_('Name'), renderer2, text=1)
 
 		self.xml.signal_autoconnect(self)
 		self.init_contacts()
@@ -1942,7 +1935,7 @@ class NewChatDialog(InputDialog):
 		else:
 			title = _('Start Chat')
 		prompt_text = _('Fill in the nickname or the Jabber ID of the contact you would like\nto send a chat message to:')
-		InputDialog.__init__(self, title, prompt_text, is_modal = False)
+		InputDialog.__init__(self, title, prompt_text, is_modal=False)
 
 		self.completion_dict = {}
 		liststore = gtkgui_helpers.get_completion_liststore(self.input_entry)
@@ -2173,7 +2166,7 @@ class SingleMessageWindow:
 		parent_box = self.xml.get_widget('conversation_scrolledwindow').\
 			get_parent()
 		if form_node:
-			dataform = dataforms.ExtendForm(node = form_node)
+			dataform = dataforms.ExtendForm(node=form_node)
 			self.form_widget = dataforms_widget.DataFormWidget(dataform)
 			self.form_widget.show_all()
 			parent_box.add(self.form_widget)
@@ -2390,9 +2383,9 @@ class SingleMessageWindow:
 		# add > at the begining of each line
 		self.message = self.message.replace('\n', '\n> ') + '\n\n'
 		self.window.destroy()
-		SingleMessageWindow(self.account, to = self.from_whom,
-			action = 'send',	from_whom = self.from_whom, subject = self.subject,
-			message = self.message, session = self.session)
+		SingleMessageWindow(self.account, to=self.from_whom, action='send',
+			from_whom=self.from_whom, subject=self.subject, message=self.message,
+			session=self.session)
 
 	def on_send_and_close_button_clicked(self, widget):
 		self.send_single_message()
@@ -3175,8 +3168,8 @@ class AddSpecialNotificationDialog:
 			def on_cancel(widget):
 				widget.set_active(0) # go back to No Sound
 
-			self.dialog = SoundChooserDialog(on_response_ok = on_ok,
-				on_response_cancel = on_cancel)
+			self.dialog = SoundChooserDialog(on_response_ok=on_ok,
+				on_response_cancel=on_cancel)
 
 	def on_ok_button_clicked(self, widget):
 		conditions = ('online', 'chat', 'online_and_chat',
@@ -3229,14 +3222,14 @@ class AdvancedNotificationsWindow:
 		col = gtk.TreeViewColumn(_('#'))
 		self.conditions_treeview.append_column(col)
 		renderer = gtk.CellRendererText()
-		col.pack_start(renderer, expand = False)
-		col.set_attributes(renderer, text = 0)
+		col.pack_start(renderer, expand=False)
+		col.set_attributes(renderer, text=0)
 
 		col = gtk.TreeViewColumn(_('Condition'))
 		self.conditions_treeview.append_column(col)
 		renderer = gtk.CellRendererText()
-		col.pack_start(renderer, expand = True)
-		col.set_attributes(renderer, text = 1)
+		col.pack_start(renderer, expand=True)
+		col.set_attributes(renderer, text=1)
 
 		self.xml.signal_autoconnect(self)
 
@@ -3793,7 +3786,7 @@ class DataFormWindow(Dialog):
 		self.set_resizable(True)
 		gtkgui_helpers.resize_window(self, 600, 400)
 		self.dataform_widget =  dataforms_widget.DataFormWidget()
-		self.dataform = dataforms.ExtendForm(node = form)
+		self.dataform = dataforms.ExtendForm(node=form)
 		self.dataform_widget.set_sensitive(True)
 		self.dataform_widget.data_form = self.dataform
 		self.dataform_widget.show_all()
@@ -3817,6 +3810,7 @@ class ESessionInfoWindow:
 
 		self.security_image = self.xml.get_widget('security_image')
 		self.verify_now_button = self.xml.get_widget('verify_now_button')
+		self.button_label = self.xml.get_widget('button_label')
 		self.window = self.xml.get_widget('esession_info_window')
 		self.update_info()
 
@@ -3824,7 +3818,7 @@ class ESessionInfoWindow:
 		self.window.show_all()
 
 	def update_info(self):
-		labeltext = _('''Your chat session with %(jid)s is encrypted.\n\nThis session's Short Authentication String is %(sas)s.''') % {'jid': self.session.jid, 'sas': self.session.sas}
+		labeltext = _('''Your chat session with <b>%(jid)s</b> is encrypted.\n\nThis session's Short Authentication String is <b>%(sas)s</b>.''') % {'jid': self.session.jid, 'sas': self.session.sas}
 		dir = os.path.join(gajim.DATA_DIR, 'pixmaps')
 
 		if self.session.verified_identity:
@@ -3835,24 +3829,28 @@ class ESessionInfoWindow:
 					self.session.is_loggable(), True)
 			self.window.set_title(_('''Contact's identity verified'''))
 			self.xml.get_widget('dialog-action_area1').set_no_show_all(True) 
-			self.verify_now_button.hide()
+			self.button_label.set_text(_('Verify again...'))
 		else:
-			labeltext += '\n\n' + _('''To be certain that only the expected person can read your messages or send you messages, you need to verify their identity.''')
+			if self.session.control:
+				self.session.control._show_lock_image(True, 'E2E', True,
+					self.session.is_loggable(), False)
+			labeltext += '\n\n' + _('''To be certain that <b>only</b> the expected person can read your messages or send you messages, you need to verify their identity by clicking the button below.''')
 			security_image = 'security-low-big.png'
 			self.window.set_title(_('''Contact's identity NOT verified'''))
+			self.button_label.set_text(_('Verify...'))
 
 		path = os.path.join(dir, security_image)
 		filename = os.path.abspath(path)
 		self.security_image.set_from_file(filename)
 
-		self.xml.get_widget('info_display').set_text(labeltext)
+		self.xml.get_widget('info_display').set_markup(labeltext)
 
 	def on_close_button_clicked(self, widget):
 		self.window.destroy()
 
 	def on_verify_now_button_clicked(self, widget):
-		pritext = _('''Have you verified the remote contact's identity?''')
-		sectext = _('''To prevent a man-in-the-middle attack, you should speak to %(jid)s directly (in person or on the phone) and verify that they see the same Short Authentication String (SAS) as you.\n\nThis session's Short Authentication String is <b>%(sas)s</b>.''') % {'jid': self.session.jid, 'sas': self.session.sas}
+		pritext = _('''Have you verified the contact's identity?''')
+		sectext = _('''To prevent talking to an unknown person, you should speak to <b>%(jid)s</b> directly (in person or on the phone) and verify that they see the same Short Authentication String (SAS) as you.\n\nThis session's Short Authentication String is <b>%(sas)s</b>.''') % {'jid': self.session.jid, 'sas': self.session.sas}
 		sectext += '\n\n' + _('Did you talk to the remote contact and verify the SAS?')
 
 		def on_yes(checked):
@@ -3860,6 +3858,11 @@ class ESessionInfoWindow:
 			self.session.verified_identity = True
 			self.update_info()
 
-		YesNoDialog(pritext, sectext, on_response_yes=on_yes)
+		def on_no():
+			self.session._unverified_srs_cb()
+			self.session.verified_identity = False
+			self.update_info()
+
+		YesNoDialog(pritext, sectext, on_response_yes=on_yes, on_response_no=on_no)
 
 # vim: se ts=3:

@@ -1298,15 +1298,12 @@ class ChatControl(ChatControlBase):
 
 			if HAVE_MARKUP_TOOLTIPS:
 				self._tune_image.set_tooltip_markup(
-					_('<b>"%(title)s"</b> by ' +
-					'<i>%(artist)s</i>\n' +
-					'from <i>%(source)s</i>') % 
-					{'title': title, 'artist': artist,
+					_('<b>"%(title)s"</b> by <i>%(artist)s</i>\n'
+					'from <i>%(source)s</i>') % {'title': title, 'artist': artist,
 					'source': source})
 			else:
 				self._tune_tooltip.set_tip(self._tune_image,
-					_('%(title)s by %(artist)s\n' +
-					'from %(source)s') % {'title': title,
+					_('%(title)s by %(artist)s\nfrom %(source)s') % {'title': title,
 					'artist': artist, 'source': source})
 			self._tune_image.show()
 		else:
@@ -1335,16 +1332,14 @@ class ChatControl(ChatControlBase):
 		# do we have something bigger to show?
 		if avatar_w > scaled_buf_w or avatar_h > scaled_buf_h:
 			# wait for 0.5 sec in case we leave earlier
-			self.show_bigger_avatar_timeout_id = \
-				gobject.timeout_add(500,
+			self.show_bigger_avatar_timeout_id = gobject.timeout_add(500,
 				self.show_bigger_avatar, widget)
 
 	def on_avatar_eventbox_leave_notify_event(self, widget, event):
 		'''we left the eventbox area that holds the avatar img'''
 		# did we add a timeout? if yes remove it
 		if self.show_bigger_avatar_timeout_id is not None:
-			gobject.source_remove(
-				self.show_bigger_avatar_timeout_id)
+			gobject.source_remove(self.show_bigger_avatar_timeout_id)
 
 	def on_avatar_eventbox_button_press_event(self, widget, event):
 		'''If right-clicked, show popup'''
@@ -1521,6 +1516,7 @@ class ChatControl(ChatControlBase):
 			# Disable encryption
 			ec.remove(self.contact.jid)
 			self.gpg_is_active = False
+			loggable = False
 			msg = _('GPG encryption disabled')
 			ChatControlBase.print_conversation_line(self, msg,
 				'status', '', None)
@@ -1535,13 +1531,21 @@ class ChatControl(ChatControlBase):
 			ChatControlBase.print_conversation_line(self, msg,
 				'status', '', None)
 
+			loggable = gajim.config.get('log_encrypted_sessions')
+
 			if self.session:
-				self.session.loggable = gajim.config.get(
-					'log_encrypted_sessions');
-			if self.session and not self.session.is_loggable():
-				msg = _('Session WILL NOT be logged')
+				self.session.loggable = loggable
+
+				loggable = self.session.is_loggable()
 			else:
+				loggable = loggable and gajim.config.should_log(self.account,
+					self.contact.jid)
+
+			if loggable:
 				msg = _('Session WILL be logged')
+			else:
+				msg = _('Session WILL NOT be logged')
+
 			ChatControlBase.print_conversation_line(self, msg,
 				'status', '', None)
 
@@ -1553,8 +1557,7 @@ class ChatControl(ChatControlBase):
 			'gpg_enabled', self.gpg_is_active)
 
 		self._show_lock_image(self.gpg_is_active, 'GPG',
-			self.gpg_is_active,
-			self.session and self.session.is_loggable(), True)
+			self.gpg_is_active, loggable, True)
 
 	def _show_lock_image(self, visible, enc_type = '', enc_enabled = False, chat_logged = False, authenticated = False):
 		'''Set lock icon visibility and create tooltip'''
@@ -1572,10 +1575,13 @@ class ChatControl(ChatControlBase):
 			authenticated_string = _('and NOT authenticated')
 			self.lock_image.set_from_file(os.path.join(gajim.DATA_DIR, 'pixmaps', 'security-low.png'))
 
+		#status will become 'is' or 'is not', authentificaed will become
+		#'and authentificated' or 'and not authentificated', logged will become
+		#'will' or 'will not'
 		tooltip = _('%(type)s encryption %(status)s active %(authenticated)s.\n'
-			'Your chat session %(logged)s be logged.'\
-			% {'type': enc_type, 'status': status_string,
-			'authenticated': authenticated_string, 'logged': logged_string})
+			'Your chat session %(logged)s be logged.') % {'type': enc_type,
+			'status': status_string, 'authenticated': authenticated_string,
+			'logged': logged_string}
 
 		self.lock_tooltip.set_tip(self.authentication_button, tooltip)
 		self.widget_set_visible(self.authentication_button, not visible)
@@ -1829,23 +1835,22 @@ class ChatControl(ChatControlBase):
 			if self.session and self.session.enable_encryption:
 				# ESessions
 				if not encrypted:
-					msg = _('The following message was ' + \
-						'NOT encrypted')
-					ChatControlBase.print_conversation_line(
-						self, msg, 'status', '', tim)
+					msg = _('The following message was NOT encrypted')
+					ChatControlBase.print_conversation_line(self, msg, 'status', '',
+						tim)
 			else:
 				# GPG encryption
 				if encrypted and not self.gpg_is_active:
-					msg = _('The following message was ' + \
-						'encrypted')
-					ChatControlBase.print_conversation_line(
-						self, msg, 'status', '', tim)
-					self._toggle_gpg()
+					msg = _('The following message was encrypted')
+					ChatControlBase.print_conversation_line(self, msg, 'status', '',
+						tim)
+					# turn on OpenPGP if this was in fact a XEP-0027 encrypted message
+					if encrypted == 'xep27':
+						self._toggle_gpg()
 				elif not encrypted and self.gpg_is_active:
-					msg = _('The following message was ' + \
-						'NOT encrypted')
-					ChatControlBase.print_conversation_line(
-						self, msg, 'status', '', tim)
+					msg = _('The following message was NOT encrypted')
+					ChatControlBase.print_conversation_line(self, msg, 'status', '',
+						tim)
 			if not frm:
 				kind = 'incoming'
 				name = contact.get_shown_name()
@@ -1855,7 +1860,8 @@ class ChatControl(ChatControlBase):
 			else:
 				kind = 'outgoing'
 				name = gajim.nicks[self.account]
-				if not xhtml and not encrypted and gajim.config.get('rst_formatting_outgoing_messages'):
+				if not xhtml and not encrypted and gajim.config.get(
+				'rst_formatting_outgoing_messages'):
 					xhtml = create_xhtml(text)
 					if xhtml:
 						xhtml = '<body xmlns="%s">%s</body>' % (NS_XHTML, xhtml)
@@ -2343,7 +2349,7 @@ class ChatControl(ChatControlBase):
 				pending_how_many, timeout, self.account)
 		except exceptions.DatabaseMalformed:
 			dialogs.ErrorDialog(_('Database Error'),
-				_('The database file (%s) cannot be read. Try to repare it or remove it (all history will be lost).') % common.logger.LOG_DB_PATH)
+				_('The database file (%s) cannot be read. Try to repair it or remove it (all history will be lost).') % common.logger.LOG_DB_PATH)
 			rows = []
 		local_old_kind = None
 		for row in rows: # row[0] time, row[1] has kind, row[2] the message

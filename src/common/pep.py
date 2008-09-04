@@ -35,7 +35,7 @@ MOODS = {
 	'contented':		_('Contented'),		'cranky':		_('Cranky'),
 	'curious':			_('Curious'),			'depressed':	_('Depressed'),
 	'disappointed':	_('Disappointed'),	'disgusted':	_('Disgusted'),
-	'distracted':		_('Distracted'),		'embarrassed':	_('Embarassed'),
+	'distracted':		_('Distracted'),		'embarrassed':	_('Embarrassed'),
 	'excited':			_('Excited'),			'flirtatious':	_('Flirtatious'),
 	'frustrated':		_('Frustrated'),		'grumpy':		_('Grumpy'),
 	'guilty':			_('Guilty'),			'happy':			_('Happy'),
@@ -489,5 +489,37 @@ def user_retract_tune(account):
 
 def user_retract_nickname(account):
 	gajim.connections[account].send_pb_retract('', xmpp.NS_NICK, '0')
+
+def delete_pep(jid, name):
+	(user, resource) = gajim.get_room_and_nick_from_fjid(jid)
+
+	if jid == gajim.get_jid_from_account(name):
+		acc = gajim.connections[name]
+		del acc.activity
+		acc.activity = {}
+		del acc.tune
+		acc.tune = {}
+		del acc.mood
+		acc.mood = {}
+
+	for contact in gajim.contacts.get_contacts(name, user):
+		del contact.activity
+		contact.activity = {}
+		del contact.tune
+		contact.tune = {}
+		del contact.mood
+		contact.mood = {}
+
+	if jid == gajim.get_jid_from_account(name):
+		gajim.interface.roster.draw_account(name)
+
+	gajim.interface.roster.draw_activity(user, name)
+	gajim.interface.roster.draw_tune(user, name)
+	gajim.interface.roster.draw_mood(user, name)
+	ctrl = gajim.interface.msg_win_mgr.get_control(user, name)
+	if ctrl:
+		ctrl.update_activity()
+		ctrl.update_tune()
+		ctrl.update_mood()
 
 # vim: se ts=3:

@@ -171,6 +171,7 @@ class GroupchatControl(ChatControlBase):
 
 		self.is_continued=is_continued
 		self.is_anonymous = True
+		self.change_nick_dialog = None
 
 		self.actions_button = self.xml.get_widget('muc_window_actions_button')
 		id = self.actions_button.connect('clicked', self.on_actions_button_clicked)
@@ -627,14 +628,14 @@ class GroupchatControl(ChatControlBase):
 
 		return self.gc_popup_menu
 
-	def on_message(self, nick, msg, tim, has_timestamp = False, xhtml = None,
-	status_code = []):
+	def on_message(self, nick, msg, tim, has_timestamp=False, xhtml=None,
+	status_code=[]):
 		if '100' in status_code:
 			# Room is not anonymous
 			self.is_anonymous = False
 		if not nick:
 			# message from server
-			self.print_conversation(msg, tim = tim, xhtml = xhtml)
+			self.print_conversation(msg, tim=tim, xhtml=xhtml)
 		else:
 			# message from someone
 			if has_timestamp:
@@ -925,8 +926,8 @@ class GroupchatControl(ChatControlBase):
 			gc_contact = gajim.contacts.get_gc_contact(self.account, self.room_jid,
 				nick)
 			self.add_contact_to_roster(nick, gc_contact.show, gc_contact.role,
-						gc_contact.affiliation, gc_contact.status,
-						gc_contact.jid)
+				gc_contact.affiliation, gc_contact.status, gc_contact.jid)
+		self.draw_all_roles()
 		# Recalculate column width for ellipsizin
 		self.list_treeview.columns_autosize()
 
@@ -1004,6 +1005,22 @@ class GroupchatControl(ChatControlBase):
 			scaled_pixbuf = gtkgui_helpers.get_scaled_pixbuf(pixbuf, 'roster')
 		model[iter][C_AVATAR] = scaled_pixbuf
 
+	def draw_role(self, role):
+		role_iter = self.get_role_iter(role)
+		if not role_iter:
+			return
+		model = self.list_treeview.get_model()
+		role_name = helpers.get_uf_role(role, plural=True)
+		if gajim.config.get('show_contacts_number'):
+			nbr_role, nbr_total = gajim.contacts.get_nb_role_total_gc_contacts(
+				self.account, self.room_jid, role)
+			role_name += ' (%s/%s)' % (repr(nbr_role), repr(nbr_total))
+		model[role_iter][C_TEXT] = role_name
+
+	def draw_all_roles(self):
+		for role in ('visitor', 'participant', 'moderator'):
+			self.draw_role(role)
+
 	def chg_contact_status(self, nick, show, status, role, affiliation, jid,
 	reason, actor, statusCode, new_nick, avatar_sha, tim = None):
 		'''When an occupant changes his or her status'''
@@ -1016,6 +1033,15 @@ class GroupchatControl(ChatControlBase):
 			affiliation = 'none'
 		fake_jid = self.room_jid + '/' + nick
 		newly_created = False
+		nick_jid = nick
+
+		# Set to true if role or affiliation have changed
+		right_changed = False
+
+		if jid:
+			# delete ressource
+			simple_jid = gajim.get_jid_without_resource(jid)
+			nick_jid += ' (%s)' % simple_jid
 
 		# statusCode
 		# http://www.xmpp.org/extensions/xep-0045.html#registrar-statuscodes-init
@@ -1082,7 +1108,8 @@ class GroupchatControl(ChatControlBase):
 					puny_nick = helpers.sanitize_filename(nick)
 					puny_new_nick = helpers.sanitize_filename(new_nick)
 					old_path = os.path.join(gajim.VCARD_PATH, puny_jid, puny_nick)
-					new_path = os.path.join(gajim.VCARD_PATH, puny_jid, puny_new_nick)
+					new_path = os.path.join(gajim.VCARD_PATH, puny_jid,
+						puny_new_nick)
 					files = {old_path: new_path}
 					path = os.path.join(gajim.AVATAR_PATH, puny_jid)
 					# possible extensions
@@ -1116,6 +1143,7 @@ class GroupchatControl(ChatControlBase):
 
 			if len(gajim.events.get_events(self.account, fake_jid)) == 0:
 				self.remove_contact(nick)
+				self.draw_all_roles()
 			else:
 				c = gajim.contacts.get_gc_contact(self.account, self.room_jid, nick)
 				c.show = show
@@ -1135,6 +1163,7 @@ class GroupchatControl(ChatControlBase):
 				iter = self.add_contact_to_roster(nick, show, role, affiliation,
 					status, jid)
 				newly_created = True
+				self.draw_all_roles()
 				if statusCode and '201' in statusCode: # We just created the room
 					gajim.connections[self.account].request_gc_config(self.room_jid)
 			else:
@@ -1172,11 +1201,38 @@ class GroupchatControl(ChatControlBase):
 						# save sha in mem NOW
 						con.vcard_shas[fake_jid] = avatar_sha
 
+				actual_affiliation = gc_c.affiliation
+				if affiliation != actual_affiliation:
+					if actor:
+						st = _('** Affiliation of %(nick)s has been set to '
+							'%(affiliation)s by %(actor)s') % {'nick': nick_jid,
+							'affiliation': affiliation, 'actor': actor}
+					else:
+						st = _('** Affiliation of %(nick)s has been set to '
+							'%(affiliation)s') % {'nick': nick_jid,
+							'affiliation': affiliation}
+					if reason:
+						st += ' (%s)' % reason
+					self.print_conversation(st, tim=tim)
+					right_changed = True
 				actual_role = self.get_role(nick)
 				if role != actual_role:
 					self.remove_contact(nick)
 					self.add_contact_to_roster(nick, show, role,
 						affiliation, status, jid)
+					self.draw_role(actual_role)
+					self.draw_role(role)
+					if actor:
+						st = _('** Role of %(nick)s has been set to %(role)s by '
+							'%(actor)s') % {'nick': nick_jid, 'role': role,
+							'actor': actor}
+					else:
+						st = _('** Role of %(nick)s has been set to %(role)s') % {
+							'nick': nick_jid, 'role': role}
+					if reason:
+						st += ' (%s)' % reason
+					self.print_conversation(st, tim=tim)
+					right_changed = True
 				else:
 					if gc_c.show == show and gc_c.status == status and \
 						gc_c.affiliation == affiliation: # no change
@@ -1185,9 +1241,8 @@ class GroupchatControl(ChatControlBase):
 					gc_c.affiliation = affiliation
 					gc_c.status = status
 					self.draw_contact(nick)
-		if (time.time() - self.room_creation) > 30 and \
-				nick != self.nick and (not statusCode or \
-				'303' not in statusCode):
+		if (time.time() - self.room_creation) > 30 and nick != self.nick and \
+		(not statusCode or '303' not in statusCode) and not right_changed:
 			st = ''
 			print_status = None
 			for bookmark in gajim.connections[self.account].bookmarks:
@@ -1196,11 +1251,6 @@ class GroupchatControl(ChatControlBase):
 					break
 			if not print_status:
 				print_status = gajim.config.get('print_status_in_muc')
-			nick_jid = nick
-			if jid:
-				# delete ressource
-				simple_jid = gajim.get_jid_without_resource(jid)
-				nick_jid += ' (%s)' % simple_jid
 			if show == 'offline':
 				if nick in self.attention_list:
 					self.attention_list.remove(nick)
@@ -1218,12 +1268,12 @@ class GroupchatControl(ChatControlBase):
 			if st:
 				if status:
 					st += ' (' + status + ')'
-				self.print_conversation(st, tim = tim)
+				self.print_conversation(st, tim=tim)
 
 	def add_contact_to_roster(self, nick, show, role, affiliation, status,
-	jid = ''):
+	jid=''):
 		model = self.list_treeview.get_model()
-		role_name = helpers.get_uf_role(role, plural = True)
+		role_name = helpers.get_uf_role(role, plural=True)
 
 		resource = ''
 		if jid:
@@ -1240,7 +1290,8 @@ class GroupchatControl(ChatControlBase):
 		if not role_iter:
 			role_iter = model.append(None,
 				(gajim.interface.jabber_state_images['16']['closed'], role, 
-				'role', '%s' % role_name,  None))
+				'role', role_name,  None))
+			self.draw_all_roles()
 		iter = model.append(role_iter, (None, nick, 'contact', name, None))
 		if not nick in gajim.contacts.get_nick_list(self.account, self.room_jid):
 			gc_contact = gajim.contacts.create_gc_contact(room_jid = self.room_jid,
@@ -1589,10 +1640,14 @@ class GroupchatControl(ChatControlBase):
 		else:
 			return 'visitor'
 
-	def show_change_nick_input_dialog(self, title, prompt, proposed_nick = None):
+	def show_change_nick_input_dialog(self, title, prompt):
 		'''asks user for new nick and on ok it sets it on room'''
+		if self.change_nick_dialog:
+			# A dialog is already opened
+			return
 		def on_ok(widget):
-			nick = instance.input_entry.get_text().decode('utf-8')
+			nick = self.change_nick_dialog.input_entry.get_text().decode('utf-8')
+			self.change_nick_dialog = None
 			try:
 				nick = helpers.parse_resource(nick)
 			except:
@@ -1602,7 +1657,7 @@ class GroupchatControl(ChatControlBase):
 				return
 			gajim.connections[self.account].join_gc(nick, self.room_jid, None)
 			if gajim.gc_connected[self.account][self.room_jid]:
-				# We are changing nick, we will change self.nick when we receive 
+				# We are changing nick, we will change self.nick when we receive
 				# presence that inform that it works
 				self.new_nick = nick
 			else:
@@ -1610,9 +1665,12 @@ class GroupchatControl(ChatControlBase):
 				# change it NOW. We don't already have a nick so it's harmless
 				self.nick = nick
 		def on_cancel():
-			self.new_nick = '' 
-		instance = dialogs.InputDialog(title, prompt, proposed_nick,
-			is_modal = False, ok_handler = on_ok, cancel_handler = on_cancel)
+			self.change_nick_dialog = None
+			self.new_nick = ''
+		proposed_nick = self.nick + gajim.config.get('gc_proposed_nick_char')
+		self.change_nick_dialog = dialogs.InputDialog(title, prompt,
+			proposed_nick, is_modal=False, ok_handler=on_ok,
+			cancel_handler=on_cancel)
 
 	def minimize(self, status='offline'):
 		# Minimize it
@@ -1744,7 +1802,7 @@ class GroupchatControl(ChatControlBase):
 	def _on_change_nick_menuitem_activate(self, widget):
 		title = _('Changing Nickname')
 		prompt = _('Please specify the new nickname you want to use:')
-		self.show_change_nick_input_dialog(title, prompt, self.nick)
+		self.show_change_nick_input_dialog(title, prompt)
 
 	def _on_configure_room_menuitem_activate(self, widget):
 		c = gajim.contacts.get_gc_contact(self.account, self.room_jid, self.nick)

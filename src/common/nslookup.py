@@ -24,6 +24,7 @@
 import sys
 import os
 import re
+from common import helpers
 
 from xmpp.idlequeue import *
 
@@ -109,13 +110,20 @@ class Resolver:
 		# _xmpp-client._tcp.jabber.org    service = 30 30 5222 jabber.org.
 		if not result: 
 			return []
+		ufqdn = helpers.ascii_to_idn(fqdn) # Unicode domain name
 		hosts = []
 		lines = result.split('\n')
 		for line in lines:
 			if line == '':
 				continue
+			domain = None
 			if line.startswith(fqdn):
-				rest = line[len(fqdn):].split('=')
+				domain = fqdn
+			elif helpers.decode_string(line).startswith(ufqdn):
+				line = helpers.decode_string(line)
+				domain = ufqdn
+			if domain:
+				rest = line[len(domain):].split('=')
 				if len(rest) != 2:
 					continue
 				answer_type, props_str = rest
@@ -185,7 +193,7 @@ class IdleCommand(IdleObject):
 		# if it is True, we can safetely execute the command
 		self.canexecute = True
 		self.idlequeue = None
-		self.result =''
+		self.result = ''
 	
 	def set_idlequeue(self, idlequeue):
 		self.idlequeue = idlequeue
