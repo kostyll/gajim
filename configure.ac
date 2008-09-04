@@ -181,7 +181,7 @@ if test x"$enable_carbon" = x"yes";then
         AC_SUBST(MSGFMT, msgfmt)
         AC_SUBST(XGETTEXT, xgettext)
      fi
-     AC_SUBST(OSX_IDLEMODULE, "idle")
+     AC_SUBST(OSX_IDLEMODULE, "idle_c")
   else
      AC_SUBST(OSX_IDLEMODULE, "")
      have_carbon=false
