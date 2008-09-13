@@ -2031,9 +2031,15 @@ class RosterWindow:
 			del gajim.interface.status_sent_to_users[account][contact.jid]
 
 		# Delete pep if needed
-		keep_pep = any(c.show not in ('error', 'offline') for c in
-			contact_instances)
-		if not keep_pep and not contact.is_groupchat():
+		#FIXME: py2.5only
+#		keep_pep = any(c.show not in ('error', 'offline') for c in
+#			contact_instances)
+		keep_pep = False
+		for c in contact_instances:
+			if c.show not in ('error', 'offline'):
+				keep_pep = True
+		if not keep_pep and contact.jid != gajim.get_jid_from_account(account) \
+		and not contact.is_groupchat():
 			pep.delete_pep(contact.jid, account)
 
 		# Redraw everything and select the sender
@@ -3085,7 +3091,8 @@ class RosterWindow:
 				if contact.sub != 'to' and is_checked:
 					remove_auth = False
 			for (contact, account) in list_:
-				gajim.connections[account].unsubscribe(contact.jid, remove_auth)
+				if _('Not in Roster') not in contact.get_shown_groups():
+					gajim.connections[account].unsubscribe(contact.jid, remove_auth)
 				self.remove_contact(contact.jid, account, backend=True)
 				if not remove_auth and contact.sub == 'both':
 					contact.name = ''
@@ -3107,6 +3114,10 @@ class RosterWindow:
 				dialogs.ConfirmationDialog(pritext,
 					_('By removing this contact you also remove authorization '
 					'resulting in him or her always seeing you as offline.'),
+					on_response_ok = (on_ok2, list_))
+			elif _('Not in Roster') in contact.get_shown_groups():
+				# Contact is not in roster
+				dialogs.ConfirmationDialog(pritext, _('Do you want to continue?'),
 					on_response_ok = (on_ok2, list_))
 			else:
 				dialogs.ConfirmationDialogCheck(pritext,
@@ -5163,6 +5174,13 @@ class RosterWindow:
 			add_special_notification_menuitem = xml.get_widget(
 				'add_special_notification_menuitem')
 
+			# add a special img for send file menuitem
+			path_to_upload_img = os.path.join(gajim.DATA_DIR, 'pixmaps',
+				'upload.png')
+			img = gtk.Image()
+			img.set_from_file(path_to_upload_img)
+			send_file_menuitem.set_image(img)
+
 			if not our_jid:
 				# add a special img for rename menuitem
 				path_to_kbd_input_img = os.path.join(gajim.DATA_DIR, 'pixmaps',
@@ -5284,6 +5302,12 @@ class RosterWindow:
 			'add_special_notification_menuitem')
 		execute_command_menuitem = xml.get_widget(
 			'execute_command_menuitem')
+
+		# add a special img for send file menuitem
+		path_to_upload_img = os.path.join(gajim.DATA_DIR, 'pixmaps', 'upload.png')
+		img = gtk.Image()
+		img.set_from_file(path_to_upload_img)
+		send_file_menuitem.set_image(img)
 
 		# send custom status icon
 		blocked = False
