@@ -124,8 +124,10 @@ class PreferencesWindow:
 			set_active(st)
 
 		# Sort contacts by show
-		st = gajim.config.get('sort_by_show')
-		self.xml.get_widget('sort_by_show_checkbutton').set_active(st)
+		st = gajim.config.get('sort_by_show_in_roster')
+		self.xml.get_widget('sort_by_show_in_roster_checkbutton').set_active(st)
+		st = gajim.config.get('sort_by_show_in_muc')
+		self.xml.get_widget('sort_by_show_in_muc_checkbutton').set_active(st)
 
 		# emoticons
 		emoticons_combobox = self.xml.get_widget('emoticons_combobox')
@@ -529,9 +531,19 @@ class PreferencesWindow:
 				w.set_sensitive(widget.get_active())
 		gajim.interface.save_config()
 
-	def on_sort_by_show_checkbutton_toggled(self, widget):
-		self.on_checkbutton_toggled(widget, 'sort_by_show')
+	def on_sort_by_show_in_roster_checkbutton_toggled(self, widget):
+		self.on_checkbutton_toggled(widget, 'sort_by_show_in_roster')
 		gajim.interface.roster.setup_and_draw_roster()
+
+	def on_sort_by_show_in_muc_checkbutton_toggled(self, widget):
+		self.on_checkbutton_toggled(widget, 'sort_by_show_in_muc')
+		# Redraw connected groupchats
+		for account in gajim.connections:
+			if gajim.connections[account].connected:
+				for gc_control in gajim.interface.msg_win_mgr.get_controls(
+				message_control.TYPE_GC) + \
+				gajim.interface.minimized_controls[account].values():
+					gc_control.draw_roster()
 
 	def on_show_avatars_in_roster_checkbutton_toggled(self, widget):
 		self.on_checkbutton_toggled(widget, 'show_avatars_in_roster')
@@ -540,9 +552,9 @@ class PreferencesWindow:
 		for account in gajim.connections:
 			if gajim.connections[account].connected:
 				for gc_control in gajim.interface.msg_win_mgr.get_controls(
-					message_control.TYPE_GC) + \
-					gajim.interface.minimized_controls[account].values():
-						gc_control.draw_roster()
+				message_control.TYPE_GC) + \
+				gajim.interface.minimized_controls[account].values():
+					gc_control.draw_roster()
 
 	def on_show_status_msgs_in_roster_checkbutton_toggled(self, widget):
 		self.on_checkbutton_toggled(widget, 'show_status_msgs_in_roster')
@@ -561,10 +573,6 @@ class PreferencesWindow:
 
 	def on_show_tunes_in_roster_checkbutton_toggled(self, widget):
 		self.on_checkbutton_toggled(widget, 'show_tunes_in_roster')
-		gajim.interface.roster.setup_and_draw_roster()
-
-	def on_sort_by_show_checkbutton_toggled(self, widget):
-		self.on_checkbutton_toggled(widget, 'sort_by_show')
 		gajim.interface.roster.setup_and_draw_roster()
 
 	def on_emoticons_combobox_changed(self, widget):
@@ -1361,10 +1369,10 @@ class AccountsWindow:
 			iter = model.append()
 			model.set(iter, 0, account)
 
-	def resend(self):
-		show = gajim.SHOW_LIST[gajim.connections[self.current_account].connected]
-		status = gajim.connections[self.current_account].status
-		gajim.connections[self.current_account].change_status(show, status)
+	def resend(self, account):
+		show = gajim.SHOW_LIST[gajim.connections[account].connected]
+		status = gajim.connections[account].status
+		gajim.connections[account].change_status(show, status)
 
 	def check_resend_relog(self):
 		if self.need_relogin and self.current_account == gajim.ZEROCONF_ACC_NAME:
@@ -1382,26 +1390,25 @@ class AccountsWindow:
 				gajim.interface.roster.send_status(account, show_before,
 					status_before)
 
-			def relog():
+			def relog(account):
 				self.dialog.destroy()
-				show_before = gajim.SHOW_LIST[gajim.connections[
-					self.current_account].connected]
-				status_before = gajim.connections[self.current_account].status
-				gajim.interface.roster.send_status(self.current_account, 'offline',
+				show_before = gajim.SHOW_LIST[gajim.connections[account].connected]
+				status_before = gajim.connections[account].status
+				gajim.interface.roster.send_status(account, 'offline',
 					_('Be right back.'))
-				gobject.timeout_add(500, login, self.current_account, show_before,
-					status_before)
+				gobject.timeout_add(500, login, account, show_before, status_before)
 
-			def on_yes(checked):
-				relog()
-			def on_no():
+			def on_yes(checked, account):
+				relog(account)
+			def on_no(account):
 				if self.resend_presence:
-					self.resend()
+					self.resend(account)
 			self.dialog = dialogs.YesNoDialog(_('Relogin now?'),
 				_('If you want all the changes to apply instantly, '
-				'you must relogin.'), on_response_yes=on_yes, on_response_no=on_no)
+				'you must relogin.'), on_response_yes=(on_yes,
+				self.current_account), on_response_no=(on_no, self.current_account))
 		elif self.resend_presence:
-			self.resend()
+			self.resend(self.current_account)
 
 		self.need_relogin = False
 		self.resend_presence = False

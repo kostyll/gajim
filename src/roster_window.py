@@ -732,18 +732,23 @@ class RosterWindow:
 
 		'''
 		contact = gajim.contacts.get_contact_with_highest_priority(account, jid)
-
-		iters = self._get_contact_iter(jid, account, contact, self.model)
-		if not iters:
+		if not contact:
 			return
 
-		if not force and self.contact_has_pending_roster_events(contact, account):
-			# Contact has pending events
+		if not force and (self.contact_has_pending_roster_events(contact,
+		account) or gajim.interface.msg_win_mgr.get_control(jid, account)):
+			# Contact has pending events or window
+			#TODO: or single message windows? Bur they are not listed for the
+			# moment
 			key = (jid, account)
 			if not key in self.contacts_to_be_removed:
 				self.contacts_to_be_removed[key] = {'backend': backend}
-			return False
-		else:
+			# if more pending event, don't remove from roster
+			if self.contact_has_pending_roster_events(contact, account):
+				return False
+
+		iters = self._get_contact_iter(jid, account, contact, self.model)
+		if iters:
 			# no more pending events
 			# Remove contact from roster directly
 			family = gajim.contacts.get_metacontacts_family(account, jid)
@@ -753,27 +758,29 @@ class RosterWindow:
 			else:
 				self._remove_entity(contact, account)
 
-			if backend:
-				# Remove contact before redrawing, otherwise the old
-				# numbers will still be show
-				gajim.contacts.remove_jid(account, jid, remove_meta=True)
-				if family:
-					# reshow the rest of the family
-					brothers = self._add_metacontact_family(family, account)
-					for c, acc in brothers:
-						self.draw_contact(c.jid, acc)
-						self.draw_mood(c.jid, acc)
-						self.draw_activity(c.jid, acc)
-						self.draw_tune(c.jid, acc)
-						self.draw_avatar(c.jid, acc)
+		if backend and (not gajim.interface.msg_win_mgr.get_control(jid, account)\
+		or force):
+			# If a window is still opened: don't remove contact instance
+			# Remove contact before redrawing, otherwise the old
+			# numbers will still be show
+			gajim.contacts.remove_jid(account, jid, remove_meta=True)
+			if iters and family:
+				# reshow the rest of the family
+				brothers = self._add_metacontact_family(family, account)
+				for c, acc in brothers:
+					self.draw_contact(c.jid, acc)
+					self.draw_mood(c.jid, acc)
+					self.draw_activity(c.jid, acc)
+					self.draw_tune(c.jid, acc)
+					self.draw_avatar(c.jid, acc)
 
+		if iters:
 			# Draw all groups of the contact
 			for group in contact.get_shown_groups():
 				self.draw_group(group, account)
 			self.draw_account(account)
 
-			return True
-
+		return True
 
 	def add_groupchat(self, jid, account, status=''):
 		'''Add groupchat to roster and draw it.
@@ -1554,10 +1561,10 @@ class RosterWindow:
 			if not contact2:
 				return 0
 			name2 = contact2.get_shown_name()
-		# We first compare by show if sort_by_show is True or if it's a child
-		# contact
+		# We first compare by show if sort_by_show_in_roster is True or if it's a
+		# child contact
 		if type1 == 'contact' and type2 == 'contact' and \
-		gajim.config.get('sort_by_show'):
+		gajim.config.get('sort_by_show_in_roster'):
 			cshow = {'online':0, 'chat': 1, 'away': 2, 'xa': 3, 'dnd': 4,
 				'invisible': 5, 'offline': 6, 'not in roster': 7, 'error': 8}
 			s = self.get_show(lcontact1)
@@ -1749,7 +1756,8 @@ class RosterWindow:
 					continue
 				pep.user_send_tune(account, artist, title, source)
 				gajim.connections[account].music_track_info = music_track_info
-		elif gajim.connections[account].pep_supported:
+		elif account in gajim.connections and \
+		gajim.connections[account].pep_supported:
 			if gajim.connections[account].music_track_info != music_track_info:
 				pep.user_send_tune(account, artist, title, source)
 				gajim.connections[account].music_track_info = music_track_info
@@ -5523,11 +5531,14 @@ class RosterWindow:
 		list_ = [] # list of (jid, account) tuples
 		one_account_offline = False
 		is_blocked = True
+		privacy_rules_supported = True
 		for titer in iters:
 			jid = model[titer][C_JID].decode('utf-8')
 			account = model[titer][C_ACCOUNT].decode('utf-8')
 			if gajim.connections[account].connected < 2:
 				one_account_offline = True
+			if not gajim.connections[account].privacy_rules_supported:
+				privacy_rules_supported = False
 			contact = gajim.contacts.get_contact_with_highest_priority(account,
 				jid)
 			if jid not in gajim.connections[account].blocked_contacts:
@@ -5581,7 +5592,7 @@ class RosterWindow:
 		manage_contacts_submenu.append(item)
 
 		# Block
-		if is_blocked and gajim.connections[account].privacy_rules_supported:
+		if is_blocked and privacy_rules_supported:
 			unblock_menuitem = gtk.ImageMenuItem(_('_Unblock'))
 			icon = gtk.image_new_from_stock(gtk.STOCK_STOP, gtk.ICON_SIZE_MENU)
 			unblock_menuitem.set_image(icon)
@@ -5594,7 +5605,7 @@ class RosterWindow:
 			block_menuitem.connect('activate', self.on_block, list_)
 			manage_contacts_submenu.append(block_menuitem)
 
-			if not gajim.connections[account].privacy_rules_supported:
+			if not privacy_rules_supported:
 				block_menuitem.set_sensitive(False)
 
 		# Remove
