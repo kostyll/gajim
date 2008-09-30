@@ -122,20 +122,6 @@ fi
 AC_SUBST(PYTHON_FLAGS, $PYTHON_FLAGS)
 
 dnl ****
-dnl tray icon
-dnl ****
-AC_ARG_ENABLE(trayicon,
-  [  --disable-trayicon      do not build trayicon module [default yes]],
-  enable_trayicon=$enableval, enable_trayicon=yes)
-if test "x$enable_trayicon" = "xyes"; then
-	have_trayicon=true
-	AC_SUBST(TRAYMODULE, traymodule)
-else
-	have_trayicon=false
-	AC_SUBST(TRAYMODULE,)
-fi
-
-dnl ****
 dnl Cocoa
 dnl ****
 AC_ARG_ENABLE([cocoa],
@@ -188,8 +174,20 @@ if test x"$enable_carbon" = x"yes";then
      have_idle_osx=false
   fi
 fi
-AM_CONDITIONAL(BUILD_IDLE_OSX, $have_carbon)
-AM_CONDITIONAL(BUILD_CARBON, $have_carbon)
+
+dnl ****
+dnl tray icon
+dnl ****
+AC_ARG_ENABLE(trayicon,
+  [  --disable-trayicon      do not build trayicon module [default yes]],
+  enable_trayicon=$enableval, enable_trayicon=yes)
+if test "x$enable_trayicon" = "xyes" -a "x$have_cocoa" = "xyes"; then
+	have_trayicon=true
+	AC_SUBST(TRAYMODULE, traymodule)
+else
+	have_trayicon=false
+	AC_SUBST(TRAYMODULE,)
+fi
 
 ACLOCAL_AMFLAGS="\${ACLOCAL_FLAGS}"
 AC_SUBST(ACLOCAL_AMFLAGS)

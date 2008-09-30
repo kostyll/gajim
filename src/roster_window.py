@@ -74,7 +74,7 @@ from common.xmpp.protocol import NS_COMMANDS, NS_FILE, NS_MUC
 from common.pep import MOODS, ACTIVITIES
 
 try:
-	from osx import syncmenu
+	from osx.syncmenu import syncmenu
 except ImportError:
 	pass
 
