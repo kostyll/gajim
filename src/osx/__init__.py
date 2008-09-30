@@ -27,8 +27,6 @@ def init():
 
 
 def shutdown():
-	import dbus
-	dbus.shutdown()
 	return
 
 

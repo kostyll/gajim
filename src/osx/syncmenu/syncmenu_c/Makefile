@@ -1,7 +1,7 @@
 # Python calls these .so, even on OS X, which is very wrong. It should be .impl!
 PLUGIN = syncmenu.so
 SRCS = pysyncmenu.c \
-       sync-menu.c
+       syncmenu.c
 
 include ../../../../buildsys.mk
 include ../../../../extra.mk

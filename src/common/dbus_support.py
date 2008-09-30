@@ -32,12 +32,6 @@ from common import exceptions
 _GAJIM_ERROR_IFACE = 'org.gajim.dbus.Error'
 
 try:
-	if sys.platform == 'darwin':
-		try:
-			import osx.dbus
-			osx.dbus.load(True)
-		except ImportError:
-			pass
 	import dbus
 	import dbus.service
 	import dbus.glib

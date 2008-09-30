@@ -1,5 +1,5 @@
 /*
-## src/osx/syncmenu/pysyncmenu.c
+## src/osx/syncmenu/syncmenu_c/pysyncmenu.c
 ##
 ## Copyright (C) 2007 Yann Leboulanger <asterix AT lagaule.org>
 ##
@@ -23,7 +23,7 @@
 #include <string.h>
 #include <Python.h>
 #include <pygobject.h>
-#include "sync-menu.h"
+#include "syncmenu.h"
 
 
 PyDoc_STRVAR(pysync_menu_takeover_menu__doc__,

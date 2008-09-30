@@ -23,7 +23,7 @@
 
 #include <Carbon/Carbon.h>
 
-#include "sync-menu.h"
+#include "syncmenu.h"
 
 
 /* TODO
