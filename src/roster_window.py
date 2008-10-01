@@ -1565,7 +1565,7 @@ class RosterWindow:
 		# child contact
 		if type1 == 'contact' and type2 == 'contact' and \
 		gajim.config.get('sort_by_show_in_roster'):
-			cshow = {'online':0, 'chat': 1, 'away': 2, 'xa': 3, 'dnd': 4,
+			cshow = {'chat':0, 'online': 1, 'away': 2, 'xa': 3, 'dnd': 4,
 				'invisible': 5, 'offline': 6, 'not in roster': 7, 'error': 8}
 			s = self.get_show(lcontact1)
 			if s in cshow:
@@ -2003,7 +2003,7 @@ class RosterWindow:
 
 			# Remove resource when going offline
 			if show in ('offline', 'error') and \
-			len(gajim.events.get_events(account, fjid)) == 0:
+			not self.contact_has_pending_roster_events(contact, account):
 				ctrl = gajim.interface.msg_win_mgr.get_control(fjid, account)
 				if ctrl:
 					ctrl.update_ui()

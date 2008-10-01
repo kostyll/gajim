@@ -132,6 +132,11 @@ class PrivateChatControl(ChatControl):
 		if not message:
 			return
 
+		message = helpers.remove_invalid_xml_chars(message)
+
+		if not message:
+			return
+
 		# We need to make sure that we can still send through the room and that
 		# the recipient did not go away
 		contact = gajim.contacts.get_first_contact_from_jid(self.account,
@@ -403,7 +408,7 @@ class GroupchatControl(ChatControlBase):
 				return 0
 		if type1 == 'contact' and type2 == 'contact' and \
 		gajim.config.get('sort_by_show_in_muc'):
-			cshow = {'online':0, 'chat': 1, 'away': 2, 'xa': 3, 'dnd': 4,
+			cshow = {'chat':0, 'online': 1, 'away': 2, 'xa': 3, 'dnd': 4,
 				'invisible': 5, 'offline': 6, 'error': 7}
 			show1 = cshow[gc_contact1.show]
 			show2 = cshow[gc_contact2.show]
@@ -1187,7 +1192,8 @@ class GroupchatControl(ChatControlBase):
 				elif 'destroyed' in statusCode: # Room has been destroyed
 					self.print_conversation(reason, 'info', tim)
 
-			if len(gajim.events.get_events(self.account, fake_jid)) == 0:
+			if len(gajim.events.get_events(self.account, jid=fake_jid,
+			types=['pm'])) == 0:
 				self.remove_contact(nick)
 				self.draw_all_roles()
 			else:
@@ -1603,6 +1609,11 @@ class GroupchatControl(ChatControlBase):
 
 	def send_message(self, message):
 		'''call this function to send our message'''
+		if not message:
+			return
+
+		message = helpers.remove_invalid_xml_chars(message)
+
 		if not message:
 			return
 

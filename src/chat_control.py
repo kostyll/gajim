@@ -2188,7 +2188,8 @@ class ChatControl(ChatControlBase):
 		# Remove contact instance if contact has been removed
 		key = (self.contact.jid, self.account)
 		roster = gajim.interface.roster
-		if key in roster.contacts_to_be_removed.keys():
+		if key in roster.contacts_to_be_removed.keys() and \
+		not roster.contact_has_pending_roster_events(self.contact, self.account):
 			backend = roster.contacts_to_be_removed[key]['backend']
 			del roster.contacts_to_be_removed[key]
 			roster.remove_contact(self.contact.jid, self.account, force=True,
@@ -2411,9 +2412,6 @@ class ChatControl(ChatControlBase):
 		if self.resource:
 			jid_with_resource += '/' + self.resource
 		events = gajim.events.get_events(self.account, jid_with_resource)
-
-		if hasattr(self, 'session') and self.session and self.session.enable_encryption:
-			self.print_esession_details()
 
 		# list of message ids which should be marked as read
 		message_ids = []
