@@ -4774,9 +4774,12 @@ class RosterWindow:
 			advanced_menuitem.set_submenu(advanced_sub_menu)
 			advanced_sub_menu.show_all()
 
+		# XXX: Is this the right place to do the conversion?
 		if sys.platform == 'darwin':
 			try:
-				syncmenu.takeover_menu(self.xml.get_widget('menubar'))
+				menubar = self.xml.get_widget('menubar')
+				syncmenu.takeover_menu(menubar)
+				menubar.hide()
 			except NameError:
 				pass
 
