@@ -12,6 +12,7 @@ SRCS = adhoc_commands.py		\
        dataforms_widget.py		\
        dialogs.py			\
        disco.py				\
+       dock.py				\
        features_window.py		\
        filetransfers_window.py		\
        gajim-remote.py			\
