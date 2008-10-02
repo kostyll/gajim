@@ -57,6 +57,13 @@ if os.name == 'nt':
 
 import sys
 
+# We need to import this early
+if sys.platform == 'darwin':
+	try:
+		import objc
+	except NameError:
+		pass
+
 import logging
 consoleloghandler = logging.StreamHandler()
 consoleloghandler.setLevel(1)

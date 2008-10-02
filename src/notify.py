@@ -28,6 +28,7 @@
 ##
 
 import os
+import sys
 import time
 import dialogs
 import gobject
@@ -56,6 +57,11 @@ try:
 	osx.growler.init()
 except:
 	USER_HAS_GROWL = False
+
+try:
+	from AppKit import *
+except ImportError:
+	pass
 
 def get_show_in_roster(event, account, contact, session=None):
 	'''Return True if this event must be shown in roster, else False'''
@@ -142,6 +148,7 @@ def notify(event, jid, account, parameters, advanced_notif_num=None):
 	# First, find what notifications we want
 	do_popup = False
 	do_sound = False
+	do_bounce = False
 	do_cmd = False
 	if event == 'status_change':
 		new_show = parameters[0]
@@ -196,6 +203,8 @@ def notify(event, jid, account, parameters, advanced_notif_num=None):
 		helpers.allow_sound_notification('next_message_received_unfocused',
 		advanced_notif_num):
 			do_sound = True
+		if not focused:
+			do_bounce = True
 	else:
 		print '*Event not implemeted yet*'
 
@@ -307,6 +316,13 @@ def notify(event, jid, account, parameters, advanced_notif_num=None):
 			helpers.play_sound_file(snd_file)
 		if snd_event:
 			helpers.play_sound(snd_event)
+	
+	if do_bounce:
+		if sys.platform == 'darwin':
+			try:
+				NSApp.requestUserAttention_(NSInformationalRequest)
+			except NameError:
+				pass
 
 	if do_cmd:
 		command = gajim.config.get_per('notifications', str(advanced_notif_num),
