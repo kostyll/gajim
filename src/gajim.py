@@ -2868,7 +2868,7 @@ class Interface:
 			gajim.idlequeue.process()
 		except:
 			# Otherwise, an exception will stop our loop
-			if os.name == 'nt':
+			if os.name == 'nt' or sys.platform == 'darwin':
 				gobject.timeout_add(200,
 					self.process_connections)
 			else:
@@ -3120,7 +3120,8 @@ class Interface:
 
 		# pygtk2.8+ on win, breaks io_add_watch.
 		# We use good old select.select()
-		if os.name == 'nt':
+		# Same for OS X.
+		if os.name == 'nt' or sys.platform == 'darwin':
 			gajim.idlequeue = idlequeue.SelectIdleQueue()
 		else:
 			# in a nongui implementation, just call:
@@ -3290,7 +3291,7 @@ class Interface:
 		self.last_ftwindow_update = 0
 
 		gobject.timeout_add(100, self.autoconnect)
-		if os.name == 'nt':
+		if os.name == 'nt' or sys.platform == 'darwin':
 			gobject.timeout_add(200, self.process_connections)
 		else:
 			gobject.timeout_add_seconds(2, self.process_connections)
