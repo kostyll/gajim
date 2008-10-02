@@ -442,10 +442,18 @@ class GlibIdleQueue(idlequeue.IdleQueue):
 		''' this method is called when we plug a new idle object.
 		Start listening for events from fd
 		'''
-		res = gobject.io_add_watch(fd, flags, self.process_events,
+		res = gobject.io_add_watch(fd, flags, self._process_events,
 			priority=gobject.PRIORITY_LOW)
 		# store the id of the watch, so that we can remove it on unplug
 		self.events[fd] = res
+
+	def _process_events(self, fd, flags):
+		try:
+			return self.process_events(fd, flags)
+		except:
+			self.remove_idle(fd)
+			self.add_idle(fd, flags)
+			raise
 
 	def remove_idle(self, fd):
 		''' this method is called when we unplug a new idle object.
@@ -2868,7 +2876,7 @@ class Interface:
 			gajim.idlequeue.process()
 		except:
 			# Otherwise, an exception will stop our loop
-			if os.name == 'nt' or sys.platform == 'darwin':
+			if os.name == 'nt':
 				gobject.timeout_add(200,
 					self.process_connections)
 			else:
@@ -3120,8 +3128,7 @@ class Interface:
 
 		# pygtk2.8+ on win, breaks io_add_watch.
 		# We use good old select.select()
-		# Same for OS X.
-		if os.name == 'nt' or sys.platform == 'darwin':
+		if os.name == 'nt':
 			gajim.idlequeue = idlequeue.SelectIdleQueue()
 		else:
 			# in a nongui implementation, just call:
@@ -3291,7 +3298,7 @@ class Interface:
 		self.last_ftwindow_update = 0
 
 		gobject.timeout_add(100, self.autoconnect)
-		if os.name == 'nt' or sys.platform == 'darwin':
+		if os.name == 'nt':
 			gobject.timeout_add(200, self.process_connections)
 		else:
 			gobject.timeout_add_seconds(2, self.process_connections)
