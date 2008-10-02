@@ -78,11 +78,6 @@ class StatusIcon(systray.Systray):
 		text = helpers.get_notification_icon_tooltip_text()
 		self.status_icon.set_tooltip(text)
 		if gajim.events.get_nb_systray_events():
-			if sys.platform == 'darwin':
-				try:
-					osx.nsapp.requestUserAttention()
-				except NameError:
-					pass
 			state = 'event'
 			self.status_icon.set_blinking(True)
 		else:

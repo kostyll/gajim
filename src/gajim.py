@@ -3242,6 +3242,10 @@ class Interface:
 			if self.systray_capabilities:
 				self.systray = systray.Systray()
 
+		if sys.platform == 'darwin':
+			import dock
+			self.dock = dock.Dock()
+
 		if self.systray_capabilities and gajim.config.get('trayicon'):
 			self.show_systray()
 

@@ -1897,6 +1897,8 @@ class RosterWindow:
 				gajim.interface.jabber_state_images['16']['connecting']
 		if gajim.interface.systray_enabled:
 			gajim.interface.systray.change_status('connecting')
+		if sys.platform == 'darwin':
+			gajim.interface.dock.change_status('connecting')
 
 	def send_status(self, account, status, txt, auto=False, to=None):
 		child_iterA = self._get_account_iter(account, self.model)
@@ -1934,6 +1936,8 @@ class RosterWindow:
 								gajim.interface.jabber_state_images['16']['offline']
 						if gajim.interface.systray_enabled:
 							gajim.interface.systray.change_status('offline')
+						if sys.platform == 'darwin':
+							gajim.interface.dock.change_status('offline')
 						self.update_status_combobox()
 
 					w = dialogs.PassphraseDialog(_('Password Required'), text,
@@ -2146,6 +2150,8 @@ class RosterWindow:
 		self.combobox_callback_active = True
 		if gajim.interface.systray_enabled:
 			gajim.interface.systray.change_status(show)
+		if sys.platform == 'darwin':
+			gajim.interface.dock.change_status(show)
 
 	def get_show(self, lcontact):
 		prio = lcontact[0].priority
@@ -4063,6 +4069,8 @@ class RosterWindow:
 		# Update the systray
 		if gajim.interface.systray_enabled:
 			gajim.interface.systray.set_img()
+		if sys.platform == 'darwin':
+			gajim.interface.dock.set_img()
 
 		for win in gajim.interface.msg_win_mgr.windows():
 			for ctrl in win.controls():
