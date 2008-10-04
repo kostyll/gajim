@@ -20,6 +20,7 @@
 
 from common import gajim
 from common import helpers
+import osx
 
 HAS_SYSTRAY_CAPABILITIES = True
 DOCK_IMAGES = {}
@@ -73,5 +74,11 @@ class Dock:
 		if global_status is not None and self.status != global_status:
 			self.status = global_status
 		self.set_img()
+	
+	def bounce(self):
+		try:
+			osx.nsapp.requestUserAttention()
+		except NameError:
+			pass
 
 # vim: se ts=3:

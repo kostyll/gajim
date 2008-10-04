@@ -58,11 +58,6 @@ try:
 except:
 	USER_HAS_GROWL = False
 
-try:
-	from AppKit import *
-except ImportError:
-	pass
-
 def get_show_in_roster(event, account, contact, session=None):
 	'''Return True if this event must be shown in roster, else False'''
 	if event == 'gc_message_received':
@@ -319,10 +314,7 @@ def notify(event, jid, account, parameters, advanced_notif_num=None):
 	
 	if do_bounce:
 		if sys.platform == 'darwin':
-			try:
-				NSApp.requestUserAttention_(NSInformationalRequest)
-			except NameError:
-				pass
+			gajim.interface.dock.bounce()
 
 	if do_cmd:
 		command = gajim.config.get_per('notifications', str(advanced_notif_num),
