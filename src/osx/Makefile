@@ -3,7 +3,6 @@ include ../../extra.mk
 SUBDIRS = ${OSX_IDLEMODULE} ${OSX_MODULES}
 
 SRCS = __init__.py	\
-       dbus.py		\
        growler.py	\
        prep_py2app.py
 DISTCLEAN = idle.so nsapp.so
