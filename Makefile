@@ -1,3 +1,3 @@
-SUBDIRS = data src po
+SUBDIRS = data src po scripts
 
 include buildsys.mk

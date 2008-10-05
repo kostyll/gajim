@@ -9,7 +9,14 @@ SRCS = __init__.py			\
 
 include ../../../buildsys.mk
 
-PACKAGE := ${PACKAGE}/src/common/zeroconf
-DATA = ${OBJS}
+install-extra:
+	for i in ${OBJS}; do \
+		${INSTALL_STATUS}; \
+		if ${MKDIR_P} ${DESTDIR}${libdir}/${PACKAGE}/common/zeroconf && ${INSTALL} -m 644 $$i ${DESTDIR}${libdir}/${PACKAGE}/common/zeroconf/$$i; then \
+			${INSTALL_OK}; \
+		else \
+			${INSTALL_FAILED}; \
+		fi \
+	done
 
 all: ${OBJS}

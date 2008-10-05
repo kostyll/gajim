@@ -23,7 +23,14 @@ SRCS = __init__.py	\
 
 include ../../../buildsys.mk
 
-PACKAGE := ${PACKAGE}/src/common/xmpp
-DATA = ${OBJS}
-
 all: ${OBJS}
+
+install-extra:
+	for i in ${OBJS}; do \
+		${INSTALL_STATUS}; \
+		if ${MKDIR_P} ${DESTDIR}${libdir}/${PACKAGE}/common/xmpp && ${INSTALL} -m 644 $$i ${DESTDIR}${libdir}/${PACKAGE}/common/xmpp/$$i; then \
+			${INSTALL_OK}; \
+		else \
+			${INSTALL_FAILED}; \
+		fi \
+	done

@@ -1,3 +1,3 @@
-SUBDIRS = activities emoticons glade iconsets moods pixmaps sounds
+SUBDIRS = activities emoticons glade iconsets moods other pixmaps sounds
 
 include ../buildsys.mk

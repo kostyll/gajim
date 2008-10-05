@@ -49,9 +49,6 @@ DISTCLEAN = gtkspell.so trayicon.so
 
 include ../buildsys.mk
 
-PACKAGE := ${PACKAGE}/src
-DATA = ${OBJS}
-
 all: ${OBJS} gtkspell.so trayicon.so
 
 # Don't depend on the actual file, we can create the symlink anyway
@@ -61,3 +58,13 @@ gtkspell.so:
 trayicon.so:
 	rm -f trayicon.so
 	ln -s traymodule/trayicon.so trayicon.so
+
+install-extra:
+	for i in ${OBJS}; do \
+		${INSTALL_STATUS}; \
+		if ${MKDIR_P} ${DESTDIR}${libdir}/${PACKAGE} && ${INSTALL} -m 644 $$i ${DESTDIR}${libdir}/${PACKAGE}/$$i; then \
+			${INSTALL_OK}; \
+		else \
+			${INSTALL_FAILED}; \
+		fi \
+	done

@@ -40,12 +40,19 @@ SRCS = GnuPG.py			\
 
 include ../../buildsys.mk
 
-PACKAGE := ${PACKAGE}/src/common
-DATA = ${OBJS}
-
 all: ${OBJS} idle.so
 
 # Don't depend on the actual file, we can create the symlink anyway
 idle.so:
 	rm -f idle.so
 	ln -s idle_c/idle.so idle.so
+
+install-extra:
+	for i in ${OBJS}; do \
+		${INSTALL_STATUS}; \
+		if ${MKDIR_P} ${DESTDIR}${libdir}/${PACKAGE}/common && ${INSTALL} -m 644 $$i ${DESTDIR}${libdir}/${PACKAGE}/common/$$i; then \
+			${INSTALL_OK}; \
+		else \
+			${INSTALL_FAILED}; \
+		fi \
+	done
