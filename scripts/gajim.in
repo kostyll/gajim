@@ -26,9 +26,10 @@ if test $(id -u) -eq 0; then
 	exit 1
 fi
 
-libdir=@LIBDIR@
-PYTHON_EXEC=@PYTHON@
+libdir="@LIBDIR@"
+PYTHON_EXEC="@PYTHON@"
 
-cd ${datadir}/gajim
-export PYTHONPATH="$PYTHONPATH:@LIBDIR@/gajim"
-exec ${PYTHON_EXEC} -OO gajim.py $@
+cd "$libdir/gajim"
+export PYTHONPATH="$PYTHONPATH:$libdir/gajim"
+export GAJIM_DATADIR="@DATADIR@/gajim"
+exec $PYTHON_EXEC gajim.pyc $@

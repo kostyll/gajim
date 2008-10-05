@@ -114,7 +114,10 @@ class ConfigPaths:
 		for n, p in zip(k, v):
 			self.add_from_root(n, p)
 
-		self.add('DATA', os.path.join(u'..', windowsify(u'data')))
+		if 'GAJIM_DATADIR' in os.environ:
+			self.add('DATA', fse(os.environ['GAJIM_DATADIR']))
+		else:
+			self.add('DATA', os.path.join(u'..', windowsify(u'data')))
 		self.add('HOME', fse(os.path.expanduser('~')))
 		self.add('TMP', fse(tempfile.gettempdir()))
 
