@@ -18,6 +18,7 @@
 ## along with Gajim. If not, see <http://www.gnu.org/licenses/>.
 ##
 
+import os
 from common import gajim
 from common import helpers
 import osx
@@ -37,11 +38,11 @@ class Dock:
 		self.status = 'offline'
 
 		try:
-			# FIXME: We want svg for that!
 			for img in ['online', 'chat', 'away', 'xa', 'dnd', 'invisible',
-			'offline', 'connecting', 'error', 'event']:
-				DOCK_IMAGES[img]  = NSImage.alloc().initByReferencingFile_(
-					'../data/iconsets/dcraven/32x32/' + img + '.png')
+			'offline', 'connecting', 'event']:
+				DOCK_IMAGES[img] = NSImage.alloc().initByReferencingFile_(
+					os.path.join(gajim.DATA_DIR, 'pixmap', 'dock_icns',
+					img + '.icns'))
 		except NameError:
 			pass
 
