@@ -41,7 +41,7 @@ class Dock:
 			for img in ['online', 'chat', 'away', 'xa', 'dnd', 'invisible',
 			'offline', 'connecting', 'event']:
 				DOCK_IMAGES[img] = NSImage.alloc().initByReferencingFile_(
-					os.path.join(gajim.DATA_DIR, 'pixmap', 'dock_icns',
+					os.path.join(gajim.DATA_DIR, 'pixmaps', 'dock_icns',
 					img + '.icns'))
 		except NameError:
 			pass
