@@ -35,12 +35,17 @@ try:
 	import dbus
 	import dbus.service
 	import dbus.glib
+	dbus.SessionBus()
 	supported = True # does user have D-Bus bindings?
 except ImportError:
 	supported = False
 	if not os.name == 'nt': # only say that to non Windows users
 		print _('D-Bus python bindings are missing in this computer')
 		print _('D-Bus capabilities of Gajim cannot be used')
+except dbus.exceptions.DBusException:
+	supported = False
+	print _('D-Bus python bindings failed to start on this computer')
+	print _('D-Bus capabilities of Gajim cannot be used')
 
 class SystemBus:
 	'''A Singleton for the DBus SystemBus'''
