@@ -29,6 +29,7 @@ Var StartMenuFolder
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "Start Menu Folder"
 !insertmacro MUI_PAGE_STARTMENU Application $StartMenuFolder
 !insertmacro MUI_PAGE_INSTFILES
+!define MUI_FINISHPAGE_RUN "$INSTDIR\bin\Gajim.exe"
 !insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_WELCOME
@@ -50,20 +51,24 @@ LangString NAME_Iconsets ${LANG_ENGLISH} "Iconsets"
 LangString NAME_Languages ${LANG_ENGLISH} "Languages"
 LangString NAME_SecLanguagesOther ${LANG_ENGLISH} "Other"
 LangString NAME_Themes ${LANG_ENGLISH} "Themes"
+LangString NAME_SecDesktopIcon ${LANG_ENGLISH} "Create icon on desktop"
 LangString NAME_SecAutostart ${LANG_ENGLISH} "Start Gajim when Windows starts"
 LangString DESC_SecGajim ${LANG_ENGLISH} "Installs the main Gajim files."
 LangString DESC_SecGtk ${LANG_ENGLISH} "Installs Gtk+ 2 (necessary to run Gajim)."
+LangString DESC_SecDesktopIcon ${LANG_ENGLISH} "If set, a shortcut for Gajim will be created on the desktop."
 LangString DESC_SecAutostart ${LANG_ENGLISH} "If set, Gajim will be automatically started when Windows starts."
 
-; French		TODO: TRANSLATE!
+; French
 LangString NAME_Emoticons ${LANG_FRENCH} "Emoticфnes"
 LangString NAME_Iconsets ${LANG_FRENCH} "Bibliothиque d'icфnes"
 LangString NAME_Languages ${LANG_FRENCH} "Langues"
 LangString NAME_SecLanguagesOther ${LANG_FRENCH} "Autre"
 LangString NAME_Themes ${LANG_FRENCH} "Thиmes"
+LangString NAME_SecDesktopIcon ${LANG_FRENCH} "Crйer une icфne sur le bureau"
 LangString NAME_SecAutostart ${LANG_FRENCH} "Lancer Gajim au dйmarrage de Windows"
 LangString DESC_SecGajim ${LANG_FRENCH} "Installer les fichiers principaux de Gajim."
 LangString DESC_SecGtk ${LANG_FRENCH} "Installer Gtk+ 2 (nйcessaire а Gajim)."
+LangString DESC_SecDesktopIcon ${LANG_FRENCH} "Si selectionnй, un raccourci pour Gajim sera crйй sur le bureau."
 LangString DESC_SecAutostart ${LANG_FRENCH} "Si activй, Gajim sera automatiquement lancй au dйmarrage de Windows."
 
 ; German
@@ -72,21 +77,25 @@ LangString NAME_Iconsets ${LANG_GERMAN} "Symbolsets"
 LangString NAME_Languages ${LANG_GERMAN} "Sprachen"
 LangString NAME_SecLanguagesOther ${LANG_GERMAN} "Sonstige"
 LangString NAME_Themes ${LANG_GERMAN} "Designs"
+LangString NAME_SecDesktopIcon ${LANG_GERMAN} "Desktop-Icon erstellen"
 LangString NAME_SecAutostart ${LANG_GERMAN} "Gajim mit Windows starten"
 LangString DESC_SecGajim ${LANG_GERMAN} "Installiert die Hauptdateien von Gajim."
 LangString DESC_SecGtk ${LANG_GERMAN} "Installert Gtk+ 2 (notwendig um Gajim zu benutzen)."
+LangString DESC_SecDesktopIcon ${LANG_GERMAN} "Wenn dies aktiviert wird, wird ein Icon fьr Gajim auf dem Desktop erstellt."
 LangString DESC_SecAutostart ${LANG_GERMAN} "Gajim wird automatisch gestartet, sowie Windows startet, wenn dies aktivier wird."
 
-; Italian		TODO: TRANSLATE!
+; Italian
 LangString NAME_Emoticons ${LANG_ITALIAN} "Emoticons"
-LangString NAME_Iconsets ${LANG_ITALIAN} "Iconsets"
-LangString NAME_Languages ${LANG_ITALIAN} "Languages"
-LangString NAME_SecLanguagesOther ${LANG_ITALIAN} "Other"
-LangString NAME_Themes ${LANG_ITALIAN} "Themes"
-LangString NAME_SecAutostart ${LANG_ITALIAN} "Start Gajim when Windows starts"
-LangString DESC_SecGajim ${LANG_ITALIAN} "Installs the main Gajim files."
-LangString DESC_SecGtk ${LANG_ITALIAN} "Installs Gtk+ 2 (necessary to run Gajim)."
-LangString DESC_SecAutostart ${LANG_ITALIAN} "If set, Gajim will be automatically started when Windows starts."
+LangString NAME_Iconsets ${LANG_ITALIAN} "Set di icone"
+LangString NAME_Languages ${LANG_ITALIAN} "Lingue"
+LangString NAME_SecLanguagesOther ${LANG_ITALIAN} "Altre"
+LangString NAME_Themes ${LANG_ITALIAN} "Temi"
+LangString NAME_SecDesktopIcon ${LANG_ITALIAN} "Crea un'icona sul desktop"
+LangString NAME_SecAutostart ${LANG_ITALIAN} "Lancia Gajim quando parte Windows"
+LangString DESC_SecGajim ${LANG_ITALIAN} "Installa i file principali di Gajim."
+LangString DESC_SecGtk ${LANG_ITALIAN} "Installa Gtk+ 2 (necessario per eseguire Gajim)."
+LangString DESC_SecDesktopIcon ${LANG_ITALIAN} "Se selezionato, un'icona verrа creata sul desktop."
+LangString DESC_SecAutostart ${LANG_ITALIAN} "Se selezionato, Gajim sarа eseguito all'avvio di Windows."
 
 ; Spanish		TODO: TRANSLATE!
 LangString NAME_Emoticons ${LANG_SPANISH} "Emoticons"
@@ -94,21 +103,25 @@ LangString NAME_Iconsets ${LANG_SPANISH} "Iconsets"
 LangString NAME_Languages ${LANG_SPANISH} "Languages"
 LangString NAME_SecLanguagesOther ${LANG_SPANISH} "Other"
 LangString NAME_Themes ${LANG_THEMES} "Themes"
+LangString NAME_SecDesktopIcon ${LANG_SPANISH} "Create icon on desktop"
 LangString NAME_SecAutostart ${LANG_SPANISH} "Start Gajim when Windows starts"
 LangString DESC_SecGajim ${LANG_SPANISH} "Installs the main Gajim files."
 LangString DESC_SecGtk ${LANG_SPANISH} "Installs Gtk+ 2 (necessary to run Gajim)."
+LangString DESC_SecDesktopIcon ${LANG_SPANISH} "If set, a shortcut for Gajim will be created on the desktop."
 LangString DESC_SecAutostart ${LANG_SPANISH} "If set, Gajim will be automatically started when Windows starts."
 
-; Russian		TODO: TRANSLATE!
-LangString NAME_Emoticons ${LANG_RUSSIAN} "Emoticons"
-LangString NAME_Iconsets ${LANG_RUSSIAN} "Iconsets"
-LangString NAME_Languages ${LANG_RUSSIAN} "Languages"
-LangString NAME_SecLanguagesOther ${LANG_RUSSIAN} "Other"
-LangString NAME_Themes ${LANG_RUSSIAN} "Themes"
-LangString NAME_SecAutostart ${LANG_RUSSIAN} "Start Gajim when Windows starts"
-LangString DESC_SecGajim ${LANG_RUSSIAN} "Installs the main Gajim files."
-LangString DESC_SecGtk ${LANG_RUSSIAN} "Installs Gtk+ 2 (necessary to run Gajim)."
-LangString DESC_SecAutostart ${LANG_RUSSIAN} "If set, Gajim will be automatically started when Windows starts."
+; Russian
+LangString NAME_Emoticons ${LANG_RUSSIAN} "Смайлики"
+LangString NAME_Iconsets ${LANG_RUSSIAN} "Темы иконок"
+LangString NAME_Languages ${LANG_RUSSIAN} "Языки"
+LangString NAME_SecLanguagesOther ${LANG_RUSSIAN} "Другое"
+LangString NAME_Themes ${LANG_RUSSIAN} "Темы"
+LangString NAME_SecDesktopIcon ${LANG_RUSSIAN} "Создать ярлык на рабочем столе"
+LangString NAME_SecAutostart ${LANG_RUSSIAN} "Запускать Gajim при загрузке Windows"
+LangString DESC_SecGajim ${LANG_RUSSIAN} "Установка основных файлов Gajim."
+LangString DESC_SecGtk ${LANG_RUSSIAN} "Установка Gtk+ 2 (необходимо для работы Gajim)."
+LangString DESC_SecDesktopIcon ${LANG_RUSSIAN} "Если отмечено, на рабочем столе будет создан ярлык Gajim."
+LangString DESC_SecAutostart ${LANG_RUSSIAN} "Если отмечено, Gajim будет автоматически запускаться при загрузке Windows."
 
 Section "Gajim" SecGajim
 	SectionIn RO
@@ -197,10 +210,7 @@ Section "Gtk+ 2" SecGtk
 	File "bin\gtk\lib\gtk-2.0\2.10.0\engines\libpixmap.dll"
 	File "bin\gtk\lib\gtk-2.0\2.10.0\engines\libsvg.dll"
 	SetOutPath "$INSTDIR\bin\gtk\lib\gtk-2.0\2.10.0"
-	File /r "bin\gtk\lib\gtk-2.0\2.10.0\immodules"
-	File /r "bin\gtk\lib\gtk-2.0\2.10.0\loaders"
 	SetOutPath "$INSTDIR\bin\gtk\lib"
-	File /r "bin\gtk\lib\pango"
 	File "bin\gtk\lib\charset.alias"
 	SetOutPath "$INSTDIR\bin\gtk\share"
 	File /r "bin\gtk\share\gtkthemeselector"
@@ -495,6 +505,12 @@ SectionEnd
 
 SectionGroupEnd
 
+Section $(NAME_SecDesktopIcon) SecDesktopIcon
+	SetShellVarContext current
+	SetOutPath "$INSTDIR\bin"
+	CreateShortCut "$DESKTOP\Gajim.lnk" "$INSTDIR\bin\Gajim.exe"
+SectionEnd
+
 Section $(NAME_SecAutostart) SecAutostart
 	SetShellVarContext current
 	SetOutPath "$INSTDIR\bin"
@@ -509,11 +525,8 @@ Section "Uninstall"
 	Delete "$INSTDIR\bin\gtk\lib\gtk-2.0\2.10.0\engines\libsvg.dll"
 	Delete "$INSTDIR\bin\gtk\lib\gtk-2.0\2.10.0\engines\libwimp.dll"
 	RMDir "$INSTDIR\bin\gtk\lib\gtk-2.0\2.10.0\engines"
-	RMDir /r "$INSTDIR\bin\gtk\lib\gtk-2.0\2.10.0\immodules"
-	RMDir /r "$INSTDIR\bin\gtk\lib\gtk-2.0\2.10.0\loaders"
 	RMDir "$INSTDIR\bin\gtk\lib\gtk-2.0\2.10.0"
 	RMDir "$INSTDIR\bin\gtk\lib\gtk-2.0"
-	RMDir /r "$INSTDIR\bin\gtk\lib\pango"
 	Delete "$INSTDIR\bin\gtk\lib\charset.alias"
 	RMDir "$INSTDIR\bin\gtk\lib"
 	RMDir /r "$INSTDIR\bin\gtk\share\locale\de"
@@ -736,6 +749,7 @@ Section "Uninstall"
 	Delete "$SMPROGRAMS\$StartMenuFolder\Gajim.lnk"
 	Delete "$SMPROGRAMS\$StartMenuFolder\Change Theme.lnk"
 	RMDir "$SMPROGRAMS\$StartMenuFolder"
+	Delete "$DESKTOP\Gajim.lnk"
 	Delete "$SMSTARTUP\Gajim.lnk"
 	SetShellVarContext all
 	Delete "$SMPROGRAMS\$StartMenuFolder\Gajim.lnk"
@@ -749,6 +763,7 @@ SectionEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 	!insertmacro MUI_DESCRIPTION_TEXT ${SecGajim} $(DESC_SecGajim)
 	!insertmacro MUI_DESCRIPTION_TEXT ${SecGtk} $(DESC_SecGtk)
+	!insertmacro MUI_DESCRIPTION_TEXT ${SecDesktopIcon} $(DESC_SecDesktopIcon)
 	!insertmacro MUI_DESCRIPTION_TEXT ${SecAutostart} $(DESC_SecAutostart)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 

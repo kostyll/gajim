@@ -155,7 +155,7 @@ class MessageWindow(object):
 				gtk.gdk.ACTION_MOVE)
 
 	def change_account_name(self, old_name, new_name):
-		if self._controls.has_key(old_name):
+		if old_name in self._controls:
 			self._controls[new_name] = self._controls[old_name]
 			del self._controls[old_name]
 
@@ -235,7 +235,7 @@ class MessageWindow(object):
 	def new_tab(self, control):
 		fjid = control.get_full_jid()
 
-		if not self._controls.has_key(control.account):
+		if control.account not in self._controls:
 			self._controls[control.account] = {}
 
 		self._controls[control.account][fjid] = control
@@ -1034,7 +1034,10 @@ class MessageWindowMgr(gobject.GObject):
 	def get_gc_control(self, jid, acct):
 		'''Same as get_control. Was briefly required, is not any more.
 May be useful some day in the future?'''
-		return self.get_control(jid, acct)
+		ctrl = self.get_control(jid, acct)
+		if ctrl and ctrl.type_id == message_control.TYPE_GC:
+			return ctrl
+		return None
 
 	def get_controls(self, type = None, acct = None):
 		ctrls = []
