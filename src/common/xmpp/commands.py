@@ -75,7 +75,7 @@ class Commands(PlugIn):
         jid = str(request.getTo())
         try:
             node = request.getTagAttr('command','node')
-        except:
+        except Exception:
             conn.send(Error(request,ERR_BAD_REQUEST))
             raise NodeProcessed
         if jid in self._handlers:
@@ -221,11 +221,11 @@ class Command_Handler_Prototype(PlugIn):
         # New request or old?
         try:
             session = request.getTagAttr('command','sessionid')
-        except:
+        except Exception:
             session = None
         try:
             action = request.getTagAttr('command','action')
-        except:
+        except Exception:
             action = None
         if action is None: action = 'execute'
         # Check session is in session list
@@ -251,13 +251,13 @@ class Command_Handler_Prototype(PlugIn):
             # New session
             self.initial[action](conn,request)
     
-    def _DiscoHandler(self,conn,request,type):
+    def _DiscoHandler(self,conn,request,type_):
         """The handler for discovery events"""
-        if type == 'list':
+        if type_ == 'list':
             return (request.getTo(),self.name,self.description)
-        elif type == 'items':
+        elif type_ == 'items':
             return []
-        elif type == 'info':
+        elif type_ == 'info':
             return self.discoinfo
         
 class TestCommand(Command_Handler_Prototype):
@@ -277,7 +277,7 @@ class TestCommand(Command_Handler_Prototype):
         # This is the only place this should be repeated as all other stages should have SessionIDs
         try:
             session = request.getTagAttr('command','sessionid')
-        except:
+        except Exception:
             session = None
         if session is None:
             session = self.getSessionID()
@@ -309,7 +309,7 @@ class TestCommand(Command_Handler_Prototype):
         form = DataForm(node = result.getTag(name='command').getTag(name='x',namespace=NS_DATA))
         try:
             num = float(form.getField('radius'))
-        except:
+        except Exception:
             self.cmdSecondStageReply(conn,request)
         if sessions[request.getTagAttr('command','sessionid')]['data']['type'] == 'circlearea':
             result = num*(pi**2)

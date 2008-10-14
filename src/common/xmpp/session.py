@@ -85,7 +85,7 @@ class Session:
         self.DEBUG=owner.Dispatcher.DEBUG
         self._expected={}
         self._owner=owner
-        if self.TYP=='server': self.ID=`random.random()`[2:]
+        if self.TYP=='server': self.ID=repr(random.random())[2:]
         else: self.ID=None
 
         self.sendbuffer=''
@@ -97,7 +97,7 @@ class Session:
 
         self._session_state=SESSION_NOT_AUTHED
         self.waiting_features=[]
-        for feature in [NS_TLS,NS_SASL,NS_BIND,NS_SESSION]:
+        for feature in (NS_TLS,NS_SASL,NS_BIND,NS_SESSION):
             if feature in owner.features: self.waiting_features.append(feature)
         self.features=[]
         self.feature_in_process=None
@@ -128,7 +128,7 @@ class Session:
         except: received = ''
 
         if len(received): # length of 0 means disconnect
-            self.DEBUG(`self.fileno()`+' '+received,'got')
+            self.DEBUG(repr(self.fileno())+' '+received,'got')
         else:
             self.DEBUG('Socket error while receiving data','error')
             self.set_socket_state(SOCKET_DEAD)
@@ -141,7 +141,7 @@ class Session:
             If you just want to shedule regular stanza for delivery use enqueue method.
         """
         if isinstance(chunk,Node): chunk = chunk.__str__().encode('utf-8')
-        elif type(chunk)==type(u''): chunk = chunk.encode('utf-8')
+        elif isinstance(chunk, unicode): chunk = chunk.encode('utf-8')
         self.enqueue(chunk)
 
     def enqueue(self,stanza):
@@ -184,12 +184,12 @@ class Session:
             try:
                 # LOCK_QUEUE
                 sent=self._send(self.sendbuffer)    # blocking socket
-            except:
+            except Exception:
                 # UNLOCK_QUEUE
                 self.set_socket_state(SOCKET_DEAD)
                 self.DEBUG("Socket error while sending data",'error')
                 return self.terminate_stream()
-            self.DEBUG(`self.fileno()`+' '+self.sendbuffer[:sent],'sent')
+            self.DEBUG(repr(self.fileno())+' '+self.sendbuffer[:sent],'sent')
             self._stream_pos_sent+=sent
             self.sendbuffer=self.sendbuffer[sent:]
             self._stream_pos_delivered=self._stream_pos_sent            # Should be acquired from socket somehow. Take SSL into account.
@@ -238,9 +238,9 @@ class Session:
         self.sendnow(text+'>')
         self.set_stream_state(STREAM__OPENED)
         if self.TYP=='client': return
-        if tag<>'stream': return self.terminate_stream(STREAM_INVALID_XML)
-        if ns<>NS_STREAMS: return self.terminate_stream(STREAM_INVALID_NAMESPACE)
-        if self.Stream.xmlns<>self.xmlns: return self.terminate_stream(STREAM_BAD_NAMESPACE_PREFIX)
+        if tag!='stream': return self.terminate_stream(STREAM_INVALID_XML)
+        if ns!=NS_STREAMS: return self.terminate_stream(STREAM_INVALID_NAMESPACE)
+        if self.Stream.xmlns!=self.xmlns: return self.terminate_stream(STREAM_BAD_NAMESPACE_PREFIX)
         if 'to' not in attrs: return self.terminate_stream(STREAM_IMPROPER_ADDRESSING)
         if attrs['to'] not in self._owner.servernames: return self.terminate_stream(STREAM_HOST_UNKNOWN)
         self.ourname=attrs['to'].lower()
@@ -320,7 +320,7 @@ class Session:
 
     def stop_feature(self,f):
         """ Declare some feature as "negotiated" to allow other features start negotiating. """
-        if self.feature_in_process<>f: raise "Stopping feature %s instead of %s !"%(f,self.feature_in_process)
+        if self.feature_in_process!=f: raise "Stopping feature %s instead of %s !"%(f,self.feature_in_process)
         self.feature_in_process=None
 
     def set_socket_state(self,newstate):

@@ -67,7 +67,7 @@ class OptionsParser:
 	def read(self):
 		try:
 			fd = open(self.__filename)
-		except:
+		except Exception:
 			if os.path.exists(self.__filename):
 				#we talk about a file
 				print _('error: cannot open %s for reading') % self.__filename
@@ -128,7 +128,7 @@ class OptionsParser:
 			# win32 needs this
 			try:
 				os.remove(self.__filename)
-			except:
+			except Exception:
 				pass
 		try:
 			os.rename(self.__tempfile, self.__filename)
@@ -291,8 +291,8 @@ class OptionsParser:
 			proxies = proxies_str.split(',')
 			for i in range(0, len(proxies)):
 				proxies[i] = proxies[i].strip()
-			for wrong_proxy in ['proxy65.jabber.autocom.pl', 
-				'proxy65.jabber.ccc.de']: 
+			for wrong_proxy in ('proxy65.jabber.autocom.pl', 
+				'proxy65.jabber.ccc.de'): 
 				if wrong_proxy in proxies:
 					proxies.remove(wrong_proxy)
 			if not 'transfer.jabber.freenet.de' in proxies:
@@ -360,7 +360,7 @@ class OptionsParser:
 			)
 
 			con.commit()
-		except:
+		except Exception:
 			pass
 		con.close()
 		gajim.config.set('version', '0.10.1.4')

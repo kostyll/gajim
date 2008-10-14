@@ -107,7 +107,7 @@ class OldEntry(xmpp.Node, object):
 		''' Get source link '''
 		try:
 			return self.getTag('feed').getTags('link',{'rel':'alternate'})[1].getData()
-		except:
+		except Exception:
 			return None
 
 	feed_link = property(get_feed_link, None, None,
@@ -124,7 +124,7 @@ class OldEntry(xmpp.Node, object):
 		''' Get the uri the entry points to (entry's first link element with rel='alternate'
 		or without rel attribute). '''
 		for element in self.getTags('link'):
-			if 'rel' in element.attrs and element.attrs['rel']<>'alternate': continue
+			if 'rel' in element.attrs and element.attrs['rel']!='alternate': continue
 			try:
 				return element.attrs['href']
 			except AttributeError:

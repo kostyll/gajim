@@ -69,7 +69,7 @@ try:
 	import winsound # windows-only built-in module for playing wav
 	import win32api
 	import win32con
-except:
+except Exception:
 	pass
 
 special_groups = (_('Transports'), _('Not in Roster'), _('Observers'), _('Groupchats'))
@@ -363,8 +363,7 @@ def get_uf_affiliation(affiliation):
 	return affiliation_name
 
 def get_sorted_keys(adict):
-	keys = adict.keys()
-	keys.sort()
+	keys = sorted(adict.keys())
 	return keys
 
 def to_one_line(msg):
@@ -447,7 +446,7 @@ def launch_browser_mailer(kind, uri):
 	if os.name == 'nt':
 		try:
 			os.startfile(uri) # if pywin32 is installed we open
-		except:
+		except Exception:
 			pass
 
 	else:
@@ -474,14 +473,14 @@ def launch_browser_mailer(kind, uri):
 		command = build_command(command, uri)
 		try:
 			exec_command(command)
-		except:
+		except Exception:
 			pass
 
 def launch_file_manager(path_to_open):
 	if os.name == 'nt':
 		try:
 			os.startfile(path_to_open) # if pywin32 is installed we open
-		except:
+		except Exception:
 			pass
 	else:
 		if gajim.config.get('openwith') == 'gnome-open':
@@ -500,7 +499,7 @@ def launch_file_manager(path_to_open):
 		command = build_command(command, path_to_open)
 		try:
 			exec_command(command)
-		except:
+		except Exception:
 			pass
 
 def play_sound(event):
@@ -524,7 +523,7 @@ def play_sound_file(path_to_soundfile):
 		try:
 			winsound.PlaySound(path_to_soundfile,
 				winsound.SND_FILENAME|winsound.SND_ASYNC)
-		except:
+		except Exception:
 			pass
 	elif os.name == 'posix':
 		if gajim.config.get('soundplayer') == '':
@@ -660,7 +659,7 @@ def ensure_utf8_string(string):
 	'''make sure string is in UTF-8'''
 	try:
 		string = decode_string(string).encode('utf-8')
-	except:
+	except Exception:
 		pass
 	return string
 
@@ -702,7 +701,7 @@ r'Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders')
 		try:
 			val = str(win32api.RegQueryValueEx(rkey, varname)[0])
 			val = win32api.ExpandEnvironmentStrings(val) # expand using environ
-		except:
+		except Exception:
 			pass
 	finally:
 		win32api.RegCloseKey(rkey)
@@ -770,8 +769,7 @@ def get_random_string_16():
 	rng.extend(range(48, 57))
 	char_sequence = map(lambda e:chr(e), rng)
 	from random import sample
-	return reduce(lambda e1, e2: e1 + e2, 
-			sample(char_sequence, 16))
+	return ''.join(sample(char_sequence, 16))
 	
 def get_os_info():
 	if os.name == 'nt':
@@ -854,7 +852,7 @@ def sanitize_filename(filename):
 	
 	return filename
 
-def allow_showing_notification(account, type = 'notify_on_new_message',
+def allow_showing_notification(account, type_ = 'notify_on_new_message',
 advanced_notif_num = None, is_first_message = True):
 	'''is it allowed to show nofication?
 	check OUR status and if we allow notifications for that status
@@ -867,7 +865,7 @@ advanced_notif_num = None, is_first_message = True):
 			return True
 		if popup == 'no':
 			return False
-	if type and (not gajim.config.get(type) or not is_first_message):
+	if type_ and (not gajim.config.get(type_) or not is_first_message):
 		return False
 	if gajim.config.get('autopopupaway'): # always show notification
 		return True
@@ -946,7 +944,7 @@ def reduce_chars_newlines(text, max_chars = 0, max_lines = 0):
 		if lines:
 			lines = map(lambda e: _cut_if_long(e), lines)
 	if lines:
-		reduced_text = reduce(lambda e, e1: e + '\n' + e1, lines)
+		reduced_text = '\n'.join(lines)
 		if reduced_text != text:
 			reduced_text += '...'
 	else:
@@ -1073,8 +1071,7 @@ def get_notification_icon_tooltip_text():
 def get_accounts_info():
 	'''helper for notification icon tooltip'''
 	accounts = []
-	accounts_list = gajim.contacts.get_accounts()
-	accounts_list.sort()
+	accounts_list = sorted(gajim.contacts.get_accounts())
 	for account in accounts_list:
 		status_idx = gajim.connections[account].connected
 		# uncomment the following to hide offline accounts
@@ -1192,26 +1189,14 @@ def sort_identities_func(i1, i2):
 		return -1
 	if cat1 > cat2:
 		return 1
-	if 'type' in i1:
-		type1 = i1['type']
-	else:
-		type1 = ''
-	if 'type' in i2:
-		type2 = i2['type']
-	else:
-		type2 = ''
+	type1 = i1.get('type', '')
+	type2 = i2.get('type', '')
 	if type1 < type2:
 		return -1
 	if type1 > type2:
 		return 1
-	if 'xml:lang' in i1:
-		lang1 = i1['xml:lang']
-	else:
-		lang1 = ''
-	if 'xml:lang' in i2:
-		lang2 = i2['xml:lang']
-	else:
-		lang2 = ''
+	lang1 = i1.get('xml:lang', '')
+	lang2 = i2.get('xml:lang', '')
 	if lang1 < lang2:
 		return -1
 	if lang1 > lang2:
@@ -1234,18 +1219,9 @@ def compute_caps_hash(identities, features, dataforms=[], hash_method='sha-1'):
 	identities.sort(cmp=sort_identities_func)
 	for i in identities:
 		c = i['category']
-		if 'type' in i:
-			type_ = i['type']
-		else:
-			type_ = ''
-		if 'xml:lang' in i:
-			lang = i['xml:lang']
-		else:
-			lang = ''
-		if 'name' in i:
-			name = i['name']
-		else:
-			name = ''
+		type_ = i.get('type', '')
+		lang = i.get('xml:lang', '')
+		name = i.get('name', '')
 		S += '%s/%s/%s/%s<' % (c, type_, lang, name)
 	features.sort()
 	for f in features:
@@ -1260,12 +1236,10 @@ def compute_caps_hash(identities, features, dataforms=[], hash_method='sha-1'):
 		if form_type:
 			S += form_type.getValue() + '<'
 			del fields['FORM_TYPE']
-		vars = fields.keys()
-		vars.sort()
+		vars = sorted(fields.keys())
 		for var in vars:
 			S += '%s<' % var
-			values = fields[var].getValues()
-			values.sort()
+			values = sorted(fields[var].getValues())
 			for value in values:
 				S += '%s<' % value
 

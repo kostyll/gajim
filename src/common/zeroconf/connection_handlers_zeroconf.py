@@ -45,7 +45,7 @@ AGENT_REMOVED = 'agent_removed'
 HAS_IDLE = True
 try:
 	import idle
-except:
+except Exception:
 	gajim.log.debug(_('Unable to load idle module'))
 	HAS_IDLE = False
 
@@ -69,7 +69,7 @@ class ConnectionBytestream(connection_handlers.ConnectionBytestream):
 	def send_socks5_info(self, file_props, fast = True, receiver = None,
 		sender = None):
 		''' send iq for the present streamhosts and proxies '''
-		if type(self.peerhost) != tuple:
+		if not isinstance(self.peerhost, tuple):
 			return
 		port = gajim.config.get('file_transfers_port')
 		ft_add_hosts_to_send = gajim.config.get('ft_add_hosts_to_send')
@@ -93,7 +93,7 @@ class ConnectionBytestream(connection_handlers.ConnectionBytestream):
 					self.dispatch('ERROR', (_('Wrong host'), _('The host %s you configured as the ft_add_hosts_to_send advanced option is not valid, so ignored.') % ft_host))
 		listener = gajim.socks5queue.start_listener(port,
 			sha_str, self._result_socks5_sid, file_props['sid'])
-		if listener == None:
+		if listener is None:
 			file_props['error'] = -5
 			self.dispatch('FILE_REQUEST_ERROR', (unicode(receiver), file_props,
 				''))
@@ -226,7 +226,7 @@ class ConnectionBytestream(connection_handlers.ConnectionBytestream):
 
 		try:
 			streamhost =  query.getTag('streamhost-used')
-		except: # this bytestream result is not what we need
+		except Exception: # this bytestream result is not what we need
 			pass
 		id = real_id[3:]
 		if id in self.files_props:
@@ -235,7 +235,7 @@ class ConnectionBytestream(connection_handlers.ConnectionBytestream):
 			raise common.xmpp.NodeProcessed
 		if streamhost is None:
 			# proxy approves the activate query
-			if real_id[:3] == 'au_':
+			if real_id.startswith('au_'):
 				id = real_id[3:]
 				if 'streamhost-used' not in file_props or \
 					file_props['streamhost-used'] is False:
@@ -253,7 +253,7 @@ class ConnectionBytestream(connection_handlers.ConnectionBytestream):
 			file_props['streamhost-used'] is True:
 			raise common.xmpp.NodeProcessed
 
-		if real_id[:3] == 'au_':
+		if real_id.startswith('au_'):
 			gajim.socks5queue.send_file(file_props, self.name)
 			raise common.xmpp.NodeProcessed
 
@@ -263,7 +263,7 @@ class ConnectionBytestream(connection_handlers.ConnectionBytestream):
 				if proxyhost['jid'] == jid:
 					proxy = proxyhost
 
-		if proxy != None:
+		if proxy is not None:
 			file_props['streamhost-used'] = True
 			if 'streamhosts' not in file_props:
 				file_props['streamhosts'] = []
@@ -382,7 +382,7 @@ class ConnectionHandlersZeroconf(ConnectionVcard, ConnectionBytestream, connecti
 
 		try:
 			idle.init()
-		except:
+		except Exception:
 			HAS_IDLE = False
 
 	def _messageCB(self, ip, con, msg):
@@ -397,7 +397,7 @@ class ConnectionHandlersZeroconf(ConnectionVcard, ConnectionBytestream, connecti
 		if not mtype:
 			mtype = 'normal'
 
-		if frm == None:
+		if frm is None:
 			for key in self.connection.zeroconf.contacts:
 				if ip == self.connection.zeroconf.contacts[key][zeroconf.C_ADDRESS]:
 					frm = key
@@ -429,7 +429,7 @@ class ConnectionHandlersZeroconf(ConnectionVcard, ConnectionBytestream, connecti
 
 			try:
 				msg = session.decrypt_stanza(msg)
-			except:
+			except Exception:
 				self.dispatch('FAILED_DECRYPT', (frm, tim))
 
 		msgtxt = msg.getBody()

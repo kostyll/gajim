@@ -58,21 +58,21 @@ class ConnectionPubSub:
 
 		self.__callbacks[id]=(cb, args, kwargs)
 
-	def send_pb_publish(self, jid, node, item, id):
+	def send_pb_publish(self, jid, node, item, id_):
 		'''Publish item to a node.'''
 		query = xmpp.Iq('set', to=jid)
 		e = query.addChild('pubsub', namespace=xmpp.NS_PUBSUB)
 		e = e.addChild('publish', {'node': node})
-		e = e.addChild('item', {'id': id}, [item])	# TODO: we should generate id... or we shouldn't?
+		e = e.addChild('item', {'id': id_}, [item])	# TODO: we should generate id... or we shouldn't?
 
 		self.connection.send(query)
 
-	def send_pb_retract(self, jid, node, id):
+	def send_pb_retract(self, jid, node, id_):
 		'''Delete item from a node'''
 		query = xmpp.Iq('set', to=jid)
 		r = query.addChild('pubsub', namespace=xmpp.NS_PUBSUB)
 		r = r.addChild('retract', {'node': node, 'notify': '1'})
-		r = r.addChild('item', {'id': id})
+		r = r.addChild('item', {'id': id_})
 
 		self.connection.send(query)
 
@@ -116,7 +116,7 @@ class ConnectionPubSub:
 		try:
 			cb, args, kwargs = self.__callbacks.pop(stanza.getID())
 			cb(conn, stanza, *args, **kwargs)
-		except:
+		except Exception:
 			pass
 
 	def request_pb_configuration(self, jid, node):

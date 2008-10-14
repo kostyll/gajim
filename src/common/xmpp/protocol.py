@@ -173,9 +173,9 @@ not-authorized --  --  -- The authentication failed because the initiating entit
 temporary-auth-failure --  --  -- The authentication failed because of a temporary error condition within the receiving entity; sent in reply to an <auth/> element or <response/> element."""
 
 ERRORS,_errorcodes={},{}
-for ns,errname,errpool in [(NS_XMPP_STREAMS,'STREAM',xmpp_stream_error_conditions),
+for ns,errname,errpool in ((NS_XMPP_STREAMS,'STREAM',xmpp_stream_error_conditions),
                            (NS_STANZAS     ,'ERR'   ,xmpp_stanza_error_conditions),
-                           (NS_SASL        ,'SASL'  ,sasl_error_conditions)]:
+                           (NS_SASL        ,'SASL'  ,sasl_error_conditions)):
     for err in errpool.split('\n')[1:]:
         cond,code,typ,text=err.split(' -- ')
         name=errname+'_'+cond.upper().replace('-','_')
@@ -254,7 +254,7 @@ class JID:
             JID(node='node',domain='domain.org')
         """
         if not jid and not domain: raise ValueError('JID must contain at least domain name')
-        elif type(jid)==type(self): self.node,self.domain,self.resource=jid.node,jid.domain,jid.resource
+        elif isinstance(jid, type(self)): self.node,self.domain,self.resource=jid.node,jid.domain,jid.resource
         elif domain: self.node,self.domain,self.resource=node,domain,resource
         else:
             if jid.find('@')+1: self.node,jid=jid.split('@',1)
@@ -321,7 +321,7 @@ class Protocol(Node):
         if not node and xmlns: self.setNamespace(xmlns)
         if self['to']: self.setTo(self['to'])
         if self['from']: self.setFrom(self['from'])
-        if node and type(self)==type(node) and self.__class__==node.__class__ and 'id' in self.attrs: del self.attrs['id']
+        if node and isinstance(self, type(node)) and self.__class__==node.__class__ and 'id' in self.attrs: del self.attrs['id']
         self.timestamp=None
         for d in self.getTags('delay',namespace=NS_DELAY2):
             try:
@@ -372,7 +372,7 @@ class Protocol(Node):
         errtag=self.getTag('error')
         if errtag:
             for tag in errtag.getChildren():
-                if tag.getName()<>'text': return tag.getName()
+                if tag.getName()!='text': return tag.getName()
             return errtag.getData()
     def getErrorMsg(self):
         """ Return the textual description of the error (if present) or the error condition """
@@ -389,7 +389,7 @@ class Protocol(Node):
         if code:
             if str(code) in _errorcodes.keys(): error=ErrorNode(_errorcodes[str(code)],text=error)
             else: error=ErrorNode(ERR_UNDEFINED_CONDITION,code=code,typ='cancel',text=error)
-        elif type(error) in [type(''),type(u'')]: error=ErrorNode(error)
+        elif isinstance(error, basestring): error=ErrorNode(error)
         self.setType('error')
         self.addChild(node=error)
     def setTimestamp(self,val=None):
@@ -638,7 +638,7 @@ class DataField(Node):
             """
         Node.__init__(self,'field',node=node)
         if name: self.setVar(name)
-        if type(value) in [list,tuple]: self.setValues(value)
+        if isinstance(value, (list, tuple)): self.setValues(value)
         elif value: self.setValue(value)
         if typ: self.setType(typ)
         elif not typ and not node: self.setType('text-single')
@@ -689,7 +689,7 @@ class DataField(Node):
         for opt in lst: self.addOption(opt)
     def addOption(self,opt):
         """ Add one more label-option pair to this field."""
-        if type(opt) in [str,unicode]: self.addChild('option').setTagData('value',opt)
+        if isinstance(opt, basestring): self.addChild('option').setTagData('value',opt)
         else: self.addChild('option',{'label':opt[0]}).setTagData('value',opt[1])
     def getType(self):
         """ Get type of this field. """
@@ -732,12 +732,12 @@ class DataForm(Node):
         if typ: self.setType(typ)
         self.setNamespace(NS_DATA)
         if title: self.setTitle(title)
-        if type(data)==type({}):
+        if isinstance(data, dict):
             newdata=[]
             for name in data.keys(): newdata.append(DataField(name,data[name]))
             data=newdata
         for child in data:
-            if type(child) in [type(''),type(u'')]: self.addInstructions(child)
+            if isinstance(child, basestring): self.addInstructions(child)
             elif child.__class__.__name__=='DataField': self.kids.append(child)
             else: self.kids.append(DataField(node=child))
     def getType(self):
@@ -775,7 +775,7 @@ class DataForm(Node):
         for field in self.getTags('field'):
             name=field.getAttr('var')
             typ=field.getType()
-            if type(typ) in [type(''),type(u'')] and typ[-6:]=='-multi':
+            if isinstance(typ, basestring) and typ.endswith('-multi'):
                 val=[]
                 for i in field.getTags('value'): val.append(i.getData())
             else: val=field.getTagData('value')

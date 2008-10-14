@@ -222,7 +222,7 @@ def build_patterns(view, config, interface):
 			'(?:(?<![\w.]' + emoticons_pattern_prematch[:-1]   + '))' + \
 			'(?:'       + emoticons_pattern[:-1]            + ')'  + \
 			'(?:(?![\w.]'  + emoticons_pattern_postmatch[:-1]  + '))'
-	except:
+	except Exception:
 		pass
 
 	view.emot_pattern_re = re.compile(emoticons_pattern, re.IGNORECASE)
@@ -377,7 +377,7 @@ class HtmlHandler(xml.sax.handler.ContentHandler):
 				# validate length
 				val = sign*max(minl,min(abs(val),maxl))
 				callback(val, *args)
-			except:
+			except Exception:
 				warnings.warn('Unable to parse length value "%s"' % value)
 		
 	def __parse_font_size_cb(length, tag):
@@ -510,7 +510,7 @@ class HtmlHandler(xml.sax.handler.ContentHandler):
 	def __length_tag_cb(self, value, tag, propname):
 		try:
 			tag.set_property(propname, value)
-		except:
+		except Exception:
 			gajim.log.warn( "Error with prop: " + propname + " for tag: " + str(tag))
 		
 
@@ -528,10 +528,10 @@ class HtmlHandler(xml.sax.handler.ContentHandler):
 	
 	# build a dictionary mapping styles to methods, for greater speed
 	__style_methods = dict()
-	for style in ['background-color', 'color', 'font-family', 'font-size',
+	for style in ('background-color', 'color', 'font-family', 'font-size',
 				  'font-style', 'font-weight', 'margin-left', 'margin-right',
 				  'text-align', 'text-decoration', 'white-space', 'display',
-				  'width', 'height' ]:
+				  'width', 'height' ):
 		try:
 			method = locals()['_parse_style_%s' % style.replace('-', '_')]
 		except KeyError:
@@ -575,7 +575,7 @@ class HtmlHandler(xml.sax.handler.ContentHandler):
 				# Wait 0.1s between each byte 
 				try: 
 					f.fp._sock.fp._sock.settimeout(0.5) 
-				except: 
+				except Exception: 
 					pass 
 			# Max image size = 2 MB (to try to prevent DoS)
 			mem = ''
@@ -641,11 +641,11 @@ class HtmlHandler(xml.sax.handler.ContentHandler):
 					pifbufs for every resize, gtk.gdk.Pixbuf.scale_simple
 					or similar.
 					'''
-					if type(dims[0]) == float:
+					if isinstance(dims[0], float):
 						dims[0] = int(dims[0]*w)
 					elif not dims[0]:
 						dims[0] = w
-					if type(dims[1]) == float:
+					if isinstance(dims[1], float):
 						dims[1] = int(dims[1]*h)
 					if not dims[1]:
 						dims[1] = h
@@ -675,7 +675,7 @@ class HtmlHandler(xml.sax.handler.ContentHandler):
 			alt = attrs.get('alt', 'Broken image')
 			try:
 				loader.close()
-			except:
+			except Exception:
 				pass
 		return pixbuf
 
@@ -728,7 +728,7 @@ class HtmlHandler(xml.sax.handler.ContentHandler):
 		else:
 			self._insert_text(text.strip('\n'))
 
-	def _anchor_event(self, tag, textview, event, iter, href, type_):
+	def _anchor_event(self, tag, textview, event, iter_, href, type_):
 		if event.type == gtk.gdk.BUTTON_PRESS:
 			self.textview.emit('url-clicked', href, type_)
 			return True
@@ -1068,7 +1068,7 @@ if __name__ == '__main__':
 
 	htmlview.connect('motion_notify_event', on_textview_motion_notify_event)
 
-	def handler(texttag, widget, event, iter, kind, href):
+	def handler(texttag, widget, event, iter_, kind, href):
 		if event.type == gtk.gdk.BUTTON_PRESS:
 			print href
 

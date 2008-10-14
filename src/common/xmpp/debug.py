@@ -170,10 +170,10 @@ class Debug:
             
         self._remove_dupe_flags()
         if log_file:
-            if type( log_file ) is type(''):
+            if isinstance(log_file, str):
                 try:
                     self._fh = open(log_file,'w')
-                except:
+                except Exception:
                     print 'ERROR: can open %s for writing'
                     sys.exit(0)
             else: ## assume its a stream type object
@@ -196,13 +196,13 @@ class Debug:
             caller = sys._getframe(1) # used to get name of caller
             try:
                 mod_name= ":%s" % caller.f_locals['__name__']
-            except:
+            except Exception:
                 mod_name = ""
             self.show('Debug created for %s%s' % (caller.f_code.co_filename,
                                                    mod_name ))
             self.show(' flags defined: %s' % ','.join( self.active ))
             
-        if type(flag_show) in (type(''), type(None)):
+        if type(flag_show) in (str, type(None)):
             self.flag_show = flag_show
         else:
             msg2 = '%s' % type(flag_show )
@@ -272,7 +272,7 @@ class Debug:
                 output = output[:-1]
         try:
             self._fh.write( output )
-        except:
+        except Exception:
             # unicode strikes again ;)
             s=u''
             for i in range(len(output)):
@@ -291,7 +291,7 @@ class Debug:
         if not active_flags:
             #no debuging at all
             self.active = []
-        elif type( active_flags ) in ( types.TupleType, types.ListType ):
+        elif isinstance(active_flags, (tuple, list)):
             flags = self._as_one_list( active_flags )
             for t in flags:
                 if t not in self.debug_flags:
@@ -304,7 +304,7 @@ class Debug:
             # assume comma string
             try:
                 flags = active_flags.split(',')
-            except:
+            except Exception:
                 self.show( '***' )
                 self.show( '*** Invalid debug param given: %s' % active_flags )
                 self.show( '*** please correct your param!' )
@@ -329,11 +329,11 @@ class Debug:
         
         This code organises lst and remves dupes
         """
-        if type( items ) <> type( [] ) and type( items ) <> type( () ):
+        if not isinstance(items, (list, tuple)):
             return [ items ]
         r = []
         for l in items:
-            if type( l ) == type([]):
+            if isinstance(l, list):
                 lst2 = self._as_one_list( l )
                 for l2 in lst2: 
                     self._append_unique_str(r, l2 )
@@ -346,7 +346,7 @@ class Debug:
     
     def _append_unique_str( self, lst, item ):
         """filter out any dupes."""
-        if type(item) <> type(''):
+        if not isinstance(item, str):
             msg2 = '%s' % item
             raise 'Invalid item type (should be string)',msg2
         if item not in lst:

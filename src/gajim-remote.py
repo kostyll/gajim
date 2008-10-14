@@ -38,7 +38,7 @@ from common import i18n
 
 try:
 	PREFERRED_ENCODING = locale.getpreferredencoding()
-except:
+except Exception:
 	PREFERRED_ENCODING = 'UTF-8'
 
 def send_error(error_message):
@@ -50,7 +50,7 @@ try:
 	import dbus
 	import dbus.service
 	import dbus.glib
-except:
+except Exception:
 	print str(exceptions.DbusNotSupported())
 	sys.exit(1)
 
@@ -338,8 +338,7 @@ class GajimRemote:
 				for account_dict in res:
 					print self.print_info(0, account_dict, True)
 			elif self.command == 'prefs_list':
-				pref_keys = res.keys()
-				pref_keys.sort()
+				pref_keys = sorted(res.keys())
 				for pref_key in pref_keys:
 					result = '%s = %s' % (pref_key, res[pref_key])
 					if isinstance(result, unicode):
@@ -355,7 +354,7 @@ class GajimRemote:
 		if not self.sbus:
 			try:
 				self.sbus = dbus.SessionBus()
-			except:
+			except Exception:
 				raise exceptions.SessionBusNotPresent
 
 		test = False
@@ -372,7 +371,7 @@ class GajimRemote:
 		or exit if it is not possible '''
 		try:
 			self.sbus = dbus.SessionBus()
-		except:
+		except Exception:
 			raise exceptions.SessionBusNotPresent
 
 		if not self.check_gajim_running():
@@ -418,8 +417,7 @@ class GajimRemote:
 	def compose_help(self):
 		''' print usage, and list available commands '''
 		str = _('Usage: %s command [arguments]\nCommand is one of:\n' ) % BASENAME
-		commands = self.commands.keys()
-		commands.sort()
+		commands = sorted(self.commands.keys())
 		for command in commands:
 			str += '  ' + command
 			for argument in self.commands[command][1]:
@@ -481,7 +479,7 @@ class GajimRemote:
 		if (encode_return):
 			try:
 				ret_str = ret_str.encode(PREFERRED_ENCODING)
-			except:
+			except Exception:
 				pass
 		return ret_str
 

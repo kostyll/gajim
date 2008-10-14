@@ -38,23 +38,24 @@ import dialogs
 import negotiation
 
 class ChatControlSession(stanza_session.EncryptedStanzaSession):
-	def __init__(self, conn, jid, thread_id, type='chat'):
+	def __init__(self, conn, jid, thread_id, type_='chat'):
 		stanza_session.EncryptedStanzaSession.__init__(self, conn, jid, thread_id,
-			type='chat')
+			type_='chat')
 
 		self.control = None
 
-	def acknowledge_termination(self):
+	def detach_from_control(self):
 		if self.control:
+			self.control.no_autonegotiation = False
 			self.control.set_session(None)
 
+	def acknowledge_termination(self):
+		self.detach_from_control()
 		stanza_session.EncryptedStanzaSession.acknowledge_termination(self)
 
 	def terminate(self):
 		stanza_session.EncryptedStanzaSession.terminate(self)
-
-		if self.control:
-			self.control.set_session(None)
+		self.detach_from_control()
 
 	# extracts chatstate from a <message/> stanza
 	def get_chatstate(self, msg, msgtxt):
@@ -62,7 +63,7 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 		chatstate = None
 
 		# chatstates - look for chatstate tags in a message if not delayed
-		delayed = msg.getTag('x', namespace=common.xmpp.NS_DELAY) != None
+		delayed = msg.getTag('x', namespace=common.xmpp.NS_DELAY) is not None
 		if not delayed:
 			composing_xep = False
 			children = msg.getChildren()

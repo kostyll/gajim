@@ -56,7 +56,7 @@ from common.xmpp.protocol import NS_ESESSION
 try:
 	import gtkspell
 	HAS_GTK_SPELL = True
-except:
+except Exception:
 	HAS_GTK_SPELL = False
 
 HAVE_MARKUP_TOOLTIPS = gtk.pygtk_version >= (2, 12, 0)
@@ -281,7 +281,7 @@ class ChatControlBase(MessageControl):
 				for lang in dict(langs):
 					try:
 						spell.set_language(langs[lang])
-					except:
+					except Exception:
 						del langs[lang]
 				# now set the one the user selected
 				per_type = 'contacts'
@@ -593,7 +593,7 @@ class ChatControlBase(MessageControl):
 			return True
 		return False
 
-	def send_message(self, message, keyID = '', type = 'chat', chatstate = None,
+	def send_message(self, message, keyID = '', type_ = 'chat', chatstate = None,
 	msg_id = None, composing_xep = None, resource = None,
 	process_command = True):
 		'''Send the given message to the active tab. Doesn't return None if error
@@ -604,7 +604,7 @@ class ChatControlBase(MessageControl):
 		ret = None
 
 		if not process_command or not self._process_command(message):
-			ret = MessageControl.send_message(self, message, keyID, type = type,
+			ret = MessageControl.send_message(self, message, keyID, type_ = type_,
 				chatstate = chatstate, msg_id = msg_id,
 				composing_xep = composing_xep, resource = resource,
 				user_nick = self.user_nick)
@@ -1720,7 +1720,7 @@ class ChatControl(ChatControlBase):
 				self._schedule_activity_timers()
 
 		id = ChatControlBase.send_message(self, message, keyID,
-			type = 'chat', chatstate = chatstate_to_send,
+			type_ = 'chat', chatstate = chatstate_to_send,
 			composing_xep = composing_xep,
 			process_command = process_command)
 		if id:
@@ -2342,7 +2342,6 @@ class ChatControl(ChatControlBase):
 			NS_ESESSION) and not gajim.capscache.is_supported(
 			self.contact, 'notexistant'):
 				self.begin_e2e_negotiation()
-				self.no_autonegotiation = True
 		else:
 			self.send_chatstate('active', self.contact)
 
@@ -2577,6 +2576,8 @@ class ChatControl(ChatControlBase):
 			self.begin_e2e_negotiation()
 
 	def begin_e2e_negotiation(self):
+		self.no_autonegotiation = True
+
 		if not self.session:
 			fjid = self.contact.get_full_jid()
 			new_sess = gajim.connections[self.account].make_new_session(fjid)

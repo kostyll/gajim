@@ -360,7 +360,7 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 	def get_status(self):
 		return STATUS_LIST[self.connected]
 
-	def send_message(self, jid, msg, keyID, type = 'chat', subject='',
+	def send_message(self, jid, msg, keyID, type_ = 'chat', subject='',
 	chatstate = None, msg_id = None, composing_xep = None, resource = None,
 	user_nick = None, session=None, forward_from=None, form_node=None, original_message=None):
 		fjid = jid
@@ -379,7 +379,7 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 		if keyID and self.USE_GPG:
 			if keyID ==  'UNKNOWN':
 				error = _('Neither the remote presence is signed, nor a key was assigned.')
-			elif keyID[8:] == 'MISMATCH':
+			elif keyID.endswith('MISMATCH'):
 				error = _('The contact\'s key (%s) does not match the key assigned in Gajim.' % keyID[:8])
 			else:
 				# encrypt
@@ -396,8 +396,8 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 				self.dispatch('MSGNOTSENT', (jid, error, msgtxt, tim, session))
 				return 3
 
-		if type == 'chat':
-			msg_iq = common.xmpp.Message(to = fjid, body = msgtxt, typ = type)
+		if type_ == 'chat':
+			msg_iq = common.xmpp.Message(to = fjid, body = msgtxt, typ = type_)
 
 		else:
 			if subject:
@@ -445,7 +445,7 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 					log_msg = _('Subject: %(subject)s\n%(message)s') % \
 					{'subject': subject, 'message': msg}
 				if log_msg:
-					if type == 'chat':
+					if type_ == 'chat':
 						kind = 'chat_msg_sent'
 					else:
 						kind = 'single_msg_sent'
@@ -457,7 +457,7 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 			reason += ' ' + _('Your message could not be sent.')
 			self.dispatch('MSGERROR', [jid, '-1', reason, None, None, session])
 
-		ret = self.connection.send(msg_iq, msg != None, on_ok=on_send_ok,
+		ret = self.connection.send(msg_iq, msg is not None, on_ok=on_send_ok,
 			on_not_ok=on_send_not_ok)
 		if ret == -1:
 			# Contact Offline

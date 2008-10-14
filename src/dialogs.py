@@ -45,7 +45,7 @@ from common import pep
 try:
 	import gtkspell
 	HAS_GTK_SPELL = True
-except:
+except Exception:
 	HAS_GTK_SPELL = False
 
 # those imports are not used in this file, but in files that 'import dialogs'
@@ -68,7 +68,7 @@ class EditGroupsDialog:
 		self.dialog.set_transient_for(gajim.interface.roster.window)
 		self.list_ = list_
 		self.changes_made = False
-		self.list = self.xml.get_widget('groups_treeview')
+		self.treeview = self.xml.get_widget('groups_treeview')
 		if len(list_) == 1:
 			contact = list_[0][0]
 			self.xml.get_widget('nickname_label').set_markup(
@@ -118,7 +118,7 @@ class EditGroupsDialog:
 		if group in helpers.special_groups:
 			return
 		# check if it already exists
-		model = self.list.get_model()
+		model = self.treeview.get_model()
 		iter = model.get_iter_root()
 		while iter:
 			if model.get_value(iter, 0).decode('utf-8') == group:
@@ -131,7 +131,7 @@ class EditGroupsDialog:
 
 	def group_toggled_cb(self, cell, path):
 		self.changes_made = True
-		model = self.list.get_model()
+		model = self.treeview.get_model()
 		if model[path][2]:
 			model[path][2] = False
 			model[path][1] = True
@@ -145,9 +145,10 @@ class EditGroupsDialog:
 
 	def init_list(self):
 		store = gtk.ListStore(str, bool, bool)
-		self.list.set_model(store)
-		for column in self.list.get_columns(): # Clear treeview when re-drawing
-			self.list.remove_column(column)
+		self.treeview.set_model(store)
+		for column in self.treeview.get_columns():
+			# Clear treeview when re-drawing
+			self.treeview.remove_column(column)
 		accounts = []
 		# Store groups in a list so we can sort them and the number of contacts in
 		# it
@@ -185,14 +186,14 @@ class EditGroupsDialog:
 					store.set(iter, 2, True)
 		column = gtk.TreeViewColumn(_('Group'))
 		column.set_expand(True)
-		self.list.append_column(column)
+		self.treeview.append_column(column)
 		renderer = gtk.CellRendererText()
 		column.pack_start(renderer)
 		column.set_attributes(renderer, text=0)
 
 		column = gtk.TreeViewColumn(_('In the group'))
 		column.set_expand(False)
-		self.list.append_column(column)
+		self.treeview.append_column(column)
 		renderer = gtk.CellRendererToggle()
 		column.pack_start(renderer)
 		renderer.set_property('activatable', True)
@@ -309,12 +310,12 @@ class ChooseGPGKeyDialog:
 		self.on_response(keyID)
 		self.window.destroy()
 
-	def fill_tree(self, list, selected):
+	def fill_tree(self, list_, selected):
 		model = self.keys_treeview.get_model()
-		for keyID in list.keys():
-			iter = model.append((keyID, list[keyID]))
+		for keyID in list_.keys():
+			iter_ = model.append((keyID, list_[keyID]))
 			if keyID == selected:
-				path = model.get_path(iter)
+				path = model.get_path(iter_)
 				self.keys_treeview.set_cursor(path)
 
 
@@ -1104,12 +1105,12 @@ class Dialog(gtk.Dialog):
 
 
 class HigDialog(gtk.MessageDialog):
-	def __init__(self, parent, type, buttons, pritext, sectext,
+	def __init__(self, parent, type_, buttons, pritext, sectext,
 	on_response_ok = None, on_response_cancel = None, on_response_yes = None,
 	on_response_no = None):
 		gtk.MessageDialog.__init__(self, parent,
 				gtk.DIALOG_DESTROY_WITH_PARENT | gtk.DIALOG_MODAL,
-				type, buttons, message_format = pritext)
+				type_, buttons, message_format = pritext)
 
 		self.format_secondary_markup(sectext)
 
@@ -1753,7 +1754,7 @@ class JoinGroupchatWindow:
 		password = self._password_entry.get_text().decode('utf-8')
 		try:
 			nickname = helpers.parse_resource(nickname)
-		except:
+		except Exception:
 			ErrorDialog(_('Invalid Nickname'),
 				_('The nickname has not allowed characters.'))
 			return
@@ -1764,7 +1765,7 @@ class JoinGroupchatWindow:
 			return
 		try:
 			room_jid = helpers.parse_jid(room_jid)
-		except:
+		except Exception:
 			ErrorDialog(_('Invalid group chat Jabber ID'),
 				_('The group chat Jabber ID has not allowed characters.'))
 			return
@@ -1940,8 +1941,7 @@ class NewChatDialog(InputDialog):
 		liststore = gtkgui_helpers.get_completion_liststore(self.input_entry)
 		self.completion_dict = helpers.get_contact_dict_for_account(account)
 		# add all contacts to the model
-		keys = self.completion_dict.keys()
-		keys.sort()
+		keys = sorted(self.completion_dict.keys())
 		for jid in keys:
 			contact = self.completion_dict[jid]
 			img = gajim.interface.jabber_state_images['16'][contact.show]
@@ -2180,7 +2180,7 @@ class SingleMessageWindow:
 		self.cancel_button = self.xml.get_widget('cancel_button')
 		self.close_button = self.xml.get_widget('close_button')
 		self.message_tv_buffer.connect('changed', self.update_char_counter)
-		if type(to) == type([]):
+		if isinstance(to, list):
 			jid = ', '.join( [i[0].jid + '/' + i[0].resource for i in to])
 			self.to_entry.set_text(jid)
 			self.to_entry.set_sensitive(False)
@@ -2209,8 +2209,7 @@ class SingleMessageWindow:
 		if to == '':
 			liststore = gtkgui_helpers.get_completion_liststore(self.to_entry)
 			self.completion_dict = helpers.get_contact_dict_for_account(account)
-			keys = self.completion_dict.keys()
-			keys.sort()
+			keys = sorted(self.completion_dict.keys())
 			for jid in keys:
 				contact = self.completion_dict[jid]
 				img = gajim.interface.jabber_state_images['16'][contact.show]
@@ -2366,7 +2365,7 @@ class SingleMessageWindow:
 				form_node = None
 			# FIXME: allow GPG message some day
 			gajim.connections[self.account].send_message(to_whom_jid, message,
-				keyID=None, type='normal', subject=subject, session=session,
+				keyID=None, type_='normal', subject=subject, session=session,
 				form_node=form_node)
 
 		self.subject_entry.set_text('') # we sent ok, clear the subject
@@ -2530,7 +2529,7 @@ class PrivacyListWindow:
 
 		# Add Widgets
 
-		for widget_to_add in ['title_hbox', 'privacy_lists_title_label',
+		for widget_to_add in ('title_hbox', 'privacy_lists_title_label',
 		'list_of_rules_label', 'add_edit_rule_label', 'delete_open_buttons_hbox',
 		'privacy_list_active_checkbutton', 'privacy_list_default_checkbutton',
 		'list_of_rules_combobox', 'delete_open_buttons_hbox',
@@ -2544,7 +2543,7 @@ class PrivacyListWindow:
 		'new_rule_button', 'save_rule_button', 'privacy_list_refresh_button',
 		'privacy_list_close_button', 'edit_send_status_checkbutton',
 		'add_edit_vbox', 'privacy_list_active_checkbutton',
-		'privacy_list_default_checkbutton']:
+		'privacy_list_default_checkbutton'):
 			self.__dict__[widget_to_add] = self.xml.get_widget(widget_to_add)
 
 		self.privacy_lists_title_label.set_label(
@@ -2825,10 +2824,10 @@ class PrivacyListsWindow:
 		self.xml = gtkgui_helpers.get_glade('privacy_lists_window.glade')
 
 		self.window = self.xml.get_widget('privacy_lists_first_window')
-		for widget_to_add in ['list_of_privacy_lists_combobox',
+		for widget_to_add in ('list_of_privacy_lists_combobox',
 		'delete_privacy_list_button', 'open_privacy_list_button',
 		'new_privacy_list_button', 'new_privacy_list_entry',
-		'privacy_lists_refresh_button', 'close_privacy_lists_window_button']:
+		'privacy_lists_refresh_button', 'close_privacy_lists_window_button'):
 			self.__dict__[widget_to_add] = self.xml.get_widget(
 				widget_to_add)
 
@@ -3058,7 +3057,7 @@ class ImageChooserDialog(FileChooserDialog):
 				path = helpers.get_my_pictures_path()
 			else:
 				path = os.environ['HOME']
-		except:
+		except Exception:
 			path = ''
 		FileChooserDialog.__init__(self,
 			title_text = _('Choose Image'),
@@ -3285,7 +3284,7 @@ class AdvancedNotificationsWindow:
 		else:
 			self.special_status_rb.set_active(True)
 			values = value.split()
-			for v in ['online', 'away', 'xa', 'dnd', 'invisible']:
+			for v in ('online', 'away', 'xa', 'dnd', 'invisible'):
 				if v in values:
 					self.__dict__[v + '_cb'].set_active(True)
 				else:
@@ -3305,7 +3304,7 @@ class AdvancedNotificationsWindow:
 			'sound_file')
 		self.sound_entry.set_text(value)
 		# sound, popup, auto_open, systray, roster
-		for option in ['sound', 'popup', 'auto_open', 'systray', 'roster']:
+		for option in ('sound', 'popup', 'auto_open', 'systray', 'roster'):
 			value = gajim.config.get_per('notifications', str(self.active_num),
 				option)
 			if value == 'yes':
@@ -3342,7 +3341,7 @@ class AdvancedNotificationsWindow:
 			status = ''
 		else:
 			status = _('when I am ')
-			for st in ['online', 'away', 'xa', 'dnd', 'invisible']:
+			for st in ('online', 'away', 'xa', 'dnd', 'invisible'):
 				if self.__dict__[st + '_cb'].get_active():
 					status += helpers.get_uf_show(st) + ' '
 		model[iter][1] = "When %s for %s %s %s" % (event, recipient_type,
@@ -3475,7 +3474,7 @@ class AdvancedNotificationsWindow:
 		if self.active_num < 0:
 			return
 		status = ''
-		for st in ['online', 'away', 'xa', 'dnd', 'invisible']:
+		for st in ('online', 'away', 'xa', 'dnd', 'invisible'):
 			if self.__dict__[st + '_cb'].get_active():
 				status += st + ' '
 		if status:
@@ -3491,14 +3490,14 @@ class AdvancedNotificationsWindow:
 			gajim.config.set_per('notifications', str(self.active_num), 'status',
 				'all')
 			# 'All status' clicked
-			for st in ['online', 'away', 'xa', 'dnd', 'invisible']:
+			for st in ('online', 'away', 'xa', 'dnd', 'invisible'):
 				self.__dict__[st + '_cb'].hide()
 
 			self.special_status_rb.show()
 		else:
 			self.set_status_config()
 			# 'special status' clicked
-			for st in ['online', 'away', 'xa', 'dnd', 'invisible']:
+			for st in ('online', 'away', 'xa', 'dnd', 'invisible'):
 				self.__dict__[st + '_cb'].show()
 
 			self.special_status_rb.hide()
@@ -3893,7 +3892,7 @@ class GPGInfoWindow:
 		verify_now_button.set_no_show_all(True)
 		verify_now_button.hide()
 
-		if keyID[8:] == 'MISMATCH':
+		if keyID.endswith('MISMATCH'):
 			verification_status = _('''Contact's identity NOT verified''')
 			info = _('The contact\'s key (%s) <b>does not match</b> the key '
 				'assigned in Gajim.') % keyID[:8]

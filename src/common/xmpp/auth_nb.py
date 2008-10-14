@@ -168,13 +168,13 @@ class SASL(PlugIn):
 
 	def SASLHandler(self, conn, challenge):
 		''' Perform next SASL auth step. Used internally. '''
-		if challenge.getNamespace() <> NS_SASL: 
+		if challenge.getNamespace() != NS_SASL: 
 			return
 		if challenge.getName() == 'failure':
 			self.startsasl = 'failure'
 			try: 
 				reason = challenge.getChildren()[0]
-			except: 
+			except Exception: 
 				reason = challenge
 			self.DEBUG('Failed SASL authentification: %s' % reason, 'error')
 			if self.on_sasl :
@@ -214,8 +214,8 @@ class SASL(PlugIn):
 		chal = challenge_splitter(data)
 		if not self.realm and 'realm' in chal:
 			self.realm = chal['realm']
-		if 'qop' in chal and ((type(chal['qop']) == str and \
-		chal['qop'] =='auth') or (type(chal['qop']) == list and 'auth' in \
+		if 'qop' in chal and ((isinstance(chal['qop'], str) and \
+		chal['qop'] =='auth') or (isinstance(chal['qop'], list) and 'auth' in \
 		chal['qop'])):
 			resp={}
 			resp['username'] = self.username
@@ -239,7 +239,7 @@ class SASL(PlugIn):
 			resp['response'] = response
 			resp['charset'] = 'utf-8'
 			sasl_data=''
-			for key in ['charset', 'username', 'realm', 'nonce', 'nc', 'cnonce', 'digest-uri', 'response', 'qop']:
+			for key in ('charset', 'username', 'realm', 'nonce', 'nc', 'cnonce', 'digest-uri', 'response', 'qop'):
 				if key in ['nc','qop','response','charset']: 
 					sasl_data += "%s=%s," % (key,resp[key])
 				else: 

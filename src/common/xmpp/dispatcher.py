@@ -49,7 +49,7 @@ class Dispatcher(PlugIn):
     def getAnID(self):
         global ID
         ID+=1
-        return `ID`
+        return repr(ID)
 
     def dumpHandlers(self):
         """ Return set of user-registered callbacks in it's internal format.
@@ -107,7 +107,7 @@ class Dispatcher(PlugIn):
         self._owner.send("<?xml version='1.0'?>%s>"%str(self._metastream)[:-2])
 
     def _check_stream_start(self,ns,tag,attrs):
-        if ns<>NS_STREAMS or tag<>'stream':
+        if ns!=NS_STREAMS or tag!='stream':
             raise ValueError('Incorrect stream start: (%s,%s). Terminating.'%(tag,ns))
 
     def Process(self, timeout=0):
@@ -209,7 +209,7 @@ class Dispatcher(PlugIn):
 
     def returnStanzaHandler(self,conn,stanza):
         """ Return stanza back to the sender with <feature-not-implemennted/> error set. """
-        if stanza.getType() in ['get','set']:
+        if stanza.getType() in ('get','set'):
             conn.send(Error(stanza,ERR_FEATURE_NOT_IMPLEMENTED))
 
     def streamErrorHandler(self,conn,error):
@@ -295,12 +295,12 @@ class Dispatcher(PlugIn):
         output=''
         if ID in session._expected:
             user=0
-            if type(session._expected[ID])==type(()):
+            if isinstance(session._expected[ID], tuple):
                 cb,args=session._expected[ID]
                 session.DEBUG("Expected stanza arrived. Callback %s(%s) found!"%(cb,args),'ok')
                 try: cb(session,stanza,**args)
                 except Exception, typ:
-                    if typ.__class__.__name__<>'NodeProcessed': raise
+                    if typ.__class__.__name__!='NodeProcessed': raise
             else:
                 session.DEBUG("Expected stanza arrived!",'ok')
                 session._expected[ID]=stanza
@@ -310,7 +310,7 @@ class Dispatcher(PlugIn):
                 try:
                     handler['func'](session,stanza)
                 except Exception, typ:
-                    if typ.__class__.__name__<>'NodeProcessed':
+                    if typ.__class__.__name__!='NodeProcessed':
                         self._pendingExceptions.insert(0, sys.exc_info())
                         return
                     user=0
@@ -354,12 +354,12 @@ class Dispatcher(PlugIn):
     def send(self,stanza):
         """ Serialise stanza and put it on the wire. Assign an unique ID to it before send.
             Returns assigned ID."""
-        if type(stanza) in [type(''), type(u'')]: return self._owner_send(stanza)
+        if isinstance(stanza, basestring): return self._owner_send(stanza)
         if not isinstance(stanza,Protocol): _ID=None
         elif not stanza.getID():
             global ID
             ID+=1
-            _ID=`ID`
+            _ID=repr(ID)
             stanza.setID(_ID)
         else: _ID=stanza.getID()
         if self._owner._registered_name and not stanza.getAttr('from'): stanza.setAttr('from',self._owner._registered_name)

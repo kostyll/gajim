@@ -27,10 +27,10 @@ def XMLescape(txt):
 ENCODING='utf-8'
 def ustr(what):
 	"""Converts object "what" to unicode string using it's own __str__ method if accessible or unicode method otherwise."""
-	if type(what) == type(u''): return what
+	if isinstance(what, unicode): return what
 	try: r=what.__str__()
 	except AttributeError: r=str(what)
-	if type(r)<>type(u''): return unicode(r,ENCODING)
+	if not isinstance(r, unicode): return unicode(r,ENCODING)
 	return r
 
 class Node(object):
@@ -129,7 +129,7 @@ class Node(object):
 				cnt=cnt+1
 		if not fancy and (len(self.data)-1) >= cnt: s = s + XMLescape(self.data[cnt])
 		elif (len(self.data)-1) >= cnt: s = s + XMLescape(self.data[cnt].strip())
-		if not self.kids and s[-1:]=='>':
+		if not self.kids and s.endswith('>'):
 			s=s[:-1]+' />'
 			if fancy: s = s + "\n"
 		else:
@@ -214,10 +214,10 @@ class Node(object):
 			Returns the list of nodes found. """
 		nodes=[]
 		for node in self.kids:
-			if namespace and namespace<>node.getNamespace(): continue
+			if namespace and namespace!=node.getNamespace(): continue
 			if node.getName() == name:
 				for key in attrs.keys():
-				   if key not in node.attrs or node.attrs[key]<>attrs[key]: break
+				   if key not in node.attrs or node.attrs[key]!=attrs[key]: break
 				else: nodes.append(node)
 			if one and nodes: return nodes[0]
 		if not one: return nodes
@@ -252,7 +252,7 @@ class Node(object):
 	def setPayload(self,payload,add=0):
 		""" Sets node payload according to the list specified. WARNING: completely replaces all node's
 			previous content. If you wish just to add child or CDATA - use addData or addChild methods. """
-		if type(payload) in (type(''),type(u'')): payload=[payload]
+		if isinstance(payload, basestring): payload=[payload]
 		if add: self.kids+=payload
 		else: self.kids=payload
 	def setTag(self, name, attrs={}, namespace=None):
@@ -363,7 +363,7 @@ class NodeBuilder:
 		"""XML Parser callback. Used internally"""
 		self.check_data_buffer()
 		self._inc_depth()
-		self.DEBUG(DBG_NODEBUILDER, "DEPTH -> %i , tag -> %s, attrs -> %s" % (self.__depth, tag, `attrs`), 'down')
+		self.DEBUG(DBG_NODEBUILDER, "DEPTH -> %i , tag -> %s, attrs -> %s" % (self.__depth, tag, repr(attrs)), 'down')
 		if self.__depth == self._dispatch_depth:
 			if not self._mini_dom : 
 				self._mini_dom = Node(tag=tag, attrs=attrs, nsp = self._document_nsp, node_built=True)

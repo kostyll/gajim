@@ -41,7 +41,7 @@ import locale
 
 try:
 	randomsource = random.SystemRandom()
-except:
+except Exception:
 	randomsource = random.Random()
 	randomsource.seed()
 
@@ -324,10 +324,7 @@ class Connection(ConnectionHandlers):
 						errnum = -1 # we don't have an errnum
 					ssl_msg = ''
 					if errnum > 0:
-						if errnum in ssl_error:
-							ssl_msg = ssl_error[errnum]
-						else:
-							ssl_msg = _('Unknown SSL error: %d') % errnum
+						ssl_msg = ssl_error.get(errnum, _('Unknown SSL error: %d') % errnum)
 					ssl_cert = ''
 					if hasattr(self.connection.Connection, 'ssl_cert_pem'):
 						ssl_cert = self.connection.Connection.ssl_cert_pem
@@ -450,7 +447,7 @@ class Connection(ConnectionHandlers):
 			try:
 				try:
 					env_http_proxy = os.environ['HTTP_PROXY']
-				except:
+				except Exception:
 					env_http_proxy = os.environ['http_proxy']
 				env_http_proxy = env_http_proxy.strip('"')
 				# Dispose of the http:// prefix
@@ -477,7 +474,7 @@ class Connection(ConnectionHandlers):
 				else:
 					proxy['password'] = u''
 
-			except:
+			except Exception:
 				proxy = None
 		else:
 			proxy = None
@@ -577,7 +574,10 @@ class Connection(ConnectionHandlers):
 		if len(self._hosts):
 			# No config option exist when creating a new account
 			if self.last_connection_type:
-				self._connection_types = [self.last_connection_type]
+				if self.last_connection_type == 'tcp':
+					self._connection_types = ['plain']
+				else:
+					self._connection_types = [self.last_connection_type]
 			elif self.name in gajim.config.get_per('accounts'):
 				self._connection_types = gajim.config.get_per('accounts', self.name,
 					'connection_types').split()
@@ -1071,7 +1071,7 @@ class Connection(ConnectionHandlers):
 
 		self.connection.send(msg_iq)
 
-	def send_message(self, jid, msg, keyID, type='chat', subject='',
+	def send_message(self, jid, msg, keyID, type_='chat', subject='',
 	chatstate=None, msg_id=None, composing_xep=None, resource=None,
 	user_nick=None, xhtml=None, session=None, forward_from=None, form_node=None,
 	original_message=None, delayed=None):
@@ -1093,7 +1093,7 @@ class Connection(ConnectionHandlers):
 		if keyID and self.USE_GPG:
 			if keyID ==  'UNKNOWN':
 				error = _('Neither the remote presence is signed, nor a key was assigned.')
-			elif keyID[8:] == 'MISMATCH':
+			elif keyID.endswith('MISMATCH'):
 				error = _('The contact\'s key (%s) does not match the key assigned in Gajim.' % keyID[:8])
 			else:
 				#encrypt
@@ -1114,8 +1114,8 @@ class Connection(ConnectionHandlers):
 			'rst_formatting_outgoing_messages'):
 			# Generate a XHTML part using reStructured text markup
 			xhtml = create_xhtml(msgtxt)
-		if type == 'chat':
-			msg_iq = common.xmpp.Message(to = fjid, body = msgtxt, typ = type,
+		if type_ == 'chat':
+			msg_iq = common.xmpp.Message(to = fjid, body = msgtxt, typ = type_,
 				xhtml = xhtml)
 		else:
 			if subject:
@@ -1204,13 +1204,13 @@ class Connection(ConnectionHandlers):
 			ji = gajim.get_jid_without_resource(jid)
 			if gajim.config.should_log(self.name, ji):
 				log_msg = msg
-				if original_message != None:
+				if original_message is not None:
 					log_msg = original_message
 				if subject:
 					log_msg = _('Subject: %(subject)s\n%(message)s') % \
 					{'subject': subject, 'message': msg}
 				if log_msg:
-					if type == 'chat':
+					if type_ == 'chat':
 						kind = 'chat_msg_sent'
 					else:
 						kind = 'single_msg_sent'

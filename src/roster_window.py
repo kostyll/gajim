@@ -1568,15 +1568,9 @@ class RosterWindow:
 			cshow = {'chat':0, 'online': 1, 'away': 2, 'xa': 3, 'dnd': 4,
 				'invisible': 5, 'offline': 6, 'not in roster': 7, 'error': 8}
 			s = self.get_show(lcontact1)
-			if s in cshow:
-				show1 = cshow[s]
-			else:
-				show1 = 9
+			show1 = cshow.get(s, 9)
 			s = self.get_show(lcontact2)
-			if s in cshow:
-				show2 = cshow[s]
-			else:
-				show2 = 9
+			show2 = cshow.get(s, 9)
 			removing1 = False
 			removing2 = False
 			if show1 == 6 and jid1 in gajim.to_be_removed[account1]:
@@ -1708,7 +1702,7 @@ class RosterWindow:
 			if not 'com.google.code.Awn' in bus.list_names():
 				# Awn is not installed
 				return
-		except:
+		except Exception:
 			return
 		iconset = gajim.config.get('iconset')
 		prefix = os.path.join(helpers.get_iconset_path(iconset), '32x32')
@@ -2080,9 +2074,9 @@ class RosterWindow:
 				for jid in gajim.contacts.get_jid_list(account):
 					lcontact = gajim.contacts.get_contacts(account, jid)
 					ctrl = gajim.interface.msg_win_mgr.get_gc_control(jid, account)
-					for contact in [c for c in lcontact if ((c.show != 'offline' or
-					c.is_transport()) and not ctrl)]:
-						self.chg_contact_status(contact, 'offline', '', account)
+					for contact in lcontact:
+						if (contact.show != 'offline' or contact.is_transport()) and not ctrl:
+							self.chg_contact_status(contact, 'offline', '', account)
 			self.actions_menu_needs_rebuild = True
 		self.update_status_combobox()
 		# Force the rebuild now since the on_activates on the menu itself does
@@ -2173,7 +2167,7 @@ class RosterWindow:
 	def close_all_from_dict(self, dic):
 		'''close all the windows in the given dictionary'''
 		for w in dic.values():
-			if type(w) == type({}):
+			if isinstance(w, dict):
 				self.close_all_from_dict(w)
 			else:
 				w.window.destroy()
@@ -2391,7 +2385,7 @@ class RosterWindow:
 			titer = None
 			try:
 				titer = model.get_iter(row)
-			except:
+			except Exception:
 				self.tooltip.hide_tooltip()
 				return
 			if model[titer][C_TYPE] in ('contact', 'self_contact'):
@@ -2836,7 +2830,7 @@ class RosterWindow:
 	contact = None):
 		if contact is None:
 			dialogs.SingleMessageWindow(account, action='send')
-		elif type(contact) == type([]):
+		elif isinstance(contact, list):
 			dialogs.SingleMessageWindow(account, contact, 'send')
 		else:
 			jid = contact.jid
@@ -4252,7 +4246,15 @@ class RosterWindow:
 				return
 			jid = model[titer][C_JID].decode('utf-8')
 			account = model[titer][C_ACCOUNT].decode('utf-8')
-			color = gajim.config.get_per('themes', theme, 'contacttextcolor')
+			color = None
+			if type_ == 'groupchat':
+				ctrl = gajim.interface.minimized_controls[account].get(jid, None)
+				if ctrl and ctrl.attention_flag:
+					color = gajim.config.get_per('themes', theme,
+						 'state_muc_directed_msg_color')
+				renderer.set_property('foreground', 'red')
+			if not color:
+				color = gajim.config.get_per('themes', theme, 'contacttextcolor')
 			if color:
 				renderer.set_property('foreground', color)
 			else:
@@ -4569,10 +4571,8 @@ class RosterWindow:
 
 		connected_accounts_with_private_storage = 0
 
-		accounts_list = gajim.contacts.get_accounts()
-		accounts_list.sort()
-
 		# items that get shown whether an account is zeroconf or not
+		accounts_list = sorted(gajim.contacts.get_accounts())
 		if connected_accounts > 1: # 2 or more accounts? make submenus
 			new_chat_sub_menu = gtk.Menu()
 
@@ -4689,9 +4689,9 @@ class RosterWindow:
 
 		if connected_accounts == 0:
 			# no connected accounts, make the menuitems insensitive
-			for item in [new_chat_menuitem, join_gc_menuitem,\
+			for item in (new_chat_menuitem, join_gc_menuitem,\
 					add_new_contact_menuitem, service_disco_menuitem,\
-					single_message_menuitem]:
+					single_message_menuitem):
 				item.set_sensitive(False)
 		else: # we have one or more connected accounts
 			for item in (new_chat_menuitem, join_gc_menuitem,
@@ -4920,9 +4920,9 @@ class RosterWindow:
 
 			# make some items insensitive if account is offline
 			if gajim.connections[account].connected < 2:
-				for widget in [add_contact_menuitem, service_discovery_menuitem,
+				for widget in (add_contact_menuitem, service_discovery_menuitem,
 				join_group_chat_menuitem, execute_command_menuitem, pep_menuitem,
-				start_chat_menuitem]:
+				start_chat_menuitem):
 					widget.set_sensitive(False)
 		else:
 			xml = gtkgui_helpers.get_glade('zeroconf_context_menu.glade')
@@ -5086,7 +5086,7 @@ class RosterWindow:
 			send_custom_status_menuitem.set_submenu(status_menuitems)
 			iconset = gajim.config.get('iconset')
 			path = os.path.join(helpers.get_iconset_path(iconset), '16x16')
-			for s in ['online', 'chat', 'away', 'xa', 'dnd', 'offline']:
+			for s in ('online', 'chat', 'away', 'xa', 'dnd', 'offline'):
 				# icon MUST be different instance for every item
 				state_images = gtkgui_helpers.load_iconset(path)
 				status_menuitem = gtk.ImageMenuItem(helpers.get_uf_show(s))
@@ -5283,8 +5283,8 @@ class RosterWindow:
 
 			# Unsensitive many items when account is offline
 			if gajim.connections[account].connected < 2:
-				for widget in [start_chat_menuitem,	rename_menuitem,
-				edit_groups_menuitem, send_file_menuitem]:
+				for widget in (start_chat_menuitem,	rename_menuitem,
+				edit_groups_menuitem, send_file_menuitem):
 					widget.set_sensitive(False)
 
 			event_button = gtkgui_helpers.get_possible_button_event(event)
@@ -5386,7 +5386,7 @@ class RosterWindow:
 		send_custom_status_menuitem.set_submenu(status_menuitems)
 		iconset = gajim.config.get('iconset')
 		path = os.path.join(helpers.get_iconset_path(iconset), '16x16')
-		for s in ['online', 'chat', 'away', 'xa', 'dnd', 'offline']:
+		for s in ('online', 'chat', 'away', 'xa', 'dnd', 'offline'):
 			# icon MUST be different instance for every item
 			state_images = gtkgui_helpers.load_iconset(path)
 			status_menuitem = gtk.ImageMenuItem(helpers.get_uf_show(s))
@@ -5490,11 +5490,11 @@ class RosterWindow:
 
 		# Unsensitive many items when account is offline
 		if gajim.connections[account].connected < 2:
-			for widget in [start_chat_menuitem, send_single_message_menuitem,
+			for widget in (start_chat_menuitem, send_single_message_menuitem,
 			rename_menuitem, edit_groups_menuitem, send_file_menuitem,
 			subscription_menuitem, add_to_roster_menuitem,
 			remove_from_roster_menuitem, execute_command_menuitem,
-			send_custom_status_menuitem]:
+			send_custom_status_menuitem):
 				widget.set_sensitive(False)
 
 		if gajim.connections[account] and gajim.connections[account].\
@@ -5678,7 +5678,7 @@ class RosterWindow:
 			send_custom_status_menuitem.set_submenu(status_menuitems)
 			iconset = gajim.config.get('iconset')
 			path = os.path.join(helpers.get_iconset_path(iconset), '16x16')
-			for s in ['online', 'chat', 'away', 'xa', 'dnd', 'offline']:
+			for s in ('online', 'chat', 'away', 'xa', 'dnd', 'offline'):
 				# icon MUST be different instance for every item
 				state_images = gtkgui_helpers.load_iconset(path)
 				status_menuitem = gtk.ImageMenuItem(helpers.get_uf_show(s))

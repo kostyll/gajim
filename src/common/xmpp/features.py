@@ -101,7 +101,7 @@ def _ReceivedRegInfo(con, resp, agent):
         return
     df=DataForm(typ='form')
     for i in resp.getQueryPayload():
-        if type(i)<>type(iq): pass
+        if type(i)!=type(iq): pass
         elif i.getName()=='instructions': df.addInstructions(i.getData())
         else: df.setField(i.getName()).setValue(i.getData())
     con.Event(NS_REGISTER,REGISTER_DATA_RECEIVED,(agent,df,False))
@@ -114,7 +114,7 @@ def register(disp,host,info):
         attributes lastErrNode, lastErr and lastErrCode.
     """
     iq=Iq('set',NS_REGISTER,to=host)
-    if type(info)<>type({}): info=info.asDict()
+    if not isinstance(info, dict): info=info.asDict()
     for i in info.keys(): iq.setTag('query').setTagData(i,info[i])
     resp=disp.SendAndWaitForResponse(iq)
     if isResultNode(resp): return 1
@@ -171,11 +171,11 @@ def setDefaultPrivacyList(disp,listname=None):
     """ Sets the default privacy list as 'listname'. Returns true on success."""
     return setActivePrivacyList(disp,listname,'default')
 
-def setPrivacyList(disp,list):
+def setPrivacyList(disp,list_):
     """ Set the ruleset. 'list' should be the simpleXML node formatted
         according to RFC 3921 (XMPP-IM) (I.e. Node('list',{'name':listname},payload=[...]) )
         Returns true on success."""
-    resp=disp.SendAndWaitForResponse(Iq('set',NS_PRIVACY,payload=[list]))
+    resp=disp.SendAndWaitForResponse(Iq('set',NS_PRIVACY,payload=[list_]))
     if isResultNode(resp): return 1
 
 def delPrivacyList(disp,listname):

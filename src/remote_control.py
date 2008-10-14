@@ -271,7 +271,7 @@ class SignalObject(dbus.service.Object):
 		connected_account, contact = self._get_account_and_contact(account, jid)
 
 		if connected_account:
-			if file_path[:7] == 'file://':
+			if file_path.startswith('file://'):
 				file_path=file_path[7:]
 			if os.path.isfile(file_path): # is it file?
 				gajim.interface.instances['file_transfers'].send_file(
@@ -279,7 +279,7 @@ class SignalObject(dbus.service.Object):
 				return DBUS_BOOLEAN(True)
 		return DBUS_BOOLEAN(False)
 
-	def _send_message(self, jid, message, keyID, account, type = 'chat',
+	def _send_message(self, jid, message, keyID, account, type_ = 'chat',
 	subject = None):
 		'''can be called from send_chat_message (default when send_message)
 		or send_single_message'''
@@ -291,7 +291,7 @@ class SignalObject(dbus.service.Object):
 		connected_account, contact = self._get_account_and_contact(account, jid)
 		if connected_account:
 			connection = gajim.connections[connected_account]
-			connection.send_message(jid, message, keyID, type, subject)
+			connection.send_message(jid, message, keyID, type_, subject)
 			return DBUS_BOOLEAN(True)
 		return DBUS_BOOLEAN(False)
 
@@ -332,7 +332,7 @@ class SignalObject(dbus.service.Object):
 		jid = self._get_real_jid(jid, account)
 		try:
 			jid = helpers.parse_jid(jid)
-		except:
+		except Exception:
 			# Jid is not conform, ignore it
 			return DBUS_BOOLEAN(False)
 

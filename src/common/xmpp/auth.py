@@ -152,7 +152,7 @@ class SASL(PlugIn):
 
     def SASLHandler(self,conn,challenge):
         """ Perform next SASL auth step. Used internally. """
-        if challenge.getNamespace()<>NS_SASL: return
+        if challenge.getNamespace()!=NS_SASL: return
         if challenge.getName()=='failure':
             self.startsasl='failure'
             try: reason=challenge.getChildren()[0]
@@ -175,7 +175,7 @@ class SASL(PlugIn):
         self.DEBUG('Got challenge:'+data,'ok')
         for pair in data.split(','):
             key,value=pair.split('=', 1)
-            if value[:1]=='"' and value[-1:]=='"': value=value[1:-1]
+            if value.startswith('"') and value.endswith('"'): value=value[1:-1]
             chal[key]=value
         if 'qop' in chal and chal['qop']=='auth':
             resp={}
@@ -195,7 +195,7 @@ class SASL(PlugIn):
             resp['response']=response
             resp['charset']='utf-8'
             sasl_data=''
-            for key in ['charset','username','realm','nonce','nc','cnonce','digest-uri','response','qop']:
+            for key in ('charset','username','realm','nonce','nc','cnonce','digest-uri','response','qop'):
                 if key in ['nc','qop','response','charset']: sasl_data+="%s=%s,"%(key,resp[key])
                 else: sasl_data+='%s="%s",'%(key,resp[key])
 ########################################3333

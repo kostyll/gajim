@@ -55,7 +55,7 @@ USER_HAS_GROWL = True
 try:
 	import osx.growler
 	osx.growler.init()
-except:
+except Exception:
 	USER_HAS_GROWL = False
 
 def get_show_in_roster(event, account, contact, session=None):
@@ -321,7 +321,7 @@ def notify(event, jid, account, parameters, advanced_notif_num=None):
 			'command')
 		try:
 			helpers.exec_command(command)
-		except:
+		except Exception:
 			pass
 
 def popup(event_type, jid, account, msg_type='', path_to_image=None,
@@ -408,12 +408,12 @@ class NotificationResponseManager:
 		self.interface.connect_to_signal('ActionInvoked', self.on_action_invoked)
 		self.interface.connect_to_signal('NotificationClosed', self.on_closed)
 
-	def on_action_invoked(self, id, reason):
-		self.received.append((id, time.time(), reason))
-		if id in self.pending:
-			notification = self.pending[id]
-			notification.on_action_invoked(id, reason)
-			del self.pending[id]
+	def on_action_invoked(self, id_, reason):
+		self.received.append((id_, time.time(), reason))
+		if id_ in self.pending:
+			notification = self.pending[id_]
+			notification.on_action_invoked(id_, reason)
+			del self.pending[id_]
 		if len(self.received) > 20:
 			curt = time.time()
 			for rec in self.received:
@@ -421,21 +421,21 @@ class NotificationResponseManager:
 				if diff > 10:
 					self.received.remove(rec)
 
-	def on_closed(self, id, reason=None):
-		if id in self.pending:
-			del self.pending[id]
+	def on_closed(self, id_, reason=None):
+		if id_ in self.pending:
+			del self.pending[id_]
 
-	def add_pending(self, id, object):
+	def add_pending(self, id_, object_):
 		# Check to make sure that we handle an event immediately if we're adding
 		# an id that's already been triggered
 		for rec in self.received:
-			if rec[0] == id:
-				object.on_action_invoked(id, rec[2])
+			if rec[0] == id_:
+				object_.on_action_invoked(id_, rec[2])
 				self.received.remove(rec)
 				return
-		if id not in self.pending:
+		if id_ not in self.pending:
 			# Add it
-			self.pending[id] = object
+			self.pending[id_] = object_
 		else:
 			# We've triggered an event that has a duplicate ID!
 			gajim.log.debug('Duplicate ID of notification. Can\'t handle this.')
@@ -561,8 +561,8 @@ class DesktopNotification:
 					reply_handler=self.attach_by_id,
 					error_handler=self.notify_another_way)
 
-	def attach_by_id(self, id):
-		self.id = id
+	def attach_by_id(self, id_):
+		self.id = id_
 		notification_response_manager.attach_to_interface()
 		notification_response_manager.add_pending(self.id, self)
 
@@ -570,10 +570,10 @@ class DesktopNotification:
 		gajim.log.debug(str(e))
 		gajim.log.debug('Need to implement a new way of falling back')
 
-	def on_action_invoked(self, id, reason):
+	def on_action_invoked(self, id_, reason):
 		if self.notif is None:
 			return
-		self.notif.CloseNotification(dbus.UInt32(id))
+		self.notif.CloseNotification(dbus.UInt32(id_))
 		self.notif = None
 
 		gajim.interface.handle_event(self.account, self.jid, self.msg_type)

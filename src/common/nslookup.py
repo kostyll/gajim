@@ -208,7 +208,7 @@ class IdleCommand(IdleObject):
 	
 	def _compose_command_line(self):
 		''' return one line representation of command and its arguments '''
-		return  reduce(lambda left, right: left + ' ' + right,  self._compose_command_args())
+		return ' '.join(self._compose_command_args())
 	
 	def wait_child(self):
 		if self.pipe.poll() is None:
@@ -257,7 +257,7 @@ class IdleCommand(IdleObject):
 		self.idlequeue.unplug_idle(self.fd)
 		try:
 			self.pipe.close()
-		except:
+		except Exception:
 			pass
 	
 	def pollend(self):
@@ -280,11 +280,11 @@ class IdleCommand(IdleObject):
 		self._return_result()
 	
 class NsLookup(IdleCommand):
-	def __init__(self, on_result, host='_xmpp-client', type = 'srv'):
+	def __init__(self, on_result, host='_xmpp-client', type_ = 'srv'):
 		IdleCommand.__init__(self, on_result)
 		self.commandtimeout = 10 
 		self.host = host.lower()
-		self.type = type.lower()
+		self.type = type_.lower()
 		if not host_pattern.match(self.host):
 			# invalid host name
 			print >> sys.stderr, 'Invalid host: %s' % self.host
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 	def process():
 		try:
 			idlequeue.process()
-		except:
+		except Exception:
 			# Otherwise, an exception will stop our loop
 			gobject.timeout_add(200, process)
 			raise

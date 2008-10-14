@@ -52,7 +52,7 @@ class NBCommonClient(CommonClient):
 		# Who initiated this client
 		# Used to register the EventDispatcher
 		self._caller = caller
-		if debug and type(debug) != list: 
+		if debug and not isinstance(debug, list): 
 			debug = ['always', 'nodebuilder']
 		self._DEBUG = Debug.Debug(debug)
 		self.DEBUG = self._DEBUG.Show
@@ -378,7 +378,7 @@ class Component(NBCommonClient):
 				return
 			self.SASL.auth()
 			self.onreceive(self._on_auth_component)
-		except:
+		except Exception:
 			self.DEBUG(self.DBG,"Failed to authenticate %s" % name,'error')
 		
 	def _on_auth_component(self, data):

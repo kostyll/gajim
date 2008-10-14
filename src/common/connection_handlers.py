@@ -67,7 +67,7 @@ PEP_CONFIG = 'pep_config'
 HAS_IDLE = True
 try:
 	import idle
-except:
+except Exception:
 	gajim.log.debug(_('Unable to load idle module'))
 	HAS_IDLE = False
 
@@ -153,7 +153,7 @@ class ConnectionBytestream:
 		''' send iq for the present streamhosts and proxies '''
 		if not self.connection or self.connected < 2:
 			return
-		if type(self.peerhost) != tuple:
+		if not isinstance(self.peerhost, tuple):
 			return
 		port = gajim.config.get('file_transfers_port')
 		ft_add_hosts_to_send = gajim.config.get('ft_add_hosts_to_send')
@@ -461,7 +461,7 @@ class ConnectionBytestream:
 
 		try:
 			streamhost = query.getTag('streamhost-used')
-		except: # this bytestream result is not what we need
+		except Exception: # this bytestream result is not what we need
 			pass
 		id = real_id[3:]
 		if id in self.files_props:
@@ -470,7 +470,7 @@ class ConnectionBytestream:
 			raise common.xmpp.NodeProcessed
 		if streamhost is None:
 			# proxy approves the activate query
-			if real_id[:3] == 'au_':
+			if real_id.startswith('au_'):
 				id = real_id[3:]
 				if 'streamhost-used' not in file_props or \
 					file_props['streamhost-used'] is False:
@@ -488,7 +488,7 @@ class ConnectionBytestream:
 			file_props['streamhost-used'] is True:
 			raise common.xmpp.NodeProcessed
 
-		if real_id[:3] == 'au_':
+		if real_id.startswith('au_'):
 			if 'stopped' in file and file_props['stopped']:
 				self.remove_transfer(file_props)
 			else:
@@ -944,7 +944,7 @@ class ConnectionVcard:
 		f.close()
 		try:
 			card = common.xmpp.Node(node = c)
-		except:
+		except Exception:
 			# We are unable to parse it. Remove it
 			os.remove(path_to_file)
 			return None
@@ -998,7 +998,7 @@ class ConnectionVcard:
 				iq3 = iq2.addChild(i)
 				for j in vcard[i]:
 					iq3.addChild(j).setData(vcard[i][j])
-			elif type(vcard[i]) == type([]):
+			elif isinstance(vcard[i], list):
 				for j in vcard[i]:
 					iq3 = iq2.addChild(i)
 					for k in j:
@@ -1107,7 +1107,7 @@ class ConnectionVcard:
 					order = meta.getAttr('order')
 					try:
 						order = int(order)
-					except:
+					except Exception:
 						order = 0
 					if order is not None:
 						data['order'] = order
@@ -1174,7 +1174,7 @@ class ConnectionVcard:
 			try:
 				photo_decoded = base64.decodestring(photo)
 				avatar_sha = sha.sha(photo_decoded).hexdigest()
-			except:
+			except Exception:
 				avatar_sha = ''
 		else:
 			avatar_sha = ''
@@ -1280,7 +1280,7 @@ class ConnectionHandlersBase:
 			return session
 
 		if pm:
-			return self.make_new_session(fjid, thread_id, type='pm')
+			return self.make_new_session(fjid, thread_id, type_='pm')
 		else:
 			return self.make_new_session(fjid, thread_id)
 
@@ -1349,15 +1349,15 @@ sent a message to.'''
 		except (KeyError, IndexError):
 			return None
 
-	def make_new_session(self, jid, thread_id=None, type='chat', cls=None):
+	def make_new_session(self, jid, thread_id=None, type_='chat', cls=None):
 		if not cls:
 			cls = gajim.default_session_type
 
-		sess = cls(self, common.xmpp.JID(jid), thread_id, type)
+		sess = cls(self, common.xmpp.JID(jid), thread_id, type_)
 
 		# determine if this session is a pm session
 		# if not, discard the resource so that all sessions are stored bare
-		if not type == 'pm':
+		if not type_ == 'pm':
 			jid = gajim.get_jid_without_resource(jid)
 
 		if not jid in self.sessions:
@@ -1388,7 +1388,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 
 		try:
 			idle.init()
-		except:
+		except Exception:
 			HAS_IDLE = False
 
 		self.gmail_last_tid = None
@@ -1532,7 +1532,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		status = qp.getData()
 		try:
 			seconds = int(seconds)
-		except:
+		except Exception:
 			return
 		id = iq_obj.getID()
 		if id in self.groupchat_jids:
@@ -1771,7 +1771,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			try:
 				msg = session.decrypt_stanza(msg)
 				msgtxt = msg.getBody()
-			except:
+			except Exception:
 				self.dispatch('FAILED_DECRYPT', (frm, tim, session))
 
 		# Receipt requested
@@ -1938,7 +1938,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		gajim.log.debug('PresenceCB: %s' % ptype)
 		try:
 			who = helpers.get_full_jid_from_iq(prs)
-		except:
+		except Exception:
 			if prs.getTag('error').getTag('jid-malformed'):
 				# wrong jid, we probably tried to change our nick in a room to a non
 				# valid one
@@ -2000,7 +2000,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		prio = prs.getPriority()
 		try:
 			prio = int(prio)
-		except:
+		except Exception:
 			prio = 0
 		keyID = ''
 		if sigTag and self.USE_GPG and ptype != 'error':

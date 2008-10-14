@@ -43,10 +43,10 @@ HAS_SYSTRAY_CAPABILITIES = True
 
 try:
 	import egg.trayicon as trayicon	# gnomepythonextras trayicon
-except:
+except Exception:
 	try:
 		import trayicon # our trayicon
-	except:
+	except Exception:
 		gajim.log.debug('No trayicon module available')
 		HAS_SYSTRAY_CAPABILITIES = False
 
@@ -234,8 +234,7 @@ class Systray:
 				account_menu_for_single_message)
 			self.popup_menus.append(account_menu_for_single_message)
 
-			accounts_list = gajim.contacts.get_accounts()
-			accounts_list.sort()
+			accounts_list = sorted(gajim.contacts.get_accounts())
 			for account in accounts_list:
 				if gajim.connections[account].is_zeroconf:
 					continue

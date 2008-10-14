@@ -48,7 +48,7 @@ import dataforms_widget
 try:
 	import gtkspell
 	HAS_GTK_SPELL = True
-except:
+except Exception:
 	HAS_GTK_SPELL = False
 
 from common import helpers
@@ -618,7 +618,7 @@ class PreferencesWindow:
 				if isinstance(ctrl, chat_control.ChatControlBase):
 					try:
 						spell_obj = gtkspell.get_from_text_view(ctrl.msg_textview)
-					except:
+					except Exception:
 						spell_obj = None
 
 					if not spell_obj:
@@ -630,7 +630,7 @@ class PreferencesWindow:
 				if isinstance(ctrl, chat_control.ChatControlBase):
 					try:
 						spell_obj = gtkspell.get_from_text_view(ctrl.msg_textview)
-					except:
+					except Exception:
 						spell_obj = None
 					if spell_obj:
 						spell_obj.detach()
@@ -759,12 +759,12 @@ class PreferencesWindow:
 				[self.xml.get_widget('sounds_scrolledwindow'),
 				self.xml.get_widget('browse_sounds_hbox')])
 
-	def on_sounds_treemodel_row_changed(self, model, path, iter):
-		sound_event = model[iter][3].decode('utf-8')
+	def on_sounds_treemodel_row_changed(self, model, path, iter_):
+		sound_event = model[iter_][3].decode('utf-8')
 		gajim.config.set_per('soundevents', sound_event, 'enabled',
 					bool(model[path][0]))
 		gajim.config.set_per('soundevents', sound_event, 'path',
-					model[iter][2].decode('utf-8'))
+					model[iter_][2].decode('utf-8'))
 		gajim.interface.save_config()
 
 	def update_text_tags(self):
@@ -891,11 +891,11 @@ class PreferencesWindow:
 		model = self.default_msg_tree.get_model()
 		model[path][3] = not model[path][3]
 
-	def on_default_msg_treemodel_row_changed(self, model, path, iter):
-		status = model[iter][0]
-		message = model[iter][2].decode('utf-8')
+	def on_default_msg_treemodel_row_changed(self, model, path, iter_):
+		status = model[iter_][0]
+		message = model[iter_][2].decode('utf-8')
 		gajim.config.set_per('defaultstatusmsg', status, 'enabled',
-			model[iter][3])
+			model[iter_][3])
 		gajim.config.set_per('defaultstatusmsg', status, 'message', message)
 
 	def on_default_status_expander_activate(self, expander):
@@ -919,7 +919,7 @@ class PreferencesWindow:
 			iter = model.iter_next(iter)
 		gajim.interface.save_config()
 
-	def on_msg_treemodel_row_changed(self, model, path, iter):
+	def on_msg_treemodel_row_changed(self, model, path, iter_):
 		self.save_status_messages(model)
 
 	def on_msg_treemodel_row_deleted(self, model, path):
@@ -2014,7 +2014,7 @@ class AccountsWindow:
 		custom_port = widget.get_text()
 		try:
 			custom_port = int(custom_port)
-		except:
+		except Exception:
 			if not widget.is_focus():
 				dialogs.ErrorDialog(_('Invalid entry'),
 					_('Custom port must be a port number.'))
@@ -2499,15 +2499,9 @@ class GroupchatConfigWindow:
 			self.start_users_dict[affiliation][jid] = users_dict[jid]
 			tv = self.affiliation_treeview[affiliation]
 			model = tv.get_model()
-			reason = ''
-			if 'reason' in users_dict[jid]:
-				reason = users_dict[jid]['reason']
-			nick = ''
-			if 'nick' in users_dict[jid]:
-				nick = users_dict[jid]['nick']
-			role = ''
-			if 'role' in users_dict[jid]:
-				role = users_dict[jid]['role']
+			reason = users_dict[jid].get('reason', '')
+			nick = users_dict[jid].get('nick', '')
+			role = users_dict[jid].get('role', '')
 			model.append((jid, reason, nick, role))
 
 	def on_data_form_window_destroy(self, widget):
@@ -2695,8 +2689,7 @@ class ManageBookmarksWindow:
 		self.option_list = {'': _('Default'), 'all': Q_('?print_status:All'),
 			'in_and_out': _('Enter and leave only'),
 			'none': Q_('?print_status:None')}
-		opts = self.option_list.keys()
-		opts.sort()
+		opts = sorted(self.option_list.keys())
 		for opt in opts:
 			model.append([self.option_list[opt], opt])
 
@@ -2898,8 +2891,7 @@ class ManageBookmarksWindow:
 			self.nick_entry.set_text('')
 
 		print_status = model[iter][7]
-		opts = self.option_list.keys()
-		opts.sort()
+		opts = sorted(self.option_list.keys())
 		self.print_status_combobox.set_active(opts.index(print_status))
 
 	def on_title_entry_changed(self, widget):
@@ -3166,7 +3158,7 @@ class AccountCreationWizardWindow:
 			custom_port = self.xml.get_widget('custom_port_entry').get_text()
 			try:
 				custom_port = int(custom_port)
-			except:
+			except Exception:
 				dialogs.ErrorDialog(_('Invalid entry'),
 					_('Custom port must be a port number.'))
 				return

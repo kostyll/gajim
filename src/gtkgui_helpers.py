@@ -141,7 +141,7 @@ def get_default_font():
 
 		return client.get_string('/desktop/gnome/interface/font_name'
 			).decode('utf-8')
-	except:
+	except Exception:
 		pass
 
 	# try to get xfce default font
@@ -157,17 +157,17 @@ def get_default_font():
 	
 	if os.path.exists(xfce_config_file):
 		try:
-			for line in file(xfce_config_file):
+			for line in open(xfce_config_file):
 				if line.find('name="Gtk/FontName"') != -1:
 					start = line.find('value="') + 7
 					return line[start:line.find('"', start)].decode('utf-8')
-		except:
+		except Exception:
 			#we talk about file
 			print >> sys.stderr, _('Error: cannot open %s for reading') % xfce_config_file
 	
 	elif os.path.exists(kde_config_file):
 		try:
-			for line in file(kde_config_file):
+			for line in open(kde_config_file):
 				if line.find('font=') == 0: # font=Verdana,9,other_numbers
 					start = 5 # 5 is len('font=')
 					line = line[start:]
@@ -176,7 +176,7 @@ def get_default_font():
 					font_size = values[1]
 					font_string = '%s %s' % (font_name, font_size) # Verdana 9
 					return font_string.decode('utf-8')
-		except:
+		except Exception:
 			#we talk about file
 			print >> sys.stderr, _('Error: cannot open %s for reading') % kde_config_file
 	
@@ -273,10 +273,10 @@ class HashDigest:
 		self.algo = self.cleanID(algo)
 		self.digest = self.cleanID(digest)
 
-	def cleanID(self, id):
-		id = id.strip().lower()
-		for strip in (' :.-_'): id = id.replace(strip, '')
-		return id
+	def cleanID(self, id_):
+		id_ = id_.strip().lower()
+		for strip in (' :.-_'): id_ = id_.replace(strip, '')
+		return id_
 
 	def __eq__(self, other):
 		sa, sd = self.algo, self.digest
@@ -650,10 +650,10 @@ def decode_filechooser_file_paths(file_paths):
 		for file_path in file_paths:
 			try:
 				file_path = file_path.decode(sys.getfilesystemencoding())
-			except:
+			except Exception:
 				try:
 					file_path = file_path.decode('utf-8')
-				except:
+				except Exception:
 					pass
 			file_paths_list.append(file_path)
 	
@@ -713,7 +713,7 @@ Description=xmpp
 		import gconf
 		# in try because daemon may not be there
 		client = gconf.client_get_default()
-	except:
+	except Exception:
 		return
 
 	old_command = client.get_string('/desktop/gnome/url-handlers/xmpp/command')

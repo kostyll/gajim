@@ -70,10 +70,10 @@ exec ${TOPDIR}/MacOS/Python ${RESOURCEPATH}/gajim-remote.py $* \n\
 ###
 
 def check(ret):
-	if type(ret) == types.ListType:
+	if isinstance(ret, list):
 		if ret[0] != 0:
 			raise Exception("Command failed: " + ret[1])
-	elif type(ret) == types.IntType:
+	elif isinstance(ret, int):
 		if ret != 0:
 			raise Exception("Command failed")
 	return
@@ -82,13 +82,13 @@ def check(ret):
 def force(func):
 	try:
 		func()
-	except:
+	except Exception:
 		pass
 	return
 
 
 def writeScript(filename, contents):
-	script = file(filename, "w+")
+	script = open(filename, "w+")
 	script.write(contents)
 	script.close()
 	system("chmod +x %s" % filename)
@@ -148,8 +148,8 @@ def setupPrep():
 	copy("src/osx/prep_py2app.py", APP_RS)
 	move("dist/Gajim.app/Contents/Resources/__boot__.py",
 		 "dist/Gajim.app/Contents/Resources/__boot__.py.org")
-	new = file("dist/Gajim.app/Contents/Resources/__boot__.py", "w+")
-	org = file("dist/Gajim.app/Contents/Resources/__boot__.py.org")
+	new = open("dist/Gajim.app/Contents/Resources/__boot__.py", "w+")
+	org = open("dist/Gajim.app/Contents/Resources/__boot__.py.org")
 	for line in org:
 		new.write(line)
 		if (('site.addsitedir' in line) and ('Python' in line)):
