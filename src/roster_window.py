@@ -996,10 +996,19 @@ class RosterWindow:
 		and 'activity' in gajim.connections[account].activity \
 		and gajim.connections[account].activity['activity'].strip() \
 		in ACTIVITIES:
-			self.model[child_iter][C_ACTIVITY_PIXBUF] = \
-				gtkgui_helpers.load_activity_icon(
-				gajim.connections[account]. \
-				activity['activity'].strip()).get_pixbuf()
+			if 'subactivity' in gajim.connections[account].activity \
+			and gajim.connections[account].activity['subactivity'].strip() \
+			in ACTIVITIES[gajim.connections[account].activity['activity'].strip()]:
+				self.model[child_iter][C_ACTIVITY_PIXBUF] = \
+					gtkgui_helpers.load_activity_icon(
+					gajim.connections[account].activity['activity'].strip(),
+					gajim.connections[account].activity['subactivity'].strip()). \
+					get_pixbuf()
+		 	else:
+				self.model[child_iter][C_ACTIVITY_PIXBUF] = \
+					gtkgui_helpers.load_activity_icon(
+					gajim.connections[account].activity['activity'].strip()). \
+					get_pixbuf()
 		elif gajim.config.get('show_activity_in_roster') \
 		and 'activity' in gajim.connections[account].activity:
 			self.model[child_iter][C_ACTIVITY_PIXBUF] = \
@@ -1247,8 +1256,15 @@ class RosterWindow:
 		contact = gajim.contacts.get_contact(account, jid)
 		if 'activity' in contact.activity \
 		and contact.activity['activity'].strip() in ACTIVITIES:
-			pixbuf = gtkgui_helpers.load_activity_icon(
-				contact.activity['activity'].strip()).get_pixbuf()
+			if 'subactivity' in contact.activity \
+			and contact.activity['subactivity'].strip() in \
+			ACTIVITIES[contact.activity['activity'].strip()]:
+				pixbuf = gtkgui_helpers.load_activity_icon(
+					contact.activity['activity'].strip(),
+					contact.activity['subactivity'].strip()).get_pixbuf()
+			else:
+				pixbuf = gtkgui_helpers.load_activity_icon(
+					contact.activity['activity'].strip()).get_pixbuf()
 		elif 'activity' in contact.activity:
 			pixbuf = gtkgui_helpers.load_activity_icon(
 				'unknown').get_pixbuf()
@@ -2074,9 +2090,9 @@ class RosterWindow:
 				for jid in gajim.contacts.get_jid_list(account):
 					lcontact = gajim.contacts.get_contacts(account, jid)
 					ctrl = gajim.interface.msg_win_mgr.get_gc_control(jid, account)
-					for contact in lcontact:
-						if (contact.show != 'offline' or contact.is_transport()) and not ctrl:
-							self.chg_contact_status(contact, 'offline', '', account)
+					for contact in [c for c in lcontact if ((c.show != 'offline' or \
+					c.is_transport()) and not ctrl)]:
+						self.chg_contact_status(contact, 'offline', '', account)
 			self.actions_menu_needs_rebuild = True
 		self.update_status_combobox()
 		# Force the rebuild now since the on_activates on the menu itself does

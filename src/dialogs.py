@@ -320,9 +320,9 @@ class ChooseGPGKeyDialog:
 
 
 class ChangeActivityDialog:
-	PAGELIST = ['working', 'eating', 'exercising', 'relaxing', 'talking',
-		'doing_chores', 'inactive', 'traveling', 'having_appointment',
-		'drinking', 'grooming']
+	PAGELIST = ['doing_chores', 'drinking', 'eating', 'exercising', 'grooming',
+		'having_appointment', 'inactive', 'relaxing', 'talking', 'traveling',
+		'working']
 
 	def __init__(self, account):
 		self.account = account
@@ -1586,7 +1586,7 @@ class DubbleInputDialog:
 
 	def on_cancelbutton_clicked(self, widget):
 		self.dialog.destroy()
-		if not cancel_handler:
+		if not self.cancel_handler:
 			return
 		if isinstance(self.cancel_handler, tuple):
 			self.cancel_handler[0](*self.cancel_handler[1:])

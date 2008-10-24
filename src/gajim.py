@@ -175,7 +175,7 @@ try:
 	from common import gajim
 except exceptions.DatabaseMalformed:
 	pritext = _('Database Error')
-	sectext = _('The database file (%s) cannot be read. Try to repair it or remove it (all history will be lost).') % common.logger.LOG_DB_PATH
+	sectext = _('The database file (%s) cannot be read. Try to repair it (see http://trac.gajim.org/wiki/DatabaseBackup) or remove it (all history will be lost).') % common.logger.LOG_DB_PATH
 else:
 	from common import dbus_support
 	if dbus_support.supported:
@@ -2607,12 +2607,11 @@ class Interface:
 				_('You cannot join a group chat while you are invisible'))
 			return
 
-		minimized_control_exists = False
-		if room_jid in gajim.interface.minimized_controls[account]:
-			minimized_control_exists = True
+		minimized_control = gajim.interface.minimized_controls[account].get(
+			room_jid, None)
 
-		if not minimized_control_exists and \
-		not self.msg_win_mgr.has_window(room_jid, account):
+		if minimized_control is None and not self.msg_win_mgr.has_window(room_jid,
+		account):
 			# Join new groupchat
 			if minimize:
 				contact = gajim.contacts.create_contact(jid=room_jid, name=nick)
@@ -2621,12 +2620,14 @@ class Interface:
 				self.roster.add_groupchat(room_jid, account)
 			else:
 				self.new_room(room_jid, nick, account, is_continued=is_continued)
-		elif not minimized_control_exists:
+		elif minimized_control is None:
 			# We are already in that groupchat
 			gc_control = self.msg_win_mgr.get_gc_control(room_jid, account)
+			gc_control.nick = nick
 			gc_control.parent_win.set_active_tab(gc_control)	
 		else:
 			# We are already in this groupchat and it is minimized
+			minimized_control.nick = nick
 			self.roster.add_groupchat(room_jid, account)
 
 		# Connect
