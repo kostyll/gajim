@@ -7,6 +7,7 @@ include ../../../../buildsys.mk
 include ../../../../extra.mk
 
 # FIXME: This should be done properly...
-CFLAGS += ${PLUGIN_CFLAGS} ${PYTHON_CFLAGS} $$(pkg-config --cflags gtk+-2.0 pygobject-2.0)
+CFLAGS += ${PLUGIN_CFLAGS}
+CPPFLAGS += ${PYTHON_CFLAGS} $$(pkg-config --cflags gtk+-2.0 pygobject-2.0)
 LIBS += ${PYTHON_LIBS} ${PYGTK_LIBS} $$(pkg-config --libs gtk+-2.0 pygobject-2.0)
 LDFLAGS += ${PLUGIN_LDFLAGS} ${PYTHON_LDFLAGS} -framework CoreFoundation

@@ -5,6 +5,7 @@ SRCS = nsapp.m
 include ../../../buildsys.mk
 include ../../../extra.mk
 
-OBJCFLAGS += ${PLUGIN_CFLAGS} ${PYTHON_CFLAGS}
+CPPFLAGS += ${PYTHON_CFLAGS}
+OBJCFLAGS += ${PLUGIN_CFLAGS}
 LIBS += ${PYTHON_LIBS}
 LDFLAGS += ${PLUGIN_LDFLAGS} ${PYTHON_LDFLAGS} -framework CoreFoundation
