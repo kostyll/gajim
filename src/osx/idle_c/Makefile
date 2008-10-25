@@ -5,6 +5,7 @@ SRCS = idle.c
 include ../../../buildsys.mk
 include ../../../extra.mk
 
-CFLAGS += ${PLUGIN_CFLAGS} ${PYTHON_CFLAGS}
+CFLAGS += ${PLUGIN_CFLAGS}
+CPPFLAGS += ${PYTHON_CFLAGS}
 LIBS += ${PYTHON_LIBS}
 LDFLAGS += ${PLUGIN_LDFLAGS} ${PYTHON_LDFLAGS} -framework CoreFoundation
