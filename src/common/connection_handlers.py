@@ -758,26 +758,30 @@ class ConnectionDisco:
 		if self.commandInfoQuery(con, iq_obj):
 			raise common.xmpp.NodeProcessed
 
-		else:
-			iq = iq_obj.buildReply('result')
-			q = iq.getTag('query')
-			if node:
-				q.setAttr('node', node)
-			q.addChild('identity', attrs = gajim.gajim_identity)
-			extension = None
-			if node and node.find('#') != -1:
-				extension = node[node.index('#') + 1:]
-			client_version = 'http://gajim.org#' + gajim.caps_hash[self.name]
+		id = unicode(iq_obj.getAttr('id'))
+		if id[0] == 'p':
+			# We get this request from echo.server
+			raise common.xmpp.NodeProcessed
 
-			if node in (None, client_version):
-				for f in gajim.gajim_common_features:
-					q.addChild('feature', attrs = {'var': f})
-				for f in gajim.gajim_optional_features[self.name]:
-					q.addChild('feature', attrs = {'var': f})
+		iq = iq_obj.buildReply('result')
+		q = iq.getTag('query')
+		if node:
+			q.setAttr('node', node)
+		q.addChild('identity', attrs = gajim.gajim_identity)
+		extension = None
+		if node and node.find('#') != -1:
+			extension = node[node.index('#') + 1:]
+		client_version = 'http://gajim.org#' + gajim.caps_hash[self.name]
 
-			if q.getChildren():
-				self.connection.send(iq)
-				raise common.xmpp.NodeProcessed
+		if node in (None, client_version):
+			for f in gajim.gajim_common_features:
+				q.addChild('feature', attrs = {'var': f})
+			for f in gajim.gajim_optional_features[self.name]:
+				q.addChild('feature', attrs = {'var': f})
+
+		if q.getChildren():
+			self.connection.send(iq)
+			raise common.xmpp.NodeProcessed
 
 	def _DiscoverInfoErrorCB(self, con, iq_obj):
 		gajim.log.debug('DiscoverInfoErrorCB')
@@ -1800,6 +1804,18 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		self.name, 'request_receipt'):
 			session.control.conv_textview.hide_xep0184_warning(
 				msg.getID())
+
+		# Check mood in message
+		if msg.getTag('mood', namespace=common.xmpp.NS_MOOD):
+			mood_iq = msg.getTag('mood', namespace=common.xmpp.NS_MOOD)
+			mood = None
+			text = None
+			for ch in mood_iq.getChildren():
+				if ch.getName() != 'text':
+					mood = ch.getName()
+				else:
+					text = ch.getData()
+			pep.handle_mood(self.name, jid, mood=mood, text=text, retract=False)
 
 		if encTag and self.USE_GPG:
 			encmsg = encTag.getData()

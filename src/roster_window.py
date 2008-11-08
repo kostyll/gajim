@@ -68,7 +68,6 @@ from common import dbus_support
 if dbus_support.supported:
 	from music_track_listener import MusicTrackListener
 	import dbus
-from lastfm_track_listener import LastFMTrackListener
 
 from common.xmpp.protocol import NS_COMMANDS, NS_FILE, NS_MUC
 from common.pep import MOODS, ACTIVITIES
@@ -405,9 +404,6 @@ class RosterWindow:
 					gajim.groups[account][group] = {'expand': is_expanded}
 
 		assert len(added_iters), '%s has not been added to roster!' % contact.jid
-		assert all(self.model[titer][C_JID] == contact.jid and \
-			self.model[titer][C_ACCOUNT] == account for titer in added_iters), \
-			"Iters invalidated for %s" % contact.jid
 		return added_iters
 
 	def _remove_entity(self, contact, account, groups=None):
@@ -795,14 +791,19 @@ class RosterWindow:
 			status = ''
 
 		if contact is None:
-			# New groupchat
-			contact = gajim.contacts.create_contact(jid=jid, name=jid,
-				groups=[_('Groupchats')], show=show, status=status, sub='none')
-			gajim.contacts.add_contact(account, contact)
 			gc_control = gajim.interface.msg_win_mgr.get_gc_control(jid, account)
 			if gc_control:
 				# there is a window that we can minimize
 				gajim.interface.minimized_controls[account][jid] = gc_control
+				name = gc_control.name
+			elif jid in gajim.interface.minimized_controls[account]:
+				name = gajim.interface.minimized_controls[account][jid].name
+			else:
+				name = jid.split('@')[0]
+			# New groupchat
+			contact = gajim.contacts.create_contact(jid=jid, name=name,
+				groups=[_('Groupchats')], show=show, status=status, sub='none')
+			gajim.contacts.add_contact(account, contact)
 			self.add_contact(jid, account)
 		else:
 			contact.show = show
@@ -2256,10 +2257,14 @@ class RosterWindow:
 
 		def on_continue2(message):
 			self.quit_on_next_offline = 0
+			accounts_to_disconnect = []
 			for acct in accounts:
 				if gajim.connections[acct].connected:
 					self.quit_on_next_offline += 1
-					self.send_status(acct, 'offline', message)
+					accounts_to_disconnect.append(acct)
+
+			for acct in accounts_to_disconnect:
+				self.send_status(acct, 'offline', message)
 
 			if not self.quit_on_next_offline:
 				self.quit_gtkgui_interface()
@@ -4874,11 +4879,11 @@ class RosterWindow:
 			item.connect('activate', self.change_status, account, 'offline')
 
 			pep_menuitem = xml.get_widget('pep_menuitem')
+			pep_submenu = gtk.Menu()
+			pep_menuitem.set_submenu(pep_submenu)
 			if gajim.connections[account].pep_supported:
 				have_tune = gajim.config.get_per('accounts', account,
 					'publish_tune')
-				pep_submenu = gtk.Menu()
-				pep_menuitem.set_submenu(pep_submenu)
 				item = gtk.CheckMenuItem(_('Publish Tune'))
 				pep_submenu.append(item)
 				if not dbus_support.supported:
@@ -4886,10 +4891,13 @@ class RosterWindow:
 				else:
 					item.set_active(have_tune)
 					item.connect('toggled', self.on_publish_tune_toggled, account)
-				item = gtk.CheckMenuItem(_('Mood'))
-				pep_submenu.append(item)
-				item.set_active(len(gajim.connections[account].mood) > 0)
-				item.connect('activate', self.on_change_mood_activate, account)
+
+			item = gtk.CheckMenuItem(_('Mood'))
+			pep_submenu.append(item)
+			item.set_active(len(gajim.connections[account].mood) > 0)
+			item.connect('activate', self.on_change_mood_activate, account)
+
+			if gajim.connections[account].pep_supported:
 				item = gtk.CheckMenuItem(_('Activity'))
 				pep_submenu.append(item)
 				item.set_active(len(gajim.connections[account].activity) > 0)
@@ -4905,9 +4913,6 @@ class RosterWindow:
 				img = gtk.image_new_from_stock(gtk.STOCK_PREFERENCES,
 					gtk.ICON_SIZE_MENU)
 				pep_config.set_image(img)
-
-			else:
-				pep_menuitem.set_sensitive(False)
 
 			if not gajim.connections[account].gmail_url:
 				open_gmail_inbox_menuitem.set_no_show_all(True)

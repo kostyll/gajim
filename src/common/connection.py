@@ -58,8 +58,6 @@ from common import exceptions
 
 from connection_handlers import *
 
-from common.rst_xhtml_generator import create_xhtml
-
 from string import Template
 import logging
 log = logging.getLogger('gajim.c.connection')
@@ -1078,6 +1076,7 @@ class Connection(ConnectionHandlers):
 		if not self.connection:
 			return 1
 		if msg and not xhtml and gajim.config.get('rst_formatting_outgoing_messages'):
+			from common.rst_xhtml_generator import create_xhtml
 			xhtml = create_xhtml(msg)
 		if not msg and chatstate is None and form_node is None:
 			return 2
@@ -1113,6 +1112,7 @@ class Connection(ConnectionHandlers):
 		if msgtxt and not xhtml and gajim.config.get(
 			'rst_formatting_outgoing_messages'):
 			# Generate a XHTML part using reStructured text markup
+			from common.rst_xhtml_generator import create_xhtml
 			xhtml = create_xhtml(msgtxt)
 		if type_ == 'chat':
 			msg_iq = common.xmpp.Message(to = fjid, body = msgtxt, typ = type_,
@@ -1132,8 +1132,15 @@ class Connection(ConnectionHandlers):
 
 		# XEP-0172: user_nickname
 		if user_nick:
-			msg_iq.setTag('nick', namespace = common.xmpp.NS_NICK).setData(
+			msg_iq.setTag('nick', namespace=common.xmpp.NS_NICK).setData(
 				user_nick)
+
+		# XEP-0107: User Mood
+		if 'mood' in self.mood and not self.pep_supported:
+			mood_iq = msg_iq.setTag('mood', namespace=common.xmpp.NS_MOOD)
+			mood_iq.setTag(self.mood['mood'])
+			if 'text' in self.mood and self.mood['text']:
+				mood_iq.setTagData('text', self.mood['text'])
 
 		# TODO: We might want to write a function so we don't need to
 		#	reproduce that ugly if somewhere else.
@@ -1218,6 +1225,12 @@ class Connection(ConnectionHandlers):
 						gajim.logger.write(kind, jid, log_msg)
 					except exceptions.PysqliteOperationalError, e:
 						self.dispatch('ERROR', (_('Disk Write Error'), str(e)))
+					except exceptions.DatabaseMalformed:
+						pritext = _('Database Error')
+						sectext = _('The database file (%s) cannot be read. Try to '
+							'repair it (see http://trac.gajim.org/wiki/DatabaseBackup)'
+							' or remove it (all history will be lost).') % \
+							common.logger.LOG_DB_PATH
 		self.dispatch('MSGSENT', (jid, msg, keyID))
 
 		return msg_id
@@ -1551,6 +1564,7 @@ class Connection(ConnectionHandlers):
 		if not self.connection:
 			return
 		if not xhtml and gajim.config.get('rst_formatting_outgoing_messages'):
+			from common.rst_xhtml_generator import create_xhtml
 			xhtml = create_xhtml(msg)
 		msg_iq = common.xmpp.Message(jid, msg, typ = 'groupchat', xhtml = xhtml)
 		self.connection.send(msg_iq)

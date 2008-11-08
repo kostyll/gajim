@@ -194,8 +194,14 @@ class GroupchatControl(ChatControlBase):
 		self.handlers[id] = widget
 
 		widget = self.xml.get_widget('bookmark_button')
-		id = widget.connect('clicked', self._on_bookmark_room_menuitem_activate)
-		self.handlers[id] = widget
+		for bm in gajim.connections[self.account].bookmarks:
+			if bm['jid'] == self.contact.jid:
+				widget.set_sensitive(False)
+				break
+		else:
+			id = widget.connect('clicked',
+				self._on_bookmark_room_menuitem_activate)
+			self.handlers[id] = widget
 
 		widget = self.xml.get_widget('list_treeview')
 		id = widget.connect('row_expanded', self.on_list_treeview_row_expanded)
@@ -228,7 +234,13 @@ class GroupchatControl(ChatControlBase):
 		self.room_jid = self.contact.jid
 		self.nick = contact.name.decode('utf-8')
 		self.new_nick = ''
-		self.name = self.room_jid.split('@')[0]
+		self.name = ''
+		for bm in gajim.connections[self.account].bookmarks:
+			if bm['jid'] == self.room_jid:
+				self.name = bm['name']
+				break
+		if not self.name:
+			self.name = self.room_jid.split('@')[0]
 
 		compact_view = gajim.config.get('compact_view')
 		self.chat_buttons_set_visible(compact_view)
@@ -265,9 +277,14 @@ class GroupchatControl(ChatControlBase):
 		xm = gtkgui_helpers.get_glade('gc_control_popup_menu.glade')
 
 		self.bookmark_room_menuitem = xm.get_widget('bookmark_room_menuitem')
-		id = self.bookmark_room_menuitem.connect('activate',
-			self._on_bookmark_room_menuitem_activate)
-		self.handlers[id] = self.bookmark_room_menuitem
+		for bm in gajim.connections[self.account].bookmarks:
+			if bm['jid'] == self.room_jid:
+				self.bookmark_room_menuitem.set_sensitive(False)
+				break
+		else:
+			id = self.bookmark_room_menuitem.connect('activate',
+				self._on_bookmark_room_menuitem_activate)
+			self.handlers[id] = self.bookmark_room_menuitem
 
 		self.change_nick_menuitem = xm.get_widget('change_nick_menuitem')
 		id = self.change_nick_menuitem.connect('activate',
@@ -633,8 +650,8 @@ class GroupchatControl(ChatControlBase):
 		ag = gtk.accel_groups_from_object(self.parent_win.window)[0]
 		self.change_nick_menuitem.add_accelerator('activate', ag, gtk.keysyms.n,
 			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
-		self.change_subject_menuitem.add_accelerator('activate', ag, gtk.keysyms.t,
-			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
+		self.change_subject_menuitem.add_accelerator('activate', ag,
+			gtk.keysyms.t, gtk.gdk.MOD1_MASK, gtk.ACCEL_VISIBLE)
 		self.bookmark_room_menuitem.add_accelerator('activate', ag, gtk.keysyms.b,
 			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
 		self.history_menuitem.add_accelerator('activate', ag, gtk.keysyms.h,

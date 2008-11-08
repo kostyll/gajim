@@ -33,7 +33,6 @@ _GAJIM_ERROR_IFACE = 'org.gajim.dbus.Error'
 
 try:
 	import dbus
-	import dbus.service
 	import dbus.glib
 	dbus.SessionBus()
 	supported = True # does user have D-Bus bindings?

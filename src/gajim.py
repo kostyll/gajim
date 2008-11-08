@@ -459,6 +459,8 @@ class GlibIdleQueue(idlequeue.IdleQueue):
 		''' this method is called when we unplug a new idle object.
 		Stop listening for events from fd
 		'''
+		if not fd in self.events:
+			return
 		gobject.source_remove(self.events[fd])
 		del(self.events[fd])
 
@@ -2372,6 +2374,39 @@ class Interface:
 			return False
 		return True
 
+	@property
+	def basic_pattern_re(self):
+		try:
+			return self._basic_pattern_re
+		except AttributeError:
+			self._basic_pattern_re = re.compile(self.basic_pattern, re.IGNORECASE)
+			return self._basic_pattern_re
+			
+	@property
+	def emot_and_basic_re(self):
+		try:
+			return self._emot_and_basic_re
+		except AttributeError:
+			self._emot_and_basic_re = re.compile(self.emot_and_basic,
+				re.IGNORECASE + re.UNICODE)
+			return self._emot_and_basic_re
+
+	@property
+	def sth_at_sth_dot_sth_re(self):
+		try:
+			return self._sth_at_sth_dot_sth_re
+		except AttributeError:
+			self._sth_at_sth_dot_sth_re = re.compile(self.sth_at_sth_dot_sth)
+			return self._sth_at_sth_dot_sth_re
+
+	@property
+	def invalid_XML_chars_re(self):
+		try:
+			return self._invalid_XML_chars_re
+		except AttributeError:
+			self._invalid_XML_chars_re = re.compile(self.invalid_XML_chars)
+			return self._invalid_XML_chars_re
+			
 	def make_regexps(self):
 		# regexp meta characters are:  . ^ $ * + ? { } [ ] \ | ( )
 		# one escapes the metachars with \
@@ -2424,7 +2459,7 @@ class Interface:
 
 		if gajim.config.get('ascii_formatting'):
 			basic_pattern += formatting
-		self.basic_pattern_re = re.compile(basic_pattern, re.IGNORECASE)
+		self.basic_pattern = basic_pattern
 
 		emoticons_pattern = ''
 		if gajim.config.get('emoticons_theme'):
@@ -2432,8 +2467,7 @@ class Interface:
 			# expanded.  e.g., foo:) NO, foo :) YES, (brb) NO, (:)) YES, etc.
 			# We still allow multiple emoticons side-by-side like :P:P:P
 			# sort keys by length so :qwe emot is checked before :q
-			keys = self.emoticons.keys()
-			keys.sort(self.on_emoticon_sort)
+			keys = sorted(self.emoticons, key=len, reverse=True)
 			emoticons_pattern_prematch = ''
 			emoticons_pattern_postmatch = ''
 			emoticon_length = 0
@@ -2458,27 +2492,13 @@ class Interface:
 
 		# because emoticons match later (in the string) they need to be after
 		# basic matches that may occur earlier
-		emot_and_basic_pattern = basic_pattern + emoticons_pattern
-		self.emot_and_basic_re = re.compile(emot_and_basic_pattern,
-			re.IGNORECASE + re.UNICODE)
+		self.emot_and_basic = basic_pattern + emoticons_pattern
 
 		# at least one character in 3 parts (before @, after @, after .)
-		self.sth_at_sth_dot_sth_re = re.compile(r'\S+@\S+\.\S*[^\s)?]')
+		self.sth_at_sth_dot_sth = r'\S+@\S+\.\S*[^\s)?]'
 
 		# Invalid XML chars
-		invalid_XML_chars = u'[\x00-\x08]|[\x0b-\x0c]|[\x0e-\x19]|[\ud800-\udfff]|[\ufffe-\uffff]'
-		self.invalid_XML_chars_re = re.compile(invalid_XML_chars)
-
-		re.purge() # clear the regular expression cache
-
-	def on_emoticon_sort(self, emot1, emot2):
-		len1 = len(emot1)
-		len2 = len(emot2)
-		if len1 < len2:
-			return 1
-		elif len1 > len2:
-			return -1
-		return 0
+		self.invalid_XML_chars = u'[\x00-\x08]|[\x0b-\x0c]|[\x0e-\x19]|[\ud800-\udfff]|[\ufffe-\uffff]'
 
 	def popup_emoticons_under_button(self, button, parent_win):
 		''' pops emoticons menu under button, located in parent_win'''
@@ -3173,19 +3193,10 @@ class Interface:
 
 		helpers.update_optional_features()
 
-		if gajim.config.get('remote_control'):
-			try:
-				import remote_control
-				self.remote_ctrl = remote_control.Remote()
-			except Exception:
-				self.remote_ctrl = None
-		else:
-			self.remote_ctrl = None
+		self.remote_ctrl = None
 
 		if gajim.config.get('networkmanager_support') and dbus_support.supported:
 			import network_manager_listener
-			if not network_manager_listener.supported:
-				print >> sys.stderr, _('Network Manager support not available')
 
 		# Handle gnome screensaver
 		if dbus_support.supported:
@@ -3298,6 +3309,15 @@ class Interface:
 		gobject.timeout_add_seconds(gajim.config.get(
 			'check_idle_every_foo_seconds'), self.read_sleepy)
 
+		def remote_init():
+			if gajim.config.get('remote_control'):
+				try:
+					import remote_control
+					self.remote_ctrl = remote_control.Remote()
+				except Exception:
+					pass
+		gobject.timeout_add_seconds(5, remote_init)
+
 if __name__ == '__main__':
 	def sigint_cb(num, stack):
 		sys.exit(5)
@@ -3313,7 +3333,7 @@ if __name__ == '__main__':
 		try:
 			import gnome.ui
 		except ImportError:
-			print >> sys.stderr, _('Session Management support not available (missing gnome.ui module)')
+			pass
 		else:
 			def die_cb(cli):
 				gajim.interface.roster.quit_gtkgui_interface()

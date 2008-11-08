@@ -45,7 +45,7 @@
 # There are more methods, of course, but this is a basic set.
 
 import os
-import inspect
+import types
 import weakref
 import gobject
 import gtk
@@ -203,7 +203,7 @@ class Closure(object):
 		self.userargs = userargs
 		self.remove = remove
 		self.removeargs = removeargs
-		if inspect.ismethod(cb):
+		if isinstance(cb, types.MethodType):
 			self.meth_self = weakref.ref(cb.im_self, self._remove)
 			self.meth_name = cb.func_name
 		elif callable(cb):
@@ -271,7 +271,7 @@ class ServicesCache:
 			info = _agent_type_info[(0, 0)]
 			filename = info[1]
 		if not filename: # we don't have an image to show for this type
-			return
+			filename = 'jabber.png'
 		# Use the cache if possible
 		if filename in _icon_cache:
 			return _icon_cache[filename]

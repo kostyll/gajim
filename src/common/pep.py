@@ -70,8 +70,8 @@ MOODS = {
 	'hungry':			_('Hungry'),
 	'hurt':				_('Hurt'),
 	'impressed':		_('Impressed'),
-	'in_awe':			_('In_awe'),
-	'in_love':			_('In_love'),
+	'in_awe':			_('In Awe'),
+	'in_love':			_('In Love'),
 	'indignant':		_('Indignant'),
 	'interested':		_('Interested'),
 	'intoxicated':		_('Intoxicated'),
@@ -133,6 +133,7 @@ ACTIVITIES = {
 		'having_lunch':						_('Having Lunch')},
 	'exercising': {'category':				_('Exercising'),
 		'cycling':								_('Cycling'),
+		'dancing':								_('Dancing'),
 		'hiking':								_('Hiking'),
 		'jogging':								_('Jogging'),
 		'playing_sports':						_('Playing Sports'),
@@ -151,16 +152,21 @@ ACTIVITIES = {
 	'inactive': {'category':				_('Inactive'),
 		'day_off':								_('Day Off'),
 		'hanging_out':							_('Hanging Out'),
+		'hiding':								_('Hiding'),
 		'on_vacation':							_('On Vacation'),
+		'praying':								_('Praying'),
 		'scheduled_holiday':					_('Scheduled Holiday'),
-		'sleeping':								_('Sleeping')},
+		'sleeping':								_('Sleeping'),
+		'thinking':								_('Thinking')},
 	'relaxing': {'category':				_('Relaxing'),
+		'fishing':								_('Fishing'),
 		'gaming':								_('Gaming'),
 		'going_out':							_('Going out'),
 		'partying':								_('Partying'),
 		'reading':								_('Reading'),
 		'rehearsing':							_('Rehearsing'),
 		'shopping':								_('Shopping'),
+		'smoking':								_('Smoking'),
 		'socializing':							_('Socializing'),
 		'sunbathing':							_('Sunbathing'),
 		'watching_tv':							_('Watching TV'),
@@ -201,10 +207,18 @@ def user_mood(items, name, jid):
 					text = ch.getData()
 	if items.getTag('retract') is not None:
 		retract = True
+	if has_child or retract:
+		handle_mood(name, jid, mood=mood, text=text, retract=retract)
 
-	if jid == gajim.get_jid_from_account(name):
-		acc = gajim.connections[name]
-		if has_child:
+def handle_mood(account, jid, mood=None, text=None, retract=False):
+	if jid == gajim.get_jid_from_account(account):
+		acc = gajim.connections[account]
+		if retract:
+			if 'mood' in acc.mood:
+				del acc.mood['mood']
+			if 'text' in acc.mood:
+				del acc.mood['text']
+		else:
 			if 'mood' in acc.mood:
 				del acc.mood['mood']
 			if 'text' in acc.mood:
@@ -213,15 +227,15 @@ def user_mood(items, name, jid):
 				acc.mood['mood'] = mood
 			if text is not None:
 				acc.mood['text'] = text
-		elif retract:
-			if 'mood' in acc.mood:
-				del acc.mood['mood']
-			if 'text' in acc.mood:
-				del acc.mood['text']
 
 	(user, resource) = gajim.get_room_and_nick_from_fjid(jid)
-	for contact in gajim.contacts.get_contacts(name, user):
-		if has_child:
+	for contact in gajim.contacts.get_contacts(account, user):
+		if retract:
+			if 'mood' in contact.mood:
+				del contact.mood['mood']
+			if 'text' in contact.mood:
+				del contact.mood['text']
+		else:
 			if 'mood' in contact.mood:
 				del contact.mood['mood']
 			if 'text' in contact.mood:
@@ -230,17 +244,12 @@ def user_mood(items, name, jid):
 				contact.mood['mood'] = mood
 			if text is not None:
 				contact.mood['text'] = text
-		elif retract:
-			if 'mood' in contact.mood:
-				del contact.mood['mood']
-			if 'text' in contact.mood:
-				del contact.mood['text']
 
-	if jid == gajim.get_jid_from_account(name):
-		gajim.interface.roster.draw_account(name)
-	gajim.interface.roster.draw_mood(user, name)
-	ctrl = gajim.interface.msg_win_mgr.get_control(user, name)
-	if ctrl:
+	if jid == gajim.get_jid_from_account(account):
+		gajim.interface.roster.draw_account(account)
+	gajim.interface.roster.draw_mood(user, account)
+	ctrl = gajim.interface.msg_win_mgr.get_control(user, account)
+	if ctrl and ctrl.type_id == 'chat':
 		ctrl.update_mood()
 
 def user_tune(items, name, jid):

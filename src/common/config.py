@@ -162,7 +162,6 @@ class Config:
 		'before_nickname': [ opt_str, '', _('Characters that are printed before the nickname in conversations') ],
 		'after_nickname': [ opt_str, ':', _('Characters that are printed after the nickname in conversations') ],
 		'send_os_info': [ opt_bool, True ],
-		'lastfm_username': [ opt_str, '', _('The username used to identify the Last.fm account.')],
 		'notify_on_new_gmail_email': [ opt_bool, True ],
 		'notify_on_new_gmail_email_extra': [ opt_bool, False ],
 		'use_gpg_agent': [ opt_bool, False ],
@@ -251,7 +250,7 @@ class Config:
 		'chat_merge_consecutive_nickname': [opt_bool, False, _('In a chat, show the nickname at the beginning of a line only when it\'s not the same person talking than in previous message.')],
 		'chat_merge_consecutive_nickname_indent': [opt_str, '  ', _('Indentation when using merge consecutive nickname.')],
 		'use_smooth_scrolling': [opt_bool, True, _('Smooth scroll message in conversation window')],
-		'gc_nicknames_colors': [ opt_str, '#a34526:#c000ff:#0012ff:#388a99:#045723:#7c7c7c:#ff8a00:#94452d:#244b5a:#32645a', _('List of colors that will be used to color nicknames in group chats.'), True ],
+		'gc_nicknames_colors': [ opt_str, '#a34526:#c000ff:#0012ff:#388a99:#045723:#7c7c7c:#ff8a00:#94452d:#244b5a:#32645a', _('List of colors, separated by ":", that will be used to color nicknames in group chats.'), True ],
 		'ctrl_tab_go_to_next_composing': [opt_bool, True, _('Ctrl-Tab go to next composing tab when none is unread.')],
 		'confirm_metacontacts': [ opt_str, '', _('Should we show the confirm metacontacts creation dialog or not? Empty string means we never show the dialog.')],
 		'enable_negative_priority': [ opt_bool, False, _('If True, you will be able to set a negative priority to your account in account modification window. BE CAREFUL, when you are logged in with a negative priority, you will NOT receive any message from your server.')],
@@ -477,6 +476,25 @@ class Config:
 				cb(data, opt2, [opt], None)
 				for opt3 in dict[opt2]:
 					cb(data, opt3, [opt, opt2], dict[opt2][opt3])
+
+	def get_children(self, node=None):
+		''' Tree-like interface '''
+		if node is None:
+			for child, option in self.__options.iteritems():
+				yield (child, ), option
+			for grandparent in self.__options_per_key:
+				yield (grandparent, ), None
+		elif len(node) == 1:
+			grandparent, = node
+			for parent in self.__options_per_key[grandparent][1]:
+				yield (grandparent, parent), None
+		elif len(node) == 2:
+			grandparent, parent = node
+			children = self.__options_per_key[grandparent][1][parent]
+			for child, option in children.iteritems():
+				yield (grandparent, parent, child), option
+		else:
+			raise ValueError('Invalid node')
 
 	def is_valid_int(self, val):
 		try:
