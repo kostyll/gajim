@@ -50,7 +50,6 @@ import cell_renderer_image
 import tooltips
 import message_control
 import adhoc_commands
-import notify
 import features_window
 
 from common import gajim
@@ -589,13 +588,9 @@ class RosterWindow:
 
 			self._remove_metacontact_family(family, account)
 			brothers = self._add_metacontact_family(family, account)
-
+			
 			for c, acc in brothers:
-				self.draw_contact(c.jid, acc)
-				self.draw_mood(c.jid, acc)
-				self.draw_activity(c.jid, acc)
-				self.draw_tune(c.jid, acc)
-				self.draw_avatar(c.jid, acc)
+				self.draw_completely(c.jid, acc)
 
 
 	def _get_nearby_family_and_big_brother(self, family, account):
@@ -639,11 +634,7 @@ class RosterWindow:
 			'self_contact', jid, account, None, None, None, None,
 			None))
 
-		self.draw_contact(jid, account)
-		self.draw_mood(jid, account)
-		self.draw_activity(jid, account)
-		self.draw_tune(jid, account)
-		self.draw_avatar(jid, account)
+		self.draw_completely(jid, account)
 		self.draw_account(account)
 
 		return contact
@@ -699,11 +690,7 @@ class RosterWindow:
 		# Draw the contact and its groups contact
 		if not self.starting:
 			for c, acc in contacts:
-				self.draw_contact(c.jid, acc)
-				self.draw_mood(c.jid, acc)
-				self.draw_activity(c.jid, acc)
-				self.draw_tune(c.jid, acc)
-				self.draw_avatar(c.jid, acc)
+				self.draw_completely(c.jid, acc)
 			for group in contact.get_shown_groups():
 				self.draw_group(group, account)
 				self._adjust_group_expand_collapse_state(group, account)
@@ -764,11 +751,7 @@ class RosterWindow:
 				# reshow the rest of the family
 				brothers = self._add_metacontact_family(family, account)
 				for c, acc in brothers:
-					self.draw_contact(c.jid, acc)
-					self.draw_mood(c.jid, acc)
-					self.draw_activity(c.jid, acc)
-					self.draw_tune(c.jid, acc)
-					self.draw_avatar(c.jid, acc)
+					self.draw_completely(c.jid, acc)
 
 		if iters:
 			# Draw all groups of the contact
@@ -808,7 +791,7 @@ class RosterWindow:
 		else:
 			contact.show = show
 			contact.status = status
-			self.draw_completely_and_show_if_needed(jid, account)
+			self.adjust_and_draw_contact_context(jid, account)
 
 		return contact
 
@@ -1307,9 +1290,15 @@ class RosterWindow:
 		for child_iter in iters:
 			self.model[child_iter][C_AVATAR_PIXBUF] = scaled_pixbuf
 		return False
+	
+	def draw_completely(self, jid, account):
+		self.draw_contact(jid, account)
+		self.draw_mood(jid, account)
+		self.draw_activity(jid, account)
+		self.draw_tune(jid, account)
+		self.draw_avatar(jid, account)
 
-
-	def draw_completely_and_show_if_needed(self, jid, account):
+	def adjust_and_draw_contact_context(self, jid, account):
 		'''Draw contact, account and groups of given jid
 		Show contact if it has pending events
 		'''
@@ -1338,11 +1327,15 @@ class RosterWindow:
 		'''
 		def _draw_all_contacts(jids, account):
 			for jid in jids:
-				self.draw_contact(jid, account)
-				self.draw_mood(jid, account)
-				self.draw_activity(jid, account)
-				self.draw_tune(jid, account)
-				self.draw_avatar(jid, account)
+				family = gajim.contacts.get_metacontacts_family(account, jid)
+				if family:
+					# For metacontacts over several accounts:
+					# When we connect a new account existing brothers
+					# must be redrawn (got removed and readded)
+					for data in family:
+						self.draw_completely(data['jid'], data['account'])
+				else:
+					self.draw_completely(jid, account)
 				yield True
 			yield False
 
@@ -2066,7 +2059,7 @@ class RosterWindow:
 			pep.delete_pep(contact.jid, account)
 
 		# Redraw everything and select the sender
-		self.draw_completely_and_show_if_needed(contact.jid, account)
+		self.adjust_and_draw_contact_context(contact.jid, account)
 
 
 	def on_status_changed(self, account, status):
@@ -3781,11 +3774,7 @@ class RosterWindow:
 			brothers = self._add_metacontact_family(new_family, account_source)
 
 			for c, acc in brothers:
-				self.draw_contact(c.jid, acc)
-				self.draw_mood(c.jid, acc)
-				self.draw_activity(c.jid, acc)
-				self.draw_tune(c.jid, acc)
-				self.draw_avatar(c.jid, acc)
+				self.draw_completely(c.jid, acc)
 
 			old_groups.extend(c_dest.groups)
 			for g in old_groups:
@@ -4879,11 +4868,11 @@ class RosterWindow:
 			item.connect('activate', self.change_status, account, 'offline')
 
 			pep_menuitem = xml.get_widget('pep_menuitem')
-			pep_submenu = gtk.Menu()
-			pep_menuitem.set_submenu(pep_submenu)
 			if gajim.connections[account].pep_supported:
 				have_tune = gajim.config.get_per('accounts', account,
 					'publish_tune')
+				pep_submenu = gtk.Menu()
+				pep_menuitem.set_submenu(pep_submenu)
 				item = gtk.CheckMenuItem(_('Publish Tune'))
 				pep_submenu.append(item)
 				if not dbus_support.supported:
@@ -4891,13 +4880,10 @@ class RosterWindow:
 				else:
 					item.set_active(have_tune)
 					item.connect('toggled', self.on_publish_tune_toggled, account)
-
-			item = gtk.CheckMenuItem(_('Mood'))
-			pep_submenu.append(item)
-			item.set_active(len(gajim.connections[account].mood) > 0)
-			item.connect('activate', self.on_change_mood_activate, account)
-
-			if gajim.connections[account].pep_supported:
+				item = gtk.CheckMenuItem(_('Mood'))
+				pep_submenu.append(item)
+				item.set_active(len(gajim.connections[account].mood) > 0)
+				item.connect('activate', self.on_change_mood_activate, account)
 				item = gtk.CheckMenuItem(_('Activity'))
 				pep_submenu.append(item)
 				item.set_active(len(gajim.connections[account].activity) > 0)
@@ -4913,6 +4899,9 @@ class RosterWindow:
 				img = gtk.image_new_from_stock(gtk.STOCK_PREFERENCES,
 					gtk.ICON_SIZE_MENU)
 				pep_config.set_image(img)
+
+			else:
+				pep_menuitem.set_sensitive(False)
 
 			if not gajim.connections[account].gmail_url:
 				open_gmail_inbox_menuitem.set_no_show_all(True)

@@ -127,7 +127,7 @@ class PrivateChatControl(ChatControl):
 		ChatControl.__init__(self, parent_win, contact, account, session)
 		self.TYPE_ID = 'pm'
 
-	def send_message(self, message):
+	def send_message(self, message, xhtml=None):
 		'''call this function to send our message'''
 		if not message:
 			return
@@ -153,7 +153,7 @@ class PrivateChatControl(ChatControl):
 					'left.') % {'room': room, 'nick': nick})
 				return
 
-		ChatControl.send_message(self, message)
+		ChatControl.send_message(self, message, xhtml=xhtml)
 
 	def update_ui(self):
 		if self.contact.show == 'offline':
@@ -196,12 +196,13 @@ class GroupchatControl(ChatControlBase):
 		widget = self.xml.get_widget('bookmark_button')
 		for bm in gajim.connections[self.account].bookmarks:
 			if bm['jid'] == self.contact.jid:
-				widget.set_sensitive(False)
+				widget.hide()
 				break
 		else:
 			id = widget.connect('clicked',
 				self._on_bookmark_room_menuitem_activate)
 			self.handlers[id] = widget
+			widget.show()
 
 		widget = self.xml.get_widget('list_treeview')
 		id = widget.connect('row_expanded', self.on_list_treeview_row_expanded)
@@ -277,14 +278,9 @@ class GroupchatControl(ChatControlBase):
 		xm = gtkgui_helpers.get_glade('gc_control_popup_menu.glade')
 
 		self.bookmark_room_menuitem = xm.get_widget('bookmark_room_menuitem')
-		for bm in gajim.connections[self.account].bookmarks:
-			if bm['jid'] == self.room_jid:
-				self.bookmark_room_menuitem.set_sensitive(False)
-				break
-		else:
-			id = self.bookmark_room_menuitem.connect('activate',
-				self._on_bookmark_room_menuitem_activate)
-			self.handlers[id] = self.bookmark_room_menuitem
+		id = self.bookmark_room_menuitem.connect('activate',
+			self._on_bookmark_room_menuitem_activate)
+		self.handlers[id] = self.bookmark_room_menuitem
 
 		self.change_nick_menuitem = xm.get_widget('change_nick_menuitem')
 		id = self.change_nick_menuitem.connect('activate',
@@ -316,7 +312,7 @@ class GroupchatControl(ChatControlBase):
 			self.on_minimize_menuitem_toggled)
 		self.handlers[id] = self.minimize_menuitem
 
-		self.separatormenuitem1 = xm.get_widget('separatormenuitem1')
+		self.bookmark_separator = xm.get_widget('bookmark_separator')
 		self.separatormenuitem2 = xm.get_widget('separatormenuitem2')
 
 		self.gc_popup_menu = xm.get_widget('gc_control_popup_menu')
@@ -662,15 +658,20 @@ class GroupchatControl(ChatControlBase):
 			self.change_subject_menuitem.hide()
 			self.bookmark_room_menuitem.hide()
 			self.history_menuitem.hide()
-			self.separatormenuitem1.hide()
+			self.bookmark_separator.hide()
 			self.separatormenuitem2.hide()
 		else:
 			self.change_nick_menuitem.show()
 			self.change_subject_menuitem.show()
 			self.bookmark_room_menuitem.show()
 			self.history_menuitem.show()
-			self.separatormenuitem1.show()
+			self.bookmark_separator.show()
 			self.separatormenuitem2.show()
+			for bm in gajim.connections[self.account].bookmarks:
+				if bm['jid'] == self.room_jid:
+					self.bookmark_room_menuitem.hide()
+					self.bookmark_separator.hide()
+					break
 
 		if self.contact.jid in gajim.config.get_per('accounts', self.account,
 		'minimized_gc').split(' '):
@@ -1627,7 +1628,7 @@ class GroupchatControl(ChatControlBase):
 
 		return False
 
-	def send_message(self, message):
+	def send_message(self, message, xhtml=None):
 		'''call this function to send our message'''
 		if not message:
 			return
@@ -1643,7 +1644,7 @@ class GroupchatControl(ChatControlBase):
 			if not self._process_command(message):
 				# Send the message
 				gajim.connections[self.account].send_gc_message(self.room_jid,
-					message)
+					message, xhtml=xhtml)
 				self.msg_textview.get_buffer().set_text('')
 				self.msg_textview.grab_focus()
 

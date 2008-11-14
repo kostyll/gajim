@@ -1245,6 +1245,9 @@ class Interface:
 				contact = ctrl.contact
 				contact.show = show
 				contact.status = status
+				gc_contact = ctrl.gc_contact
+				gc_contact.show = show
+				gc_contact.status = status
 				uf_show = helpers.get_uf_show(show)
 				ctrl.print_conversation(_('%(nick)s is now %(status)s') % {
 					'nick': nick, 'status': uf_show}, 'status')
@@ -1791,23 +1794,27 @@ class Interface:
 		gajim.block_signed_in_notifications[account] = True
 		self.roster.set_actions_menu_needs_rebuild()
 		self.roster.draw_account(account)
-		if self.sleeper.getState() != common.sleepy.STATE_UNKNOWN and \
-		gajim.connections[account].connected in (2, 3):
+		state = self.sleeper.getState()
+		connected = gajim.connections[account].connected
+		if state != common.sleepy.STATE_UNKNOWN and connected in (2, 3):
 			# we go online or free for chat, so we activate auto status
 			gajim.sleeper_state[account] = 'online'
-		else:
+		elif not ((state == common.sleepy.STATE_AWAY and connected == 4) or \
+			(state == common.sleepy.STATE_XA and connected == 5)):
+			# If we are autoaway/xa and come back after a disconnection, do nothing
+			# Else disable autoaway
 			gajim.sleeper_state[account] = 'off'
 		invisible_show = gajim.SHOW_LIST.index('invisible')
 		# We cannot join rooms if we are invisible
 		if gajim.connections[account].connected == invisible_show:
 			return
 		# join already open groupchats
-		for gc_control in self.msg_win_mgr.get_controls(message_control.TYPE_GC) + \
-		self.minimized_controls[account].values():
+		for gc_control in self.msg_win_mgr.get_controls(message_control.TYPE_GC) \
+		+ self.minimized_controls[account].values():
 			if account != gc_control.account:
 				continue
 			room_jid = gc_control.room_jid
-			if room_jid in gajim.gc_connected[account] and\
+			if room_jid in gajim.gc_connected[account] and \
 					gajim.gc_connected[account][room_jid]:
 				continue
 			nick = gc_control.nick
@@ -2453,6 +2460,9 @@ class Interface:
 		latex = r'|\$\$[^$\\]*?([\]\[0-9A-Za-z()|+*/-]|[\\][\]\[0-9A-Za-z()|{}$])(.*?[^\\])?\$\$'
 
 		basic_pattern = links + '|' + mail + '|' + legacy_prefixes
+		
+		link_pattern = basic_pattern
+		self.link_pattern_re = re.compile(link_pattern, re.IGNORECASE)
 
 		if gajim.config.get('use_latex'):
 			basic_pattern += latex
