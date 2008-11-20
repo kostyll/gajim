@@ -64,6 +64,10 @@ if sys.platform == 'darwin':
 	except NameError:
 		pass
 
+if os.name == 'nt':
+	# needed for docutils
+	sys.path.append('.')
+
 import logging
 consoleloghandler = logging.StreamHandler()
 consoleloghandler.setLevel(1)
