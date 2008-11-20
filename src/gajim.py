@@ -3254,7 +3254,7 @@ class Interface:
 		self.systray_enabled = False
 		self.systray_capabilities = False
 
-		if (os.name == 'nt' and
+		if ((os.name == 'nt' or sys.platform == 'darwin') and
 			(gtk.pygtk_version >= (2, 10, 0)) and
 			(gtk.gtk_version >= (2, 10, 0))):
 			import statusicon

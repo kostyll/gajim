@@ -22,7 +22,8 @@ import nsapp
 
 def init():
 	nsapp.init()
-	nsapp.setNetworkCB(netDeviceChanged)
+	# FIXME: Disable this for now as a changing proxy disconnects us with this
+	# nsapp.setNetworkCB(netDeviceChanged)
 	return
 
 

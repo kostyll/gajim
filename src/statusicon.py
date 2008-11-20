@@ -30,12 +30,6 @@ import systray
 from common import gajim
 from common import helpers
 
-if sys.platform == 'darwin':
-	try:
-		import osx
-	except ImportError:
-		pass
-
 class StatusIcon(systray.Systray):
 	'''Class for the notification area icon'''
 	#FIXME: when we migrate to GTK 2.10 stick only to this class
@@ -59,7 +53,13 @@ class StatusIcon(systray.Systray):
 		self.subscribe_events()
 
 	def on_status_icon_right_clicked(self, widget, event_button, event_time):
-		self.make_menu(event_button, event_time)
+		# On OS X, we receive a right click event if we press the left button
+		# and never receive any other button - so we interpret it as a left
+		# button.
+		if sys.platform == 'darwin':
+			self.on_status_icon_left_clicked(widget)
+		else:
+			self.make_menu(event_button, event_time)
 
 	def hide_icon(self):
 		self.status_icon.set_visible(False)
