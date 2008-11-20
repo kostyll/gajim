@@ -32,8 +32,6 @@ from common import helpers
 
 class StatusIcon(systray.Systray):
 	'''Class for the notification area icon'''
-	#FIXME: when we migrate to GTK 2.10 stick only to this class
-	# (move base stuff from systray.py and rm it)
 	#NOTE: gtk api does NOT allow:
 	# leave, enter motion notify
 	# and can't do cool tooltips we use
