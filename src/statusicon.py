@@ -78,7 +78,7 @@ class StatusIcon(systray.Systray):
 		if gajim.events.get_nb_systray_events():
 			state = 'event'
 			# XXX: Blinking is buggy on OS X atm
-			if os.platform != 'darwin':
+			if sys.platform != 'darwin':
 				self.status_icon.set_blinking(True)
 		else:
 			state = self.status
