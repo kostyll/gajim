@@ -360,18 +360,25 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 	def get_status(self):
 		return STATUS_LIST[self.connected]
 
-	def send_message(self, jid, msg, keyID, type_ = 'chat', subject='',
-	chatstate = None, msg_id = None, composing_xep = None, resource = None,
-	user_nick = None, session=None, forward_from=None, form_node=None, original_message=None):
+	def send_message(self, jid, msg, keyID, type_='chat', subject='',
+	chatstate=None, msg_id=None, composing_xep=None, resource=None,
+	user_nick=None, xhtml=None, session=None, forward_from=None, form_node=None,
+	original_message=None, delayed=None):
 		fjid = jid
 
+		if msg and not xhtml and gajim.config.get(
+		'rst_formatting_outgoing_messages'):
+			from common.rst_xhtml_generator import create_xhtml
+			xhtml = create_xhtml(msg)
 		if not self.connection:
 			return
 		if not msg and chatstate is None:
 			return
 
 		if self.status in ('invisible', 'offline'):
-			self.dispatch('MSGERROR', [unicode(jid), '-1', _('You are not connected or not visible to others. Your message could not be sent.'), None, None])
+			self.dispatch('MSGERROR', [unicode(jid), -1,
+				 _('You are not connected or not visible to others. Your message '
+				'could not be sent.'), None, None, session])
 			return
 
 		msgtxt = msg
@@ -397,15 +404,16 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 				return 3
 
 		if type_ == 'chat':
-			msg_iq = common.xmpp.Message(to = fjid, body = msgtxt, typ = type_)
+			msg_iq = common.xmpp.Message(to=fjid, body=msgtxt, typ=type_,
+				xhtml=xhtml)
 
 		else:
 			if subject:
-				msg_iq = common.xmpp.Message(to = fjid, body = msgtxt,
-					typ = 'normal', subject = subject)
+				msg_iq = common.xmpp.Message(to=fjid, body=msgtxt, typ='normal',
+					subject=subject, xhtml=xhtml)
 			else:
-				msg_iq = common.xmpp.Message(to = fjid, body = msgtxt,
-					typ = 'normal')
+				msg_iq = common.xmpp.Message(to=fjid, body=msgtxt, typ='normal',
+					xhtml=xhtml)
 
 		if msgenc:
 			msg_iq.setTag(common.xmpp.NS_ENCRYPTED + ' x').setData(msgenc)
@@ -427,6 +435,20 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 				# when msgtxt, requests JEP-0022 composing notification
 				if chatstate is 'composing' or msgtxt:
 					chatstate_node.addChild(name = 'composing')
+
+		if forward_from:
+			addresses = msg_iq.addChild('addresses',
+				namespace=common.xmpp.NS_ADDRESS)
+			addresses.addChild('address', attrs = {'type': 'ofrom',
+				'jid': forward_from})
+
+		# XEP-0203
+		if delayed:
+			our_jid = gajim.get_jid_from_account(self.name) + '/' + \
+				self.server_resource
+			timestamp = time.strftime('%Y-%m-%dT%TZ', time.gmtime(delayed))
+			msg_iq.addChild('delay', namespace=common.xmpp.NS_DELAY2,
+				attrs={'from': our_jid, 'stamp': timestamp})
 
 		if session:
 			session.last_send = time.time()
@@ -455,13 +477,13 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 
 		def on_send_not_ok(reason):
 			reason += ' ' + _('Your message could not be sent.')
-			self.dispatch('MSGERROR', [jid, '-1', reason, None, None, session])
+			self.dispatch('MSGERROR', [jid, -1, reason, None, None, session])
 
 		ret = self.connection.send(msg_iq, msg is not None, on_ok=on_send_ok,
 			on_not_ok=on_send_not_ok)
 		if ret == -1:
 			# Contact Offline
-			self.dispatch('MSGERROR', [jid, '-1', _('Contact is offline. Your message could not be sent.'), None, None, session])
+			self.dispatch('MSGERROR', [jid, -1, _('Contact is offline. Your message could not be sent.'), None, None, session])
 		return ret
 
 	def send_stanza(self, stanza):
@@ -553,6 +575,13 @@ class ConnectionZeroconf(ConnectionHandlersZeroconf):
 				self.dispatch('STANZA_ARRIVED', unicode(data, errors = 'ignore'))
 			elif event == common.xmpp.transports.DATA_SENT:
 				self.dispatch('STANZA_SENT', unicode(data))
+			elif event == common.xmpp.transports.DATA_ERROR:
+				thread_id = data[1]
+				frm = unicode(data[0])
+				session = self.get_or_create_session(frm, thread_id)
+				self.dispatch('MSGERROR', [frm, -1,
+	            _('Connection to host could not be established: Timeout while '
+					'sending data.'), None, None, session])
 
 # END ConnectionZeroconf
 

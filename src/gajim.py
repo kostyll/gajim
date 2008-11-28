@@ -954,7 +954,8 @@ class Interface:
 		if array[3]:
 			msg = _('error while sending %(message)s ( %(error)s )') % {
 				'message': array[3], 'error': msg}
-		array[5].roster_message(jid, msg, array[4], msg_type='error')
+		if session:
+			session.roster_message(jid, msg, array[4], msg_type='error')
 
 	def handle_event_msgsent(self, account, array):
 		#('MSGSENT', account, (jid, msg, keyID))
@@ -983,7 +984,7 @@ class Interface:
 			c = gajim.contacts.get_first_contact_from_jid(account, jid)
 			c.resource = array[1]
 			self.roster.remove_contact_from_groups(c.jid, account,
-				[('Not in Roster'),])
+				[_('Not in Roster'), _('Observers')], update=False)
 		else:
 			keyID = ''
 			attached_keys = gajim.config.get_per('accounts', account,
