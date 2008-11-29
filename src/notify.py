@@ -354,7 +354,7 @@ def popup(event_type, jid, account, msg_type='', path_to_image=None,
 
 		if not title:
 			# FIXME: This is a bad idea, it's not translatable and contains a _
-			_title = event_typ
+			_title = event_type
  		else:
 			_title = gobject.escape_markup(title)
 
