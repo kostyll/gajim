@@ -55,14 +55,8 @@ if os.name == 'nt':
 		os.environ['PATH'] = ';'.join(new_list)
 		os.environ['GTK_BASEPATH'] = 'gtk'
 
-import sys
-if sys.platform == 'darwin':
-	try:
-		import osx
-	except ImportError:
-		pass
-
 # We need to import this early
+import sys
 if sys.platform == 'darwin':
 	try:
 		import objc
@@ -225,6 +219,12 @@ else:
 		except Exception:
 			pritext = _('Gajim needs pywin32 to run')
 			sectext = _('Please make sure that Pywin32 is installed on your system. You can get it at %s') % 'http://sourceforge.net/project/showfiles.php?group_id=78018'
+
+if sys.platform == 'darwin':
+	try:
+		import osx
+	except ImportError:
+		pass
 
 if pritext:
 	dlg = gtk.MessageDialog(None,
