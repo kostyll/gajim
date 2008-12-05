@@ -85,6 +85,43 @@ class SleepyWindows:
 	def setState(self, val):
 		self.state = val
 
+class SleepyOSX:
+	def __init__(self, away_interval = 60, xa_interval = 120):
+		global SUPPORTED
+		self.away_interval = away_interval
+		self.xa_interval = xa_interval
+		self.state = STATE_AWAKE # assume we are awake
+		try:
+			idle.init()
+		except Exception:
+			SUPPORTED = False
+			self.state = STATE_UNKNOWN
+
+	def getIdleSec(self):
+		return idle.getIdleSec()
+
+	def poll(self):
+		'''checks to see if we should change state'''
+		if not SUPPORTED:
+			return False
+
+		idleTime = self.getIdleSec()
+
+		# xa is stronger than away so check for xa first
+		if idleTime > self.xa_interval:
+			self.state = STATE_XA
+		elif idleTime > self.away_interval:
+			self.state = STATE_AWAY
+		else:
+			self.state = STATE_AWAKE
+		return True
+
+	def getState(self):
+		return self.state
+
+	def setState(self, val):
+		self.state = val
+
 class SleepyUnix:
 	def __init__(self, away_interval = 60, xa_interval = 120):
 		global SUPPORTED
@@ -119,6 +156,8 @@ class SleepyUnix:
 
 if os.name == 'nt':
 	Sleepy = SleepyWindows
+elif sys.platform == 'darwin':
+	Sleepy = SleepyOSX
 else:
 	Sleepy = SleepyUnix
 
