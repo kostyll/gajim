@@ -31,6 +31,7 @@ from errno import EWOULDBLOCK
 from errno import ENOBUFS
 from errno import EINTR
 from errno import EISCONN
+from errno import EINPROGRESS
 from xmpp.idlequeue import IdleObject
 MAX_BUFF_LEN = 65536
 
@@ -416,7 +417,7 @@ class Socks5:
 		received = ''
 		try:
 			add = self._recv(64)
-		except Exception, e:
+		except Exception:
 			add = ''
 		received += add
 		if len(add) == 0:
@@ -426,8 +427,8 @@ class Socks5:
 	def send_raw(self,raw_data):
 		''' Writes raw outgoing data. '''
 		try:
-			lenn = self._send(raw_data)
-		except Exception, e:
+			self._send(raw_data)
+		except Exception:
 			self.disconnect()
 		return len(raw_data)
 
@@ -506,7 +507,7 @@ class Socks5:
 			fd = self.get_fd()
 			try:
 				buff = self._recv(MAX_BUFF_LEN)
-			except Exception, e:
+			except Exception:
 				buff = ''
 			current_time = self.idlequeue.current_time()
 			self.file_props['elapsed-time'] += current_time - \
@@ -570,7 +571,7 @@ class Socks5:
 		mechanisms '''
 		auth_mechanisms = []
 		try:
-			ver, num_auth = struct.unpack('!BB', buff[:2])
+			num_auth = struct.unpack('!xB', buff[:2])[0]
 			for i in xrange(num_auth):
 				mechanism, = struct.unpack('!B', buff[1 + i])
 				auth_mechanisms.append(mechanism)
@@ -600,8 +601,7 @@ class Socks5:
 
 	def _parse_request_buff(self, buff):
 		try: # don't trust on what comes from the outside
-			version, req_type, reserved, host_type, = struct.unpack('!BBBB',
-				buff[:4])
+			req_type, host_type, = struct.unpack('!xBxB', buff[:4])
 			if host_type == 0x01:
 				host_arr = struct.unpack('!iiii', buff[4:8])
 				host, = '.'.join(str(s) for s in host_arr)
@@ -764,7 +764,7 @@ class Socks5Sender(Socks5, IdleObject):
 				return -1 # invalid auth methods received
 		elif self.state == 3: # get next request
 			buff = self.receive()
-			(req_type, self.sha_msg, port) = self._parse_request_buff(buff)
+			req_type, self.sha_msg = self._parse_request_buff(buff)[:2]
 			if req_type != 0x01:
 				return -1 # request is not of type 'connect'
 		self.state += 1 # go to the next step
@@ -805,6 +805,13 @@ class Socks5Listener(IdleObject):
 			self._serv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self._serv.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 			self._serv.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+			# Under windows Vista, we need that to listen on ipv6 AND ipv4
+			# Doesn't work under windows XP
+			if os.name == 'nt':
+				ver = os.sys.getwindowsversion()
+				if (ver[3], ver[0], ver[1]) == (2, 6, 0):
+					# 27 is socket.IPV6_V6ONLY under windows, but not defined ...
+					self._serv.setsockopt(socket.IPPROTO_IPV6, 27, 1)
 			# will fail when port as busy, or we don't have rights to bind
 			try:
 				self._serv.bind(ai[4])
@@ -900,10 +907,10 @@ class Socks5Receiver(Socks5, IdleObject):
 				self._sock.setblocking(False)
 				self._server = ai[4]
 				break
-			except Exception:
-				if sys.exc_value[0] == errno.EINPROGRESS:
+			except socket.error, e:
+				if not isinstance(e, basestring) and e[0] == EINPROGRESS:
 					break
-				#for all errors, we try other addresses
+				# for all other errors, we try other addresses
 				continue
 		self.fd = self._sock.fileno()
 		self.state = 0 # about to be connected
@@ -973,7 +980,7 @@ class Socks5Receiver(Socks5, IdleObject):
 			self._send=self._sock.send
 			self._recv=self._sock.recv
 		except Exception, ee:
-			(errnum, errstr) = ee
+			errnum = ee[0]
 			self.connect_timeout += 1
 			if errnum == 111 or self.connect_timeout > 1000:
 				self.queue._connection_refused(self.streamhost,
@@ -1018,8 +1025,8 @@ class Socks5Receiver(Socks5, IdleObject):
 			sub_buff = buff[:4]
 			if len(sub_buff) < 4:
 				return None
-			version, command, rsvd, address_type = struct.unpack('!BBBB', buff[:4])
-			addrlen, address, port = 0, 0, 0
+			version, address_type = struct.unpack('!BxxB', buff[:4])
+			addrlen = 0
 			if address_type == 0x03:
 				addrlen = ord(buff[4])
 				address = struct.unpack('!%ds' % addrlen, buff[5:addrlen + 5])

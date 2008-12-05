@@ -166,7 +166,7 @@ except ImportError:
 
 HAVE_GPG = True
 try:
-	import GnuPGInterface 
+	import GnuPGInterface
 except ImportError:
 	HAVE_GPG = False
 else:
@@ -180,7 +180,7 @@ gajim_common_features = [xmpp.NS_BYTESTREAM, xmpp.NS_SI, xmpp.NS_FILE,
 	xmpp.NS_MUC_CONFIG, xmpp.NS_COMMANDS, xmpp.NS_DISCO_INFO, 'ipv6',
 	'jabber:iq:gateway', xmpp.NS_LAST, xmpp.NS_PRIVACY, xmpp.NS_PRIVATE,
 	xmpp.NS_REGISTER, xmpp.NS_VERSION, xmpp.NS_DATA, xmpp.NS_ENCRYPTED, 'msglog',
-	'sslc2s', 'stringprep', xmpp.NS_PING, xmpp.NS_TIME_REVISED, xmpp.NS_GAMING,
+	'sslc2s', 'stringprep', xmpp.NS_PING, xmpp.NS_TIME_REVISED, xmpp.NS_SSN,
 	xmpp.NS_MOOD, xmpp.NS_ACTIVITY, xmpp.NS_NICK]
 
 # Optional features gajim supports per account
@@ -256,12 +256,11 @@ def get_resource_from_jid(jid):
 		return jids[1] # abc@doremi.org/res/res-continued
 	else:
 		return ''
-	'''\
-[15:34:28] <asterix> we should add contact.fake_jid I think
-[15:34:46] <asterix> so if we know real jid, it wil be in contact.jid, or we look in contact.fake_jid
-[15:32:54] <asterix> they can have resource if we know the real jid
-[15:33:07] <asterix> and that resource is in contact.resource
-'''
+
+# [15:34:28] <asterix> we should add contact.fake_jid I think
+# [15:34:46] <asterix> so if we know real jid, it wil be in contact.jid, or we look in contact.fake_jid
+# [15:32:54] <asterix> they can have resource if we know the real jid
+# [15:33:07] <asterix> and that resource is in contact.resource
 
 def get_number_of_accounts():
 	'''returns the number of ALL accounts'''

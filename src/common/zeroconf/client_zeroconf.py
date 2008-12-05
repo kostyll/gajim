@@ -1,4 +1,4 @@
-﻿##      common/zeroconf/client_zeroconf.py
+##      common/zeroconf/client_zeroconf.py
 ##
 ## Copyright (C) 2006 Stefan Bethge <stefan@lanpartei.de>
 ## 				2006 Dimitur Kirov <dkirov@gmail.com>
@@ -71,7 +71,7 @@ class ZeroconfListener(IdleObject):
 		# will fail when port is busy, or we don't have rights to bind
 		try:
 			self._serv.bind((ai[4][0], self.port))
-		except Exception, e:
+		except Exception:
 			# unable to bind, show error dialog
 			return None
 		self._serv.listen(socket.SOMAXCONN)
@@ -87,14 +87,14 @@ class ZeroconfListener(IdleObject):
 	def pollin(self):
 		''' accept a new incomming connection and notify queue'''
 		sock = self.accept_conn()
-		''' loop through roster to find who has connected to us'''
+		# loop through roster to find who has connected to us
 		from_jid = None
 		ipaddr = sock[1][0]
 		for jid in self.conn_holder.getRoster().keys():
 			entry = self.conn_holder.getRoster().getItem(jid)
 			if (entry['address'] == ipaddr):
 				from_jid = jid
-				break;
+				break
 		P2PClient(sock[0], ipaddr, sock[1][1], self.conn_holder, [], from_jid)
 
 	def disconnect(self):
@@ -105,7 +105,7 @@ class ZeroconfListener(IdleObject):
 		self.started = False
 		try:
 			self._serv.close()
-		except:
+		except socket.error:
 			pass
 		self.conn_holder.kill_all_connections()
 
@@ -158,7 +158,7 @@ class P2PClient(IdleObject):
 		self.conn_holder.add_connection(self, self.Server, port, self.to)
 		# count messages in queue
 		for val in self.stanzaqueue:
-			stanza, is_message = val
+			is_message = val[1]
 			if is_message:
 				if self.fd == -1:
 					if on_not_ok:
@@ -222,7 +222,7 @@ class P2PClient(IdleObject):
 			self.Dispatcher._metastream)[:-2])
 
 	def _check_stream_start(self, ns, tag, attrs):
-		if ns<>NS_STREAMS or tag<>'stream':
+		if ns != NS_STREAMS or tag != 'stream':
 			self.Connection.DEBUG('Incorrect stream start: (%s,%s).Terminating! ' \
 				% (tag, ns), 'error')
 			self.Connection.disconnect()
@@ -343,7 +343,7 @@ class P2PConnection(IdleObject, PlugIn):
 			self._sock = socket.socket(*ai[:3])
 			self._sock.setblocking(False)
 			self._server = ai[4]
-		except:
+		except socket.error:
 			if sys.exc_value[0] != errno.EINPROGRESS:
 				# for all errors, we try other addresses
 				self.connect_to_next_ip()
@@ -484,18 +484,6 @@ class P2PConnection(IdleObject, PlugIn):
 			self.disconnect()
 		return True
 
-	def onreceive(self, recv_handler):
-		if not recv_handler:
-			if hasattr(self._owner, 'Dispatcher'):
-				self.on_receive = self._owner.Dispatcher.ProcessNonBlocking
-			else:
-				self.on_receive = None
-			return
-		_tmp = self.on_receive
-		# make sure this cb is not overriden by recursive calls
-		if not recv_handler(None) and _tmp == self.on_receive:
-			self.on_receive = recv_handler
-
 	def disconnect(self):
 		''' Closes the socket. '''
 		gajim.idlequeue.remove_timeout(self.fd)
@@ -503,7 +491,7 @@ class P2PConnection(IdleObject, PlugIn):
 		try:
 			self._sock.shutdown(socket.SHUT_RDWR)
 			self._sock.close()
-		except:
+		except socket.error:
 			# socket is already closed
 			pass
 		self.fd = -1
@@ -700,23 +688,23 @@ class ClientZeroconf:
 		# look for hashed connections
 		if to in self.recipient_to_hash:
 			conn = self.connections[self.recipient_to_hash[to]]
-			id = conn.Dispatcher.getAnID()
-			stanza.setID(id)
+			id_ = conn.Dispatcher.getAnID()
+			stanza.setID(id_)
 			if conn.add_stanza(stanza, is_message):
 				if on_ok:
 					on_ok()
-				return id
+				return id_
 
 		if item['address'] in self.ip_to_hash:
-			hash = self.ip_to_hash[item['address']]
-			if self.hash_to_port[hash] == item['port']:
-				conn = self.connections[hash]
-				id = conn.Dispatcher.getAnID()
-				stanza.setID(id)
+			hash_ = self.ip_to_hash[item['address']]
+			if self.hash_to_port[hash_] == item['port']:
+				conn = self.connections[hash_]
+				id_ = conn.Dispatcher.getAnID()
+				stanza.setID(id_)
 				if conn.add_stanza(stanza, is_message):
 					if on_ok:
 						on_ok()
-					return id
+					return id_
 
 		# otherwise open new connection
 		stanza.setID('zero')

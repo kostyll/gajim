@@ -27,7 +27,7 @@ import threading
 
 import gtk
 import pango
-from common import i18n
+from common import i18n # installs _() function
 import dialogs
 
 from cStringIO import StringIO
@@ -42,11 +42,11 @@ def _info(type_, value, tb):
 		_excepthook_save(type_, value, tb)
 		return
 
-	dialog = dialogs.HigDialog(None, gtk.MESSAGE_WARNING, gtk.BUTTONS_NONE, 
+	dialog = dialogs.HigDialog(None, gtk.MESSAGE_WARNING, gtk.BUTTONS_NONE,
 				_('A programming error has been detected'),
 				_('It probably is not fatal, but should be reported '
 				'to the developers nonetheless.'))
-	
+
 	dialog.set_modal(False)
 	#FIXME: add icon to this button
 	RESPONSE_REPORT_BUG = 42
@@ -82,7 +82,6 @@ def _info(type_, value, tb):
 	# on expand the details the dialog remains centered on screen
 	dialog.set_position(gtk.WIN_POS_CENTER_ALWAYS)
 
-	close_clicked = False
 	def on_dialog_response(dialog, response):
 		if response == RESPONSE_REPORT_BUG:
 			url = 'http://trac.gajim.org/wiki/HowToCreateATicket'
@@ -93,7 +92,7 @@ def _info(type_, value, tb):
 	dialog.show_all()
 
 	_exception_in_progress.release()
-	
+
 # gdb/kdm etc if we use startx this is not True
 if os.name == 'nt' or not sys.stderr.isatty():
 	#FIXME: maybe always show dialog?
@@ -104,6 +103,6 @@ if os.name == 'nt' or not sys.stderr.isatty():
 if __name__ == '__main__':
 	_excepthook_save = sys.excepthook
 	sys.excepthook = _info
-	print x # this always tracebacks
+	raise Exception()
 
 # vim: se ts=3:

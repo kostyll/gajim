@@ -20,7 +20,7 @@
 ## along with Gajim. If not, see <http://www.gnu.org/licenses/>.
 ##
 
-import socket 
+import socket
 import struct
 import errno
 
@@ -39,9 +39,9 @@ S_FINISHED = 4
 CONNECT_TIMEOUT = 20
 
 class Proxy65Manager:
-	''' keep records for file transfer proxies. Each time account 
-	establishes a connection to its server call proxy65manger.resolve(proxy) 
-	for every proxy that is convigured within the account. The class takes 
+	''' keep records for file transfer proxies. Each time account
+	establishes a connection to its server call proxy65manger.resolve(proxy)
+	for every proxy that is convigured within the account. The class takes
 	care to resolve and test each proxy only once.'''
 	def __init__(self, idlequeue):
 		# dict {proxy: proxy properties}
@@ -107,14 +107,13 @@ class ProxyResolver:
 		self.state = S_RESOLVED
 		#FIXME: re-enable proxy testing
 		self.state = S_FINISHED
-		return
-		self.receiver_tester = ReceiverTester(self.host, self.port, self.jid,
-			self.sid, self.sender_jid, self._on_receiver_success,
-			self._on_connect_failure)
-		self.receiver_tester.connect()
-	
+		#self.receiver_tester = ReceiverTester(self.host, self.port, self.jid,
+		#	self.sid, self.sender_jid, self._on_receiver_success,
+		#	self._on_connect_failure)
+		#self.receiver_tester.connect()
+
 	def _on_receiver_success(self):
-		self.host_tester = HostTester(self.host, self.port, self.jid, 
+		self.host_tester = HostTester(self.host, self.port, self.jid,
 			self.sid, self.sender_jid, self._on_connect_success,
 			self._on_connect_failure)
 		self.host_tester.connect()
@@ -253,7 +252,7 @@ class HostTester(Socks5, IdleObject):
 		self.idlequeue.remove_timeout(self.fd)
 		if self.state == 2:
 			self.idlequeue.set_read_timeout(self.fd, CONNECT_TIMEOUT)
-			# begin negotiation. on success 'address' != 0 
+			# begin negotiation. on success 'address' != 0
 			buff = self.receive()
 			if buff == '':
 				# end connection
@@ -280,7 +279,7 @@ class HostTester(Socks5, IdleObject):
 			self._send = self._sock.send
 			self._recv = self._sock.recv
 		except Exception, ee:
-			(errnum, errstr) = ee
+			errnum = ee[0]
 			# 56 is for freebsd
 			if errnum in (errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK):
 				# still trying to connect
@@ -297,7 +296,7 @@ class HostTester(Socks5, IdleObject):
 		self.buff = ''
 		self.state = 1 # connected
 		self.idlequeue.plug_idle(self, True, False)
-		return 
+		return
 
 class ReceiverTester(Socks5, IdleObject):
 	''' fake proxy tester. '''
@@ -357,7 +356,7 @@ class ReceiverTester(Socks5, IdleObject):
 		self.idlequeue.remove_timeout(self.fd)
 		if self.state in (2, 3):
 			self.idlequeue.set_read_timeout(self.fd, CONNECT_TIMEOUT)
-			# begin negotiation. on success 'address' != 0 
+			# begin negotiation. on success 'address' != 0
 			buff = self.receive()
 			if buff == '':
 				# end connection
@@ -392,7 +391,7 @@ class ReceiverTester(Socks5, IdleObject):
 			self._send = self._sock.send
 			self._recv = self._sock.recv
 		except Exception, ee:
-			(errnum, errstr) = ee
+			errnum = ee[0]
 			# 56 is for freebsd
 			if errnum in (errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK):
 				# still trying to connect
@@ -409,6 +408,6 @@ class ReceiverTester(Socks5, IdleObject):
 		self.buff = ''
 		self.state = 1 # connected
 		self.idlequeue.plug_idle(self, True, False)
-		return 
+		return
 
 # vim: se ts=3:

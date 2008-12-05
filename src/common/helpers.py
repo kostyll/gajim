@@ -36,7 +36,6 @@ import subprocess
 import urllib
 import errno
 import select
-import sha
 import base64
 import sys
 from encodings.punycode import punycode_encode
@@ -351,10 +350,10 @@ def get_uf_role(role, plural = False):
 		else:
 			role_name = _('Visitor')
 	return role_name
-	
+
 def get_uf_affiliation(affiliation):
 	'''Get a nice and translated affilition for muc'''
-	if affiliation == 'none': 
+	if affiliation == 'none':
 		affiliation_name = Q_('?Group Chat Contact Affiliation:None')
 	elif affiliation == 'owner':
 		affiliation_name = _('Owner')
@@ -410,30 +409,22 @@ def get_uf_chatstate(chatstate):
 		return _('has closed the chat window or tab')
 	return ''
 
-def is_in_path(name_of_command, return_abs_path = False):
-	# if return_abs_path is True absolute path will be returned
-	# for name_of_command
-	# on failures False is returned
-	is_in_dir = False
-	found_in_which_dir = None
-	path = os.getenv('PATH').split(os.pathsep)
-	for path_to_directory in path:
-		try:
-			contents = os.listdir(path_to_directory)
-		except OSError: # user can have something in PATH that is not a dir
-			pass
-		else:
-			is_in_dir = name_of_command in contents
-		if is_in_dir:
-			if return_abs_path:
-				found_in_which_dir = path_to_directory
-			break
+def is_in_path(command, return_abs_path=False):
+	'''Returns True if 'command' is found in one of the directories in the
+		user's path. If 'return_abs_path' is True, returns the absolute path of
+		the first found command instead. Returns False otherwise and on errors.'''
 
-	if found_in_which_dir:
-		abs_path = os.path.join(path_to_directory, name_of_command)
-		return abs_path
-	else:
-		return is_in_dir
+	for directory in os.getenv('PATH').split(os.pathsep):
+		try:
+			if command in os.listdir(directory):
+				if return_abs_path:
+					return os.path.join(directory, command)
+				else:
+					return True
+		except OSError:
+			# If the user has non directories in his path
+			pass
+	return False
 
 def exec_command(command):
 	subprocess.Popen(command, shell = True)
@@ -602,7 +593,7 @@ def get_global_status():
 			status = gajim.connections[account].status
 	return status
 
-def statuses_unified(): 
+def statuses_unified():
 	'''testing if all statuses are the same.'''
 	reference = None
 	for account in gajim.connections:
@@ -740,7 +731,7 @@ def get_jid_from_iq(iq_obj):
 
 def get_auth_sha(sid, initiator, target):
 	''' return sha of sid + initiator + target used for proxy auth'''
-	return sha.new("%s%s%s" % (sid, initiator, target)).hexdigest()
+	return hash_sha1("%s%s%s" % (sid, initiator, target)).hexdigest()
 
 
 distro_info = {
@@ -771,10 +762,10 @@ def get_random_string_16():
 	''' create random string of length 16'''
 	rng = range(65, 90)
 	rng.extend(range(48, 57))
-	char_sequence = map(lambda e:chr(e), rng)
+	char_sequence = [chr(e) for e in rng]
 	from random import sample
 	return ''.join(sample(char_sequence, 16))
-	
+
 def get_os_info():
 	if os.name == 'nt':
 		ver = os.sys.getwindowsversion()
@@ -799,9 +790,9 @@ def get_os_info():
 		full_path_to_executable = is_in_path(executable, return_abs_path = True)
 		if full_path_to_executable:
 			command = executable + params
-			p = subprocess.Popen([command], shell=True, stdin=subprocess.PIPE, 
-				stdout=subprocess.PIPE, close_fds=True) 
-			p.wait() 
+			p = subprocess.Popen([command], shell=True, stdin=subprocess.PIPE,
+				stdout=subprocess.PIPE, close_fds=True)
+			p.wait()
 			output = temp_failure_retry(p.stdout.readline).strip()
 			# some distros put n/a in places, so remove those
 			output = output.replace('n/a', '').replace('N/A', '')
@@ -841,7 +832,7 @@ def get_os_info():
 	return 'N/A'
 
 def sanitize_filename(filename):
-	'''makes sure the filename we will write does contain only acceptable and 
+	'''makes sure the filename we will write does contain only acceptable and
 	latin characters, and is not too long (in that case hash it)'''
 	# 48 is the limit
 	if len(filename) > 48:
@@ -854,7 +845,7 @@ def sanitize_filename(filename):
 		filename = filename.replace('?', '_').replace(':', '_')\
 			.replace('\\', '_').replace('"', "'").replace('|', '_')\
 			.replace('*', '_').replace('<', '_').replace('>', '_')
-	
+
 	return filename
 
 def allow_showing_notification(account, type_ = 'notify_on_new_message',
@@ -947,7 +938,7 @@ def reduce_chars_newlines(text, max_chars = 0, max_lines = 0):
 		lines = text.split('\n', max_lines)[:max_lines]
 	if max_chars > 0:
 		if lines:
-			lines = map(lambda e: _cut_if_long(e), lines)
+			lines = [_cut_if_long(e) for e in lines]
 	if lines:
 		reduced_text = '\n'.join(lines)
 		if reduced_text != text:
@@ -961,7 +952,7 @@ def get_account_status(account):
 	return status
 
 def get_notification_icon_tooltip_dict():
-	'''returns a dict of the form {acct: {'show': show, 'message': message, 
+	'''returns a dict of the form {acct: {'show': show, 'message': message,
 	'event_lines': [list of text lines to show in tooltip]}'''
 	# How many events must there be before they're shown summarized, not per-user
 	max_ungrouped_events = 10
@@ -1009,7 +1000,7 @@ def get_notification_icon_tooltip_dict():
 					else:
 						text += _(' from %s') % (jid)
 					account['event_lines'].append(text)
-		
+
 		# Display unseen events numbers, if any
 		if total_non_messages > 0:
 			if total_non_messages > max_ungrouped_events:
@@ -1032,7 +1023,7 @@ def get_notification_icon_tooltip_dict():
 def get_notification_icon_tooltip_text():
 	text = None
 	# How many events must there be before they're shown summarized, not per-user
-	max_ungrouped_events = 10
+	# max_ungrouped_events = 10
 	# Character which should be used to indent in the tooltip.
 	indent_with = ' '
 
@@ -1053,7 +1044,7 @@ def get_notification_icon_tooltip_text():
 	# If there is only one account, its status is shown on the first line.
 	if show_more_accounts:
 		text = _('Gajim')
-	else:		
+	else:
 		text = _('Gajim - %s') % (get_account_status(accounts[0]))
 
 	# Gather and display events. (With accounts, when there are more.)
@@ -1090,7 +1081,7 @@ def get_accounts_info():
 			message = message.strip()
 		if message != '':
 			single_line += ': ' + message
-		accounts.append({'name': account, 'status_line': single_line, 
+		accounts.append({'name': account, 'status_line': single_line,
 				'show': status, 'message': message})
 	return accounts
 
@@ -1159,13 +1150,13 @@ def prepare_and_validate_gpg_keyID(account, jid, keyID):
 	'''Returns an eight char long keyID that can be used with for GPG encryption with this contact.
 	If the given keyID is None, return UNKNOWN; if the key does not match the assigned key
 	XXXXXXXXMISMATCH is returned. If the key is trusted and not yet assigned, assign it'''
-	if gajim.connections[account].USE_GPG:	
+	if gajim.connections[account].USE_GPG:
 		if keyID and len(keyID) == 16:
 			keyID = keyID[8:]
-		
+
 		attached_keys = gajim.config.get_per('accounts', account,
 			'attached_gpg_keys').split()
-		
+
 		if jid in attached_keys and keyID:
 			attachedkeyID = attached_keys[attached_keys.index(jid) + 1]
 			if attachedkeyID != keyID:
@@ -1174,7 +1165,7 @@ def prepare_and_validate_gpg_keyID(account, jid, keyID):
 		elif jid in attached_keys:
 			# An unsigned presence, just use the assigned key
 			keyID = attached_keys[attached_keys.index(jid) + 1]
-		elif keyID: 
+		elif keyID:
 			public_keys = gajim.connections[account].ask_gpg_keys()
 			# Assign the corresponding key, if we have it in our keyring
 			if keyID in public_keys:
@@ -1217,7 +1208,7 @@ def sort_dataforms_func(d1, d2):
 
 def compute_caps_hash(identities, features, dataforms=[], hash_method='sha-1'):
 	'''Compute caps hash according to XEP-0115, V1.5
-	
+
 	dataforms are xmpp.DataForms objects as common.dataforms don't allow several
 	values without a field type list-multi'''
 	S = ''
@@ -1241,20 +1232,19 @@ def compute_caps_hash(identities, features, dataforms=[], hash_method='sha-1'):
 		if form_type:
 			S += form_type.getValue() + '<'
 			del fields['FORM_TYPE']
-		vars = sorted(fields.keys())
-		for var in vars:
+		for var in sorted(fields.keys()):
 			S += '%s<' % var
 			values = sorted(fields[var].getValues())
 			for value in values:
 				S += '%s<' % value
 
 	if hash_method == 'sha-1':
-		hash = hash_sha1(S)
+		hash_ = hash_sha1(S)
 	elif hash_method == 'md5':
-		hash = hash_md5(S)
+		hash_ = hash_md5(S)
 	else:
 		return ''
-	return base64.b64encode(hash.digest())
+	return base64.b64encode(hash_.digest())
 
 def update_optional_features(account = None):
 	if account:

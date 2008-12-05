@@ -26,6 +26,8 @@ automatically called when user requests some node of your disco tree.
 from dispatcher import *
 from client import PlugIn
 
+DBG_BROWSER = "Browser"
+
 class Browser(PlugIn):
     """ WARNING! This class is for components only. It will not work in client mode!
 
@@ -80,7 +82,7 @@ class Browser(PlugIn):
     def __init__(self):
         """Initialises internal variables. Used internally."""
         PlugIn.__init__(self)
-        DBG_LINE='browser'
+        self.DBG_LINE = DBG_BROWSER
         self._exported_methods=[]
         self._handlers={'':{}}
 
@@ -89,6 +91,7 @@ class Browser(PlugIn):
             Used internally."""
         owner.RegisterHandler('iq',self._DiscoveryHandler,typ='get',ns=NS_DISCO_INFO)
         owner.RegisterHandler('iq',self._DiscoveryHandler,typ='get',ns=NS_DISCO_ITEMS)
+        owner.debug_flags.append(DBG_BROWSER)
 
     def plugout(self):
         """ Unregisters browser's iq handlers from your application dispatcher instance.
@@ -117,7 +120,7 @@ class Browser(PlugIn):
             elif set_ or '' in cur: return cur,''
             else: return None,None
         if 1 in cur or set_: return cur,1
-        raise "Corrupted data"
+        raise Exception("Corrupted data")
 
     def setDiscoHandler(self,handler,node='',jid=''):
         """ This is the main method that you will use in this class.
@@ -125,7 +128,7 @@ class Browser(PlugIn):
             as handler of some disco tree branch.
             If you do not specify the node this handler will be used for all queried nodes.
             If you do not specify the jid this handler will be used for all queried JIDs.
-            
+
             Usage:
             cl.Browser.setDiscoHandler(someDict,node,jid)
             or
@@ -144,8 +147,8 @@ class Browser(PlugIn):
                                   {'category':'category1','type':'type1','name':'name1'},
                                   {'category':'category2','type':'type2','name':'name2'},
                                   {'category':'category3','type':'type3','name':'name3'},
-                                ], 
-                          'features':['feature1','feature2','feature3','feature4'], 
+                                ],
+                          'features':['feature1','feature2','feature3','feature4'],
                           'xdata':DataForm
                         }
                      }
@@ -209,7 +212,7 @@ class Browser(PlugIn):
                 raise NodeProcessed
             # handler must return dictionary:
             # {'ids':[{},{},{},{}], 'features':[fe,at,ur,es], 'xdata':DataForm}
-            for id in dt['ids']: q.addChild('identity',id)
+            for id_ in dt['ids']: q.addChild('identity',id_)
             for feature in dt['features']: q.addChild('feature',{'var':feature})
             if 'xdata' in dt: q.addChild(node=dt['xdata'])
         conn.send(rep)

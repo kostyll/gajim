@@ -37,9 +37,9 @@
 ##
 
 import os
+import warnings
 
 if os.name == 'nt':
-	import warnings
 	warnings.filterwarnings(action='ignore')
 
 	if os.path.isdir('gtk'):
@@ -56,6 +56,11 @@ if os.name == 'nt':
 		os.environ['GTK_BASEPATH'] = 'gtk'
 
 import sys
+if sys.platform == 'darwin':
+	try:
+		import osx
+	except ImportError:
+		pass
 
 # We need to import this early
 if sys.platform == 'darwin':
@@ -122,7 +127,7 @@ def parseOpts():
 	try:
 		shortargs = 'hqvl:p:c:'
 		longargs = 'help quiet verbose loglevel= profile= config_path='
-		opts, args = getopt.getopt(sys.argv[1:], shortargs, longargs.split())
+		opts = getopt.getopt(sys.argv[1:], shortargs, longargs.split())[0]
 	except getopt.error, msg:
 		print msg
 		print 'for help use --help'
@@ -158,7 +163,6 @@ common.configpaths.gajimpaths.init_profile(profile)
 del profile
 
 # PyGTK2.10+ only throws a warning
-import warnings
 warnings.filterwarnings('error', module='gtk')
 try:
 	import gtk
@@ -169,7 +173,6 @@ except Warning, msg:
 warnings.resetwarnings()
 
 if os.name == 'nt':
-	import warnings
 	warnings.filterwarnings(action='ignore')
 
 pritext = ''
@@ -415,9 +418,8 @@ def on_exit():
 	gajim.interface.save_config()
 	if sys.platform == 'darwin':
 		try:
-			import osx
 			osx.shutdown()
-		except ImportError:
+		except Exception:
 			pass
 
 import atexit
@@ -440,7 +442,7 @@ class GlibIdleQueue(idlequeue.IdleQueue):
 		self.events = {}
 		# time() is already called in glib, we just get the last value
 		# overrides IdleQueue.current_time()
-		self.current_time = lambda: gobject.get_current_time()
+		self.current_time = gobject.get_current_time
 
 	def add_idle(self, fd, flags):
 		''' this method is called when we plug a new idle object.
@@ -530,9 +532,9 @@ class PassphraseRequest:
 
 class Interface:
 
-################################################################################		
-### Methods handling events from connection 
-################################################################################	
+################################################################################
+### Methods handling events from connection
+################################################################################
 
 	def handle_event_roster(self, account, data):
 		#('ROSTER', account, array)
@@ -591,13 +593,13 @@ class Interface:
 
 	def handle_event_error_answer(self, account, array):
 		#('ERROR_ANSWER', account, (id, jid_from, errmsg, errcode))
-		id, jid_from, errmsg, errcode = array
-		if unicode(errcode) in ('403', '406') and id:
+		id_, jid_from, errmsg, errcode = array
+		if unicode(errcode) in ('403', '406') and id_:
 			# show the error dialog
 			ft = self.instances['file_transfers']
-			sid = id
-			if len(id) > 3 and id[2] == '_':
-				sid = id[3:]
+			sid = id_
+			if len(id_) > 3 and id_[2] == '_':
+				sid = id_[3:]
 			if sid in ft.files_props['s']:
 				file_props = ft.files_props['s'][sid]
 				file_props['error'] = -4
@@ -608,9 +610,9 @@ class Interface:
 				return
 		elif unicode(errcode) == '404':
 			conn = gajim.connections[account]
-			sid = id
-			if len(id) > 3 and id[2] == '_':
-				sid = id[3:]
+			sid = id_
+			if len(id_) > 3 and id_[2] == '_':
+				sid = id_[3:]
 			if sid in conn.files_props:
 				file_props = conn.files_props[sid]
 				self.handle_event_file_send_error(account,
@@ -810,7 +812,7 @@ class Interface:
 			if ji in jid_list:
 				# Update existing iter and group counting
 				self.roster.draw_contact(ji, account)
-				self.roster.draw_group(_('Transports'), account)				
+				self.roster.draw_group(_('Transports'), account)
 				if new_show > 1 and ji in gajim.transport_avatar[account]:
 					# transport just signed in.
 					# request avatars
@@ -929,9 +931,9 @@ class Interface:
 				if not ctrl:
 					tv = gc_control.list_treeview
 					model = tv.get_model()
-					iter = gc_control.get_contact_iter(nick)
-					if iter:
-						show = model[iter][3]
+					iter_ = gc_control.get_contact_iter(nick)
+					if iter_:
+						show = model[iter_][3]
 					else:
 						show = 'offline'
 					gc_c = gajim.contacts.create_gc_contact(room_jid = jid,
@@ -1496,7 +1498,7 @@ class Interface:
 		contacts = gajim.contacts.get_contacts(account, jid)
 		if (not sub or sub == 'none') and (not ask or ask == 'none') and \
 		not name and not groups:
-			# contact removes us.
+			# contact removed us.
 			if contacts:
 				self.roster.remove_contact(jid, account, backend=True)
 				return
@@ -1511,22 +1513,24 @@ class Interface:
 		else:
 			# it is an existing contact that might has changed
 			re_draw = False
-			# if sub or groups changed: remove and re-add
-			# Maybe observer status changed:
-			# according to xep 0162, contact is not an observer anymore when 
-			# we asked him is auth, so also remove him if ask changed
-			old_groups = contacts[0].get_shown_groups()
+			# If contact has changed (sub, ask or group) update roster
+			# Mind about observer status changes:
+			# 	According to xep 0162, a contact is not an observer anymore when
+			# 	we asked for auth, so also remove him if ask changed
+			old_groups = contacts[0].groups
 			if contacts[0].sub != sub or contacts[0].ask != ask\
 			or old_groups != groups:
 				re_draw = True
+			if re_draw:
+				# c.get_shown_groups() has changed. Reflect that in roster_winodow
+				self.roster.remove_contact(jid, account, force=True)
 			for contact in contacts:
-				if not name:
-					name = ''
-				contact.name = name
+				contact.name = name or ''
 				contact.sub = sub
 				contact.ask = ask
 				contact.groups = groups or []
 			if re_draw:
+				self.roster.add_contact(jid, account)
 				# Refilter and update old groups
 				for group in old_groups:
 					self.roster.draw_group(group, account)
@@ -1590,8 +1594,8 @@ class Interface:
 					senders = ',\n     '.join(reversed(gmessage['From']))
 					text += _('\n\nFrom: %(from_address)s\nSubject: %(subject)s\n%(snippet)s') % \
 						{'from_address': senders, 'subject': gmessage['Subject'],
-						'snippet': gmessage['Snippet']} 
-					cnt += 1 
+						'snippet': gmessage['Snippet']}
+					cnt += 1
 
 			if gajim.config.get_per('soundevents', 'gmail_received', 'enabled'):
 				helpers.play_sound('gmail_received')
@@ -1923,7 +1927,7 @@ class Interface:
 			# If contact is a groupchat user
 			jids = [contact.jid]
 		else:
-			jids = [contact.jid, contact.get_full_jid()]		
+			jids = [contact.jid, contact.get_full_jid()]
 		for jid in jids:
 			ctrl = self.msg_win_mgr.get_control(jid, account)
 			if ctrl:
@@ -2209,7 +2213,7 @@ class Interface:
 		}
 		gajim.handlers = self.handlers
 
-################################################################################		
+################################################################################
 ### Methods dealing with gajim.events
 ################################################################################
 
@@ -2369,7 +2373,7 @@ class Interface:
 				tv = ctrl.conv_textview
 				tv.scroll_to_end()
 
-################################################################################		
+################################################################################
 ### Methods dealing with emoticons
 ################################################################################
 
@@ -2393,7 +2397,7 @@ class Interface:
 		except AttributeError:
 			self._basic_pattern_re = re.compile(self.basic_pattern, re.IGNORECASE)
 			return self._basic_pattern_re
-			
+
 	@property
 	def emot_and_basic_re(self):
 		try:
@@ -2418,7 +2422,7 @@ class Interface:
 		except AttributeError:
 			self._invalid_XML_chars_re = re.compile(self.invalid_XML_chars)
 			return self._invalid_XML_chars_re
-			
+
 	def make_regexps(self):
 		# regexp meta characters are:  . ^ $ * + ? { } [ ] \ | ( )
 		# one escapes the metachars with \
@@ -2465,7 +2469,7 @@ class Interface:
 		latex = r'|\$\$[^$\\]*?([\]\[0-9A-Za-z()|+*/-]|[\\][\]\[0-9A-Za-z()|{}$])(.*?[^\\])?\$\$'
 
 		basic_pattern = links + '|' + mail + '|' + legacy_prefixes
-		
+
 		link_pattern = basic_pattern
 		self.link_pattern_re = re.compile(link_pattern, re.IGNORECASE)
 
@@ -2604,8 +2608,9 @@ class Interface:
 				emots = emoticons.emoticons
 				fd = open(os.path.join(path, 'emoticons.py'), 'w')
 				fd.write('emoticons = ')
-				pprint.pprint( dict([(file, [i for i in emots.keys() if emots[i] ==\
-					file]) for file in set(emots.values())]), fd)
+				pprint.pprint( dict([
+					(file_, [i for i in emots.keys() if emots[i] == file_])
+						for file_ in set(emots.values())]), fd)
 				fd.close()
 				del emoticons
 				self._init_emoticons(path, need_reload=True)
@@ -2659,7 +2664,7 @@ class Interface:
 			# We are already in that groupchat
 			gc_control = self.msg_win_mgr.get_gc_control(room_jid, account)
 			gc_control.nick = nick
-			gc_control.parent_win.set_active_tab(gc_control)	
+			gc_control.parent_win.set_active_tab(gc_control)
 		else:
 			# We are already in this groupchat and it is minimized
 			minimized_control.nick = nick
@@ -2689,8 +2694,7 @@ class Interface:
 		conn = gajim.connections[account]
 
 		if not session and fjid in conn.sessions:
-			sessions = filter(lambda s: isinstance(s, ChatControlSession),
-				conn.sessions[fjid].values())
+			sessions = [s for s in conn.sessions[fjid].values() if isinstance(s, ChatControlSession)]
 
 			# look for an existing session with a chat control
 			for s in sessions:
@@ -2802,9 +2806,9 @@ class Interface:
 			if ctrl:
 				ctrl.got_disconnected()
 
-################################################################################		
+################################################################################
 ### Other Methods
-################################################################################	
+################################################################################
 
 	def read_sleepy(self):
 		'''Check idle status and change that status if needed'''
@@ -2854,7 +2858,7 @@ class Interface:
 					auto_message = auto_message.replace('$S','%(status)s')
 					auto_message = auto_message.replace('$T','%(time)s')
 					auto_message = auto_message % {
-						'status': gajim.status_before_autoaway[account], 
+						'status': gajim.status_before_autoaway[account],
 						'time': gajim.config.get('autoxatime')
 						}
 				self.roster.send_status(account, 'xa', auto_message, auto=True)
@@ -2939,11 +2943,11 @@ class Interface:
 				os.remove(path_to_original_file)
 		if local and photo:
 			pixbuf = photo
-			type = 'png'
+			typ = 'png'
 			extension = '_local.png' # save local avatars as png file
 		else:
 			pixbuf, typ = gtkgui_helpers.get_pixbuf_from_data(photo, want_type = True)
-			if  pixbuf is None:
+			if pixbuf is None:
 				return
 			extension = '.' + typ
 			if typ not in ('jpeg', 'png'):
@@ -2995,7 +2999,7 @@ class Interface:
 					bm['password'], minimize = minimize)
 				elif jid in self.minimized_controls[account]:
 					# more or less a hack:
-					# On disconnect the minimized gc contact instances 
+					# On disconnect the minimized gc contact instances
 					# were set to offline. Reconnect them to show up in the roster.
 					self.roster.add_groupchat(jid, account)
 
@@ -3173,7 +3177,8 @@ class Interface:
 		gajim.default_session_type = ChatControlSession
 		self.register_handlers()
 		if gajim.config.get('enable_zeroconf'):
-			gajim.connections[gajim.ZEROCONF_ACC_NAME] = common.zeroconf.connection_zeroconf.ConnectionZeroconf(gajim.ZEROCONF_ACC_NAME)
+			gajim.connections[gajim.ZEROCONF_ACC_NAME] = \
+				connection_zeroconf.ConnectionZeroconf(gajim.ZEROCONF_ACC_NAME)
 		for account in gajim.config.get_per('accounts'):
 			if not gajim.config.get_per('accounts', account, 'is_zeroconf'):
 				gajim.connections[account] = common.connection.Connection(account)
@@ -3373,9 +3378,8 @@ if __name__ == '__main__':
 
 	if sys.platform == 'darwin':
 		try:
-			import osx
 			osx.init()
-		except ImportError:
+		except Exception:
 			pass
 
 	Interface()

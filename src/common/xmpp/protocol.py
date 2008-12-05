@@ -1,4 +1,4 @@
-##   protocol.py 
+##   protocol.py
 ##
 ##   Copyright (C) 2003-2005 Alexey "Snake" Nezhdanov
 ##
@@ -15,11 +15,11 @@
 # $Id: protocol.py,v 1.52 2006/01/09 22:08:57 normanr Exp $
 
 """
-Protocol module contains tools that is needed for processing of 
+Protocol module contains tools that is needed for processing of
 xmpp-related data structures.
 """
 
-from simplexml import Node,NodeBuilder,ustr
+from simplexml import Node, NodeBuilder
 import time
 NS_ACTIVITY     ='http://jabber.org/protocol/activity'                  # XEP-0108
 NS_ADDRESS      ='http://jabber.org/protocol/address'                   # XEP-0033
@@ -92,7 +92,8 @@ NS_SESSION      ='urn:ietf:params:xml:ns:xmpp-session'
 NS_SI           ='http://jabber.org/protocol/si'                        # XEP-0096
 NS_SI_PUB       ='http://jabber.org/protocol/sipub'                     # XEP-0137
 NS_SIGNED       ='jabber:x:signed'                                      # XEP-0027
-NS_STANZA_CRYPTO='http://www.xmpp.org/extensions/xep-0200.html#ns'			# JEP-0200
+NS_SSN          ='urn:xmpp:ssn'                                         # XEP-0155
+NS_STANZA_CRYPTO='http://www.xmpp.org/extensions/xep-0200.html#ns'      # XEP-0200
 NS_STANZAS      ='urn:ietf:params:xml:ns:xmpp-stanzas'
 NS_STREAM       ='http://affinix.com/jabber/stream'
 NS_STREAMS      ='http://etherx.jabber.org/streams'
@@ -161,7 +162,7 @@ remote-server-timeout -- 504 -- wait -- A remote server or service specified as 
 resource-constraint -- 500 -- wait -- The server or recipient lacks the system resources necessary to service the request.
 service-unavailable -- 503 -- cancel -- The server or recipient does not currently provide the requested service.
 subscription-required -- 407 -- auth -- The requesting entity is not authorized to access the requested service because a subscription is required.
-undefined-condition -- 500 --  -- 
+undefined-condition -- 500 --  -- Undefined Condition
 unexpected-request -- 400 -- wait -- The recipient or server understood the request but was not expecting it at this time (e.g., the request was out of order)."""
 sasl_error_conditions="""
 aborted --  --  -- The receiving entity acknowledges an <abort/> element sent by the initiating entity; sent in reply to the <abort/> element.
@@ -325,22 +326,30 @@ class Protocol(Node):
         self.timestamp=None
         for d in self.getTags('delay',namespace=NS_DELAY2):
             try:
-                if d.getAttr('stamp')<self.getTimestamp2(): self.setTimestamp(d.getAttr('stamp'))
-            except: pass
+                if d.getAttr('stamp') < self.getTimestamp2():
+                    self.setTimestamp(d.getAttr('stamp'))
+            except Exception:
+                pass
         if not self.timestamp:
             for x in self.getTags('x',namespace=NS_DELAY):
                 try:
-                    if x.getAttr('stamp')<self.getTimestamp(): self.setTimestamp(x.getAttr('stamp'))
-                except: pass
+                    if x.getAttr('stamp') < self.getTimestamp():
+                        self.setTimestamp(x.getAttr('stamp'))
+                except Exception:
+                    pass
         if timestamp is not None: self.setTimestamp(timestamp)  # To auto-timestamp stanza just pass timestamp=''
     def getTo(self):
         """ Return value of the 'to' attribute. """
-        try: return self['to']
-        except: return None
+        try:
+            return self['to']
+        except KeyError:
+            return None
     def getFrom(self):
         """ Return value of the 'from' attribute. """
-        try: return self['from']
-        except: return None
+        try:
+            return self['from']
+        except KeyError:
+            return None
     def getTimestamp(self):
         """ Return the timestamp in the 'yyyymmddThhmmss' format. """
         if self.timestamp: return self.timestamp
@@ -458,7 +467,7 @@ class Message(Protocol):
                 self.setTag('html',namespace=NS_XHTML_IM).addChild(node=dom)
         except Exception, e:
             print "Error", e
-            pass #FIXME: log. we could not set xhtml (parse error, whatever)
+            #FIXME: log. we could not set xhtml (parse error, whatever)
     def setSubject(self,val):
         """ Sets the subject of the message. """
         self.setTagData('subject',val)
@@ -550,7 +559,7 @@ class Presence(Protocol):
                 attrs.append(child.getAttr('code'))
         return attrs
 
-class Iq(Protocol): 
+class Iq(Protocol):
     """ XMPP Iq object - get/set dialog mechanism. """
     def __init__(self, typ=None, queryNS=None, attrs={}, to=None, frm=None, payload=[], xmlns=NS_CLIENT, node=None):
         """ Create Iq object. You can specify type, query namespace
@@ -599,14 +608,14 @@ class ErrorNode(Node):
             Mandatory parameter: name - name of error condition.
             Optional parameters: code, typ, text. Used for backwards compartibility with older jabber protocol."""
         if name in ERRORS:
-            cod,type,txt=ERRORS[name]
+            cod,type_,txt=ERRORS[name]
             ns=name.split()[0]
-        else: cod,ns,type,txt='500',NS_STANZAS,'cancel',''
-        if typ: type=typ
+        else: cod,ns,type_,txt='500',NS_STANZAS,'cancel',''
+        if typ: type_=typ
         if code: cod=code
         if text: txt=text
         Node.__init__(self,'error',{},[Node(name)])
-        if type: self.setAttr('type',type)
+        if type_: self.setAttr('type',type_)
         if not cod: self.setName('stream:error')
         if txt: self.addChild(node=Node(ns+' text',{},[txt]))
         if cod: self.setAttr('code',cod)
@@ -629,7 +638,7 @@ class Error(Protocol):
 
 class DataField(Node):
     """ This class is used in the DataForm class to describe the single data item.
-        If you are working with jabber:x:data (XEP-0004, XEP-0068, XEP-0122) 
+        If you are working with jabber:x:data (XEP-0004, XEP-0068, XEP-0122)
         then you will need to work with instances of this class. """
     def __init__(self,name=None,value=None,typ=None,required=0,desc=None,options=[],node=None):
         """ Create new data field of specified name,value and type.

@@ -13,7 +13,6 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-__version__="$Id"
 
 """
 When your handler is called it is getting the session instance as the first argument.
@@ -23,6 +22,10 @@ one client for each connection. Is is specifically important when you are
 writing the server.
 """
 
+__version__="$Id"
+
+import random
+import simplexml
 from protocol import *
 
 # Transport-level flags
@@ -43,7 +46,7 @@ SESSION_CLOSED     =5
 
 class Session:
     """
-    The Session class instance is used for storing all session-related info like 
+    The Session class instance is used for storing all session-related info like
     credentials, socket/xml stream/session state flags, roster items (in case of
     client type connection) etc.
     Session object have no means of discovering is any info is ready to be read.
@@ -124,8 +127,10 @@ class Session:
         """ Reads all pending incoming data.
             Raises IOError on disconnection.
             Blocks until at least one byte is read."""
-        try: received = self._recv(10240)
-        except: received = ''
+        try:
+            received = self._recv(10240)
+        except socket.error:
+            received = ''
 
         if len(received): # length of 0 means disconnect
             self.DEBUG(repr(self.fileno())+' '+received,'got')
@@ -249,7 +254,6 @@ class Session:
             features=Node('stream:features')
             if NS_TLS in self.waiting_features:
                 features.T.starttls.setNamespace(NS_TLS)
-                features.T.starttls.T.required
             if NS_SASL in self.waiting_features:
                 features.T.mechanisms.setNamespace(NS_SASL)
                 for mec in self._owner.SASL.mechanisms:
@@ -315,12 +319,16 @@ class Session:
 
     def start_feature(self,f):
         """ Declare some feature as "negotiating now" to prevent other features from start negotiating. """
-        if self.feature_in_process: raise "Starting feature %s over %s !"%(f,self.feature_in_process)
+        if self.feature_in_process:
+            raise Exception("Starting feature %s over %s !" % (f,
+                self.feature_in_process)
         self.feature_in_process=f
 
     def stop_feature(self,f):
         """ Declare some feature as "negotiated" to allow other features start negotiating. """
-        if self.feature_in_process!=f: raise "Stopping feature %s instead of %s !"%(f,self.feature_in_process)
+        if self.feature_in_process != f:
+            raise Exception("Stopping feature %s instead of %s !" % (f,
+                self.feature_in_process)
         self.feature_in_process=None
 
     def set_socket_state(self,newstate):
@@ -333,7 +341,7 @@ class Session:
     def set_session_state(self,newstate):
         """ Change the session state.
             Session starts with SESSION_NOT_AUTHED state
-            and then comes through 
+            and then comes through
             SESSION_AUTHED, SESSION_BOUND, SESSION_OPENED and SESSION_CLOSED states.
         """
         if self._session_state<newstate:

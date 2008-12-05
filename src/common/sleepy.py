@@ -47,7 +47,7 @@ try:
 	elif sys.platform == 'darwin':
 		import osx.idle as idle
 	else: # unix
-		import idle
+		from common import idle
 except Exception:
 	gajim.log.debug('Unable to load idle module')
 	SUPPORTED = False
@@ -87,14 +87,10 @@ class SleepyWindows:
 
 class SleepyUnix:
 	def __init__(self, away_interval = 60, xa_interval = 120):
+		global SUPPORTED
 		self.away_interval = away_interval
 		self.xa_interval = xa_interval
 		self.state = STATE_AWAKE # assume we are awake
-		try:
-			idle.init()
-		except Exception:
-			SUPPORTED = False
-			self.state = STATE_UNKNOWN
 
 	def getIdleSec(self):
 		return idle.getIdleSec()

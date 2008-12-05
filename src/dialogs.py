@@ -106,7 +106,7 @@ class EditGroupsDialog:
 		'''add group group to all contacts and all their brothers'''
 		for (contact, account) in self.list_:
 			gajim.interface.roster.add_contact_to_groups(contact.jid, account, [group])
-		
+
 		# FIXME: Ugly workaround. Maybe we haven't been in any group (defaults to General)
 		gajim.interface.roster.draw_group(_('General'), account)
 
@@ -119,11 +119,11 @@ class EditGroupsDialog:
 			return
 		# check if it already exists
 		model = self.treeview.get_model()
-		iter = model.get_iter_root()
-		while iter:
-			if model.get_value(iter, 0).decode('utf-8') == group:
+		iter_ = model.get_iter_root()
+		while iter_:
+			if model.get_value(iter_, 0).decode('utf-8') == group:
 				return
-			iter = model.iter_next(iter)
+			iter_ = model.iter_next(iter_)
 		self.changes_made = True
 		model.append((group, True, False))
 		self.add_group(group)
@@ -173,17 +173,17 @@ class EditGroupsDialog:
 				group_list.append(group)
 		group_list.sort()
 		for group in group_list:
-			iter = store.append()
-			store.set(iter, 0, group) # Group name
+			iter_ = store.append()
+			store.set(iter_, 0, group) # Group name
 			if groups[group] == 0:
-				store.set(iter, 1, False)
+				store.set(iter_, 1, False)
 			else:
-				store.set(iter, 1, True)
+				store.set(iter_, 1, True)
 				if groups[group] == len(self.list_):
 					# all contacts are in this group
-					store.set(iter, 2, False)
+					store.set(iter_, 2, False)
 				else:
-					store.set(iter, 2, True)
+					store.set(iter_, 2, True)
 		column = gtk.TreeViewColumn(_('Group'))
 		column.set_expand(True)
 		self.treeview.append_column(column)
@@ -301,10 +301,10 @@ class ChooseGPGKeyDialog:
 
 	def on_dialog_response(self, dialog, response):
 		selection = self.keys_treeview.get_selection()
-		(model, iter) = selection.get_selected()
-		if iter and response == gtk.RESPONSE_OK:
-			keyID = [ model[iter][0].decode('utf-8'),
-				model[iter][1].decode('utf-8') ]
+		(model, iter_) = selection.get_selected()
+		if iter_ and response == gtk.RESPONSE_OK:
+			keyID = [ model[iter_][0].decode('utf-8'),
+				model[iter_][1].decode('utf-8') ]
 		else:
 			keyID = None
 		self.on_response(keyID)
@@ -436,7 +436,6 @@ class ChangeActivityDialog:
 		'''
 		Return activity and messsage (None if no activity selected)
 		'''
-		message = None
 		if self.checkbutton.get_active():
 			pep.user_send_activity(self.account, self.activity,
 				self.subactivity,
@@ -488,7 +487,7 @@ class ChangeMoodDialog:
 			self.mood_buttons[mood].connect('clicked',
 				self.on_mood_button_clicked, mood)
 			table.attach(self.mood_buttons[mood], x, x + 1, y, y + 1)
-			
+
 			# Calculate the next position
 			x += 1
 			if x >= self.COLS:
@@ -660,7 +659,7 @@ class ChangeStatusMessageDialog:
 					self.preset_messages_dict[msg_name] = msg_text
 					gajim.config.set_per('statusmsg', msg_name, 'message',
 						msg_text_1l)
-				dlg2 = ConfirmationDialog(_('Overwrite Status Message?'),
+				ConfirmationDialog(_('Overwrite Status Message?'),
 					_('This name is already used. Do you want to overwrite this '
 					'status message?'), on_response_ok=on_ok2)
 				return
@@ -789,25 +788,25 @@ _('Please fill in the data of the contact you want to add in account %s') %accou
 				self.uid_entry.set_text(uid.replace('%', '@', 1))
 			#set protocol_combobox
 			model = self.protocol_combobox.get_model()
-			iter = model.get_iter_first()
+			iter_ = model.get_iter_first()
 			i = 0
-			while iter:
-				if model[iter][2] == type_:
+			while iter_:
+				if model[iter_][2] == type_:
 					self.protocol_combobox.set_active(i)
 					break
-				iter = model.iter_next(iter)
+				iter_ = model.iter_next(iter_)
 				i += 1
 
 			# set protocol_jid_combobox
 			self.protocol_jid_combobox.set_active(0)
 			model = self.protocol_jid_combobox.get_model()
-			iter = model.get_iter_first()
+			iter_ = model.get_iter_first()
 			i = 0
-			while iter:
-				if model[iter][0] == transport:
+			while iter_:
+				if model[iter_][0] == transport:
 					self.protocol_jid_combobox.set_active(i)
 					break
-				iter = model.iter_next(iter)
+				iter_ = model.iter_next(iter_)
 				i += 1
 			if user_nick:
 				self.nickname_entry.set_text(user_nick)
@@ -865,8 +864,8 @@ _('Please fill in the data of the contact you want to add in account %s') %accou
 			return
 
 		model = self.protocol_combobox.get_model()
-		iter = self.protocol_combobox.get_active_iter()
-		type_ = model[iter][2]
+		iter_ = self.protocol_combobox.get_active_iter()
+		type_ = model[iter_][2]
 		if type_ != 'jabber':
 			transport = self.protocol_jid_combobox.get_active_text().decode(
 				'utf-8')
@@ -924,8 +923,8 @@ _('Please fill in the data of the contact you want to add in account %s') %accou
 
 	def on_protocol_combobox_changed(self, widget):
 		model = widget.get_model()
-		iter = widget.get_active_iter()
-		type_ = model[iter][2]
+		iter_ = widget.get_active_iter()
+		type_ = model[iter_][2]
 		model = self.protocol_jid_combobox.get_model()
 		model.clear()
 		if len(self.agents[type_]):
@@ -1037,7 +1036,7 @@ class AboutDialog:
 		dlg.set_logo(pixbuf)
 		#here you write your name in the form Name FamilyName <someone@somewhere>
 		dlg.set_translator_credits(_('translator-credits'))
-		
+
 		thanks_artists_file_path = self.get_path('THANKS.artists')
 		if thanks_artists_file_path:
 			artists_text = open(thanks_artists_file_path).read()
@@ -1691,7 +1690,7 @@ class JoinGroupchatWindow:
 			self._password_entry.set_text(password)
 		self.xml.signal_autoconnect(self)
 		# now add us to open windows
-		gajim.interface.instances[account]['join_gc'] = self 
+		gajim.interface.instances[account]['join_gc'] = self
 		if len(gajim.connections) > 1:
 			title = _('Join Group Chat with account %s') % account
 		else:
@@ -1842,8 +1841,8 @@ class SynchroniseSelectAccountDialog:
 			if remote_account == self.account:
 				# Do not show the account we're sync'ing
 				continue
-			iter = model.append()
-			model.set(iter, 0, remote_account, 1, gajim.get_hostname_from_account(
+			iter_ = model.append()
+			model.set(iter_, 0, remote_account, 1, gajim.get_hostname_from_account(
 				remote_account))
 
 	def on_cancel_button_clicked(self, widget):
@@ -1851,10 +1850,10 @@ class SynchroniseSelectAccountDialog:
 
 	def on_ok_button_clicked(self, widget):
 		sel = self.accounts_treeview.get_selection()
-		(model, iter) = sel.get_selected()
-		if not iter:
+		(model, iter_) = sel.get_selected()
+		if not iter_:
 			return
-		remote_account = model.get_value(iter, 0).decode('utf-8')
+		remote_account = model.get_value(iter_, 0).decode('utf-8')
 
 		if gajim.connections[remote_account].connected < 2:
 			ErrorDialog(_('This account is not connected to the server'),
@@ -1862,7 +1861,7 @@ class SynchroniseSelectAccountDialog:
 			return
 		else:
 			try:
-				dialog = SynchroniseSelectContactsDialog(self.account, remote_account)
+				SynchroniseSelectContactsDialog(self.account, remote_account)
 			except GajimGeneralException:
 				# if we showed ErrorDialog, there will not be dialog instance
 				return
@@ -1893,8 +1892,8 @@ class SynchroniseSelectContactsDialog:
 
 	def toggled_callback(self, cell, path):
 		model = self.contacts_treeview.get_model()
-		iter = model.get_iter(path)
-		model[iter][0] = not cell.get_active()
+		iter_ = model.get_iter(path)
+		model[iter_][0] = not cell.get_active()
 
 	def on_contacts_window_key_press_event(self, widget, event):
 		if event.keyval == gtk.keysyms.Escape:
@@ -1911,19 +1910,19 @@ class SynchroniseSelectContactsDialog:
 		remote_jid_list = gajim.contacts.get_jid_list(self.remote_account)
 		for remote_jid in remote_jid_list:
 			if remote_jid not in local_jid_list:
-				iter = model.append()
-				model.set(iter, 0, True, 1, remote_jid)
+				iter_ = model.append()
+				model.set(iter_, 0, True, 1, remote_jid)
 
 	def on_cancel_button_clicked(self, widget):
 		self.dialog.destroy()
 
 	def on_ok_button_clicked(self, widget):
 		model = self.contacts_treeview.get_model()
-		iter = model.get_iter_root()
-		while iter:
-			if model[iter][0]:
+		iter_ = model.get_iter_root()
+		while iter_:
+			if model[iter_][0]:
 				# it is selected
-				remote_jid = model[iter][1].decode('utf-8')
+				remote_jid = model[iter_][1].decode('utf-8')
 				message = 'I\'m synchronizing my contacts from my %s account, could you please add this address to your contact list?' % \
 					gajim.get_hostname_from_account(self.remote_account)
 				remote_contact = gajim.contacts.get_first_contact_from_jid(
@@ -1932,7 +1931,7 @@ class SynchroniseSelectContactsDialog:
 				gajim.interface.roster.req_sub(self, remote_jid, message,
 					self.local_account, groups = remote_contact.groups,
 					nickname = remote_contact.name, auto_auth = True)
-			iter = model.iter_next(iter)
+			iter_ = model.iter_next(iter_)
 		self.dialog.destroy()
 
 class NewChatDialog(InputDialog):
@@ -2205,7 +2204,7 @@ class SingleMessageWindow:
 				if lang:
 					spell1.set_language(lang)
 					spell2.set_language(lang)
-			except gobject.GError, msg:
+			except gobject.GError:
 				AspellDictError(lang)
 
 		self.prepare_widgets_for(self.action)
@@ -2414,14 +2413,14 @@ class XMLConsoleWindow:
 		self.input_textview = self.xml.get_widget('input_textview')
 		self.stanzas_log_textview = self.xml.get_widget('stanzas_log_textview')
 		self.input_tv_buffer = self.input_textview.get_buffer()
-		buffer = self.stanzas_log_textview.get_buffer()
-		end_iter = buffer.get_end_iter()
-		buffer.create_mark('end', end_iter, False)
+		buffer_ = self.stanzas_log_textview.get_buffer()
+		end_iter = buffer_.get_end_iter()
+		buffer_.create_mark('end', end_iter, False)
 
-		self.tagIn = buffer.create_tag('incoming')
+		self.tagIn = buffer_.create_tag('incoming')
 		color = gajim.config.get('inmsgcolor')
 		self.tagIn.set_property('foreground', color)
-		self.tagOut = buffer.create_tag('outgoing')
+		self.tagOut = buffer_.create_tag('outgoing')
 		color = gajim.config.get('outmsgcolor')
 		self.tagOut.set_property('foreground', color)
 
@@ -2445,16 +2444,16 @@ class XMLConsoleWindow:
 		return True # do NOT destroy the window
 
 	def on_clear_button_clicked(self, widget):
-		buffer = self.stanzas_log_textview.get_buffer()
-		buffer.set_text('')
+		buffer_ = self.stanzas_log_textview.get_buffer()
+		buffer_.set_text('')
 
 	def on_enable_checkbutton_toggled(self, widget):
 		self.enabled = widget.get_active()
 
 	def scroll_to_end(self, ):
 		parent = self.stanzas_log_textview.get_parent()
-		buffer = self.stanzas_log_textview.get_buffer()
-		end_mark = buffer.get_mark('end')
+		buffer_ = self.stanzas_log_textview.get_buffer()
+		end_mark = buffer_.get_mark('end')
 		if not end_mark:
 			return False
 		self.stanzas_log_textview.scroll_to_mark(end_mark, 0, True,	0, 1)
@@ -2979,7 +2978,7 @@ class InvitationReceivedDialog:
 			except GajimGeneralException:
 				pass
 
-		dialog = YesNoDialog(pritext, sectext, on_response_yes=on_yes)
+		YesNoDialog(pritext, sectext, on_response_yes=on_yes)
 
 class ProgressDialog:
 	def __init__(self, title_text, during_text, messages_queue):
@@ -3031,16 +3030,16 @@ class SoundChooserDialog(FileChooserDialog):
 			on_response_ok = (on_ok, on_response_ok),
 			on_response_cancel = on_response_cancel)
 
-		filter = gtk.FileFilter()
-		filter.set_name(_('All files'))
-		filter.add_pattern('*')
-		self.add_filter(filter)
+		filter_ = gtk.FileFilter()
+		filter_.set_name(_('All files'))
+		filter_.add_pattern('*')
+		self.add_filter(filter_)
 
-		filter = gtk.FileFilter()
-		filter.set_name(_('Wav Sounds'))
-		filter.add_pattern('*.wav')
-		self.add_filter(filter)
-		self.set_filter(filter)
+		filter_ = gtk.FileFilter()
+		filter_.set_name(_('Wav Sounds'))
+		filter_.add_pattern('*.wav')
+		self.add_filter(filter_)
+		self.set_filter(filter_)
 
 		if path_to_snd_file:
 			self.set_filename(path_to_snd_file)
@@ -3082,21 +3081,21 @@ class ImageChooserDialog(FileChooserDialog):
 		if on_response_cancel:
 			self.connect('destroy', on_response_cancel)
 
-		filter = gtk.FileFilter()
-		filter.set_name(_('All files'))
-		filter.add_pattern('*')
-		self.add_filter(filter)
+		filter_ = gtk.FileFilter()
+		filter_.set_name(_('All files'))
+		filter_.add_pattern('*')
+		self.add_filter(filter_)
 
-		filter = gtk.FileFilter()
-		filter.set_name(_('Images'))
-		filter.add_mime_type('image/png')
-		filter.add_mime_type('image/jpeg')
-		filter.add_mime_type('image/gif')
-		filter.add_mime_type('image/tiff')
-		filter.add_mime_type('image/svg+xml')
-		filter.add_mime_type('image/x-xpixmap') # xpm
-		self.add_filter(filter)
-		self.set_filter(filter)
+		filter_ = gtk.FileFilter()
+		filter_.set_name(_('Images'))
+		filter_.add_mime_type('image/png')
+		filter_.add_mime_type('image/jpeg')
+		filter_.add_mime_type('image/gif')
+		filter_.add_mime_type('image/tiff')
+		filter_.add_mime_type('image/svg+xml')
+		filter_.add_mime_type('image/x-xpixmap') # xpm
+		self.add_filter(filter_)
+		self.set_filter(filter_)
 
 		if path_to_file:
 			self.set_filename(path_to_file)
@@ -3166,7 +3165,6 @@ class AddSpecialNotificationDialog:
 		self.window.destroy()
 
 	def on_listen_sound_combobox_changed(self, widget):
-		model = widget.get_model()
 		active = widget.get_active()
 		if active == 1: # user selected 'choose sound'
 			def on_ok(widget, path_to_snd_file):
@@ -3243,8 +3241,8 @@ class AdvancedNotificationsWindow:
 		# Fill conditions_treeview
 		num = 0
 		while gajim.config.get_per('notifications', str(num)):
-			iter = model.append((num, ''))
-			path = model.get_path(iter)
+			iter_ = model.append((num, ''))
+			path = model.get_path(iter_)
 			self.conditions_treeview.set_cursor(path)
 			self.active_num = num
 			self.initiate_rule_state()
@@ -3339,8 +3337,8 @@ class AdvancedNotificationsWindow:
 		self.urgency_hint_cb.set_active(value)
 
 	def set_treeview_string(self):
-		(model, iter) = self.conditions_treeview.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.conditions_treeview.get_selection().get_selected()
+		if not iter_:
 			return
 		event = self.event_combobox.get_active_text()
 		recipient_type = self.recipient_type_combobox.get_active_text()
@@ -3354,15 +3352,15 @@ class AdvancedNotificationsWindow:
 			for st in ('online', 'away', 'xa', 'dnd', 'invisible'):
 				if self.__dict__[st + '_cb'].get_active():
 					status += helpers.get_uf_show(st) + ' '
-		model[iter][1] = "When %s for %s %s %s" % (event, recipient_type,
+		model[iter_][1] = "When %s for %s %s %s" % (event, recipient_type,
 			recipient, status)
 
 	def on_conditions_treeview_cursor_changed(self, widget):
-		(model, iter) = widget.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = widget.get_selection().get_selected()
+		if not iter_:
 			self.active_num = -1
 			return
-		self.active_num = model[iter][0]
+		self.active_num = model[iter_][0]
 		if self.active_num == 0:
 			self.up_button.set_sensitive(False)
 		else:
@@ -3380,19 +3378,19 @@ class AdvancedNotificationsWindow:
 		model = self.conditions_treeview.get_model()
 		num = self.conditions_treeview.get_model().iter_n_children(None)
 		gajim.config.add_per('notifications', str(num))
-		iter = model.append((num, ''))
-		path = model.get_path(iter)
+		iter_ = model.append((num, ''))
+		path = model.get_path(iter_)
 		self.conditions_treeview.set_cursor(path)
 		self.active_num = num
 		self.set_treeview_string()
 		self.config_vbox.set_sensitive(True)
 
 	def on_delete_button_clicked(self, widget):
-		(model, iter) = self.conditions_treeview.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.conditions_treeview.get_selection().get_selected()
+		if not iter_:
 			return
 		# up all others
-		iter2 = model.iter_next(iter)
+		iter2 = model.iter_next(iter_)
 		num = self.active_num
 		while iter2:
 			num = model[iter2][0]
@@ -3401,7 +3399,7 @@ class AdvancedNotificationsWindow:
 				val = gajim.config.get_per('notifications', str(num), opt)
 				gajim.config.set_per('notifications', str(num - 1), opt, val)
 			iter2 = model.iter_next(iter2)
-		model.remove(iter)
+		model.remove(iter_)
 		gajim.config.del_per('notifications', str(num)) # delete latest
 		self.active_num = -1
 		self.config_vbox.set_sensitive(False)
@@ -3410,9 +3408,9 @@ class AdvancedNotificationsWindow:
 		self.down_button.set_sensitive(False)
 
 	def on_up_button_clicked(self, widget):
-		(model, iter) = self.conditions_treeview.get_selection().\
+		(model, iter_) = self.conditions_treeview.get_selection().\
 			get_selected()
-		if not iter:
+		if not iter_:
 			return
 		for opt in self.config_options:
 			val = gajim.config.get_per('notifications', str(self.active_num), opt)
@@ -3422,16 +3420,16 @@ class AdvancedNotificationsWindow:
 			gajim.config.set_per('notifications', str(self.active_num - 1), opt,
 				val)
 
-		model[iter][0] = self.active_num - 1
+		model[iter_][0] = self.active_num - 1
 		# get previous iter
-		path = model.get_path(iter)
-		iter = model.get_iter((path[0] - 1,))
-		model[iter][0] = self.active_num
+		path = model.get_path(iter_)
+		iter_ = model.get_iter((path[0] - 1,))
+		model[iter_][0] = self.active_num
 		self.on_conditions_treeview_cursor_changed(self.conditions_treeview)
 
 	def on_down_button_clicked(self, widget):
-		(model, iter) = self.conditions_treeview.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.conditions_treeview.get_selection().get_selected()
+		if not iter_:
 			return
 		for opt in self.config_options:
 			val = gajim.config.get_per('notifications', str(self.active_num), opt)
@@ -3441,9 +3439,9 @@ class AdvancedNotificationsWindow:
 			gajim.config.set_per('notifications', str(self.active_num + 1), opt,
 				val)
 
-		model[iter][0] = self.active_num + 1
-		iter = model.iter_next(iter)
-		model[iter][0] = self.active_num
+		model[iter_][0] = self.active_num + 1
+		iter_ = model.iter_next(iter_)
+		model[iter_][0] = self.active_num
 		self.on_conditions_treeview_cursor_changed(self.conditions_treeview)
 
 	def on_event_combobox_changed(self, widget):
@@ -3669,9 +3667,6 @@ class TransformChatToMUC:
 		'server_and_guests_hseparator', 'server_select_label'):
 			self.__dict__[widget_to_add] = self.xml.get_widget(widget_to_add)
 
-		# set comboboxentry
-		renderer_servers = gtk.CellRendererText()
-
 		server_list = []
 		self.servers = gtk.ListStore(str)
 		self.server_list_comboboxentry.set_model(self.servers)
@@ -3713,12 +3708,12 @@ class TransformChatToMUC:
 
 		# All contacts beside the following can be invited:
 		# 	transports, zeroconf contacts, minimized groupchats
-		invitable = lambda contact, contact_transport = None:\
-				contact.jid not in self.auto_jids and\
-				contact.jid != gajim.get_jid_from_account(self.account) and\
-				contact.jid not in gajim.interface.minimized_controls[account] and\
-				not contact.is_transport() and\
-				not contact_transport
+		def invitable(contact, contact_transport=None):
+			return (contact.jid not in self.auto_jids and
+			contact.jid != gajim.get_jid_from_account(self.account) and
+			contact.jid not in gajim.interface.minimized_controls[account] and
+			not contact.is_transport() and
+			not contact_transport)
 
 		# set jabber id and pseudos
 		for account in gajim.contacts.get_accounts():
@@ -3735,10 +3730,10 @@ class TransformChatToMUC:
 					name = contact.name
 					if name == '':
 						name = jid.split('@')[0]
-					iter = self.store.append([img.get_pixbuf(), name, jid])
+					iter_ = self.store.append([img.get_pixbuf(), name, jid])
 					# preselect treeview rows
 					if self.preselected_jids and jid in self.preselected_jids:
-						path = self.store.get_path(iter)
+						path = self.store.get_path(iter_)
 						self.guests_treeview.get_selection().\
 							select_path(path)
 
@@ -3764,8 +3759,8 @@ class TransformChatToMUC:
 		guest_list = []
 		guests = self.guests_treeview.get_selection().get_selected_rows()
 		for guest in guests[1]:
-			iter = self.store.get_iter(guest)
-			guest_list.append(self.store[iter][2].decode('utf-8'))
+			iter_ = self.store.get_iter(guest)
+			guest_list.append(self.store[iter_][2].decode('utf-8'))
 		for guest in self.auto_jids:
 			guest_list.append(guest)
 		room_jid = room_id + '@' + server
@@ -3826,7 +3821,7 @@ class ESessionInfoWindow:
 
 	def update_info(self):
 		labeltext = _('''Your chat session with <b>%(jid)s</b> is encrypted.\n\nThis session's Short Authentication String is <b>%(sas)s</b>.''') % {'jid': self.session.jid, 'sas': self.session.sas}
-		dir = os.path.join(gajim.DATA_DIR, 'pixmaps')
+		dir_ = os.path.join(gajim.DATA_DIR, 'pixmaps')
 
 		if self.session.verified_identity:
 			labeltext += '\n\n' + _('''You have already verified this contact's identity.''')
@@ -3860,7 +3855,7 @@ class ESessionInfoWindow:
 
 			self.button_label.set_text(_('Verify...'))
 
-		path = os.path.join(dir, security_image)
+		path = os.path.join(dir_, security_image)
 		filename = os.path.abspath(path)
 		self.security_image.set_from_file(filename)
 
@@ -3914,7 +3909,7 @@ class GPGInfoWindow:
 				'encrypt messages.')
 			image = 'security-low-big.png'
 		else:
-			msgenc, error = gajim.connections[account].gpg.encrypt('test', [keyID])
+			error = gajim.connections[account].gpg.encrypt('test', [keyID])[1]
 			if error:
 				verification_status = _('''Contact's identity NOT verified''')
 				info = _('GPG key is assigned to this contact, but <b>you do not '
@@ -3931,8 +3926,8 @@ class GPGInfoWindow:
 			verification_status)
 		info_label.set_markup(info)
 
-		dir = os.path.join(gajim.DATA_DIR, 'pixmaps')
-		path = os.path.join(dir, image)
+		dir_ = os.path.join(gajim.DATA_DIR, 'pixmaps')
+		path = os.path.join(dir_, image)
 		filename = os.path.abspath(path)
 		security_image.set_from_file(filename)
 

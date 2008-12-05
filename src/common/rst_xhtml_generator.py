@@ -27,7 +27,7 @@ try:
 	from docutils.parsers.rst import roles
 	from docutils import nodes,utils
 	from docutils.parsers.rst.roles import set_classes
-except:
+except ImportError:
 	print "Requires docutils 0.4 for set_classes to be available"
 	def create_xhtml(text):
 		return None
@@ -57,7 +57,7 @@ else:
 		interpret_url:
 			this, modulo the validated text, will be added to it
 		validator:
-			should return the validated text, or raise ValueError 
+			should return the validated text, or raise ValueError
 		'''
 		def uri_reference_role(role, rawtext, text, lineno, inliner,
 			options={}, content=[]):
@@ -143,7 +143,7 @@ else:
 
 	def create_xhtml(text):
 		return Generator.create_xhtml(text)
-	
+
 
 if __name__ == '__main__':
 	print "test 1\n", Generator.create_xhtml("""

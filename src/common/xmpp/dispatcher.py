@@ -17,7 +17,7 @@
 """
 Main xmpppy mechanism. Provides library with methods to assign different handlers
 to different XMPP stanzas.
-Contains one tunable attribute: DefaultTimeout (25 seconds by default). It defines time that 
+Contains one tunable attribute: DefaultTimeout (25 seconds by default). It defines time that
 Dispatcher.SendAndWaitForResponce method will wait for reply stanza before giving up.
 """
 
@@ -28,12 +28,14 @@ from client import PlugIn
 DefaultTimeout=25
 ID=0
 
+DBG_DISPATCHER = 'dispatcher'
+
 class Dispatcher(PlugIn):
     """ Ancestor of PlugIn class. Handles XMPP stream, i.e. aware of stream headers.
         Can be plugged out/in to restart these headers (used for SASL f.e.). """
     def __init__(self):
         PlugIn.__init__(self)
-        DBG_LINE='dispatcher'
+        self.DBG_LINE = DBG_DISPATCHER
         self.handlers={}
         self._expected={}
         self._defaultHandler=None
@@ -82,6 +84,7 @@ class Dispatcher(PlugIn):
         self._owner.lastErr=None
         self._owner.lastErrCode=None
         self.StreamInit()
+        owner.debug_flags.append(DBG_DISPATCHER)
 
     def plugout(self):
         """ Prepares instance to be destructed. """
@@ -132,7 +135,7 @@ class Dispatcher(PlugIn):
                 raise _pendingException[0], _pendingException[1], _pendingException[2]
             return len(data)
         return '0'      # It means that nothing is received but link is alive.
-        
+
     def RegisterNamespace(self,xmlns,order='info'):
         """ Creates internal structures for newly registered namespace.
             You can register handlers for this namespace afterwards. By default one namespace
@@ -232,7 +235,7 @@ class Dispatcher(PlugIn):
 
     def Event(self,realm,event,data):
         """ Raise some event. Takes three arguments:
-            1) "realm" - scope of event. Usually a namespace. 
+            1) "realm" - scope of event. Usually a namespace.
             2) "event" - the event itself. F.e. "SUCESSFULL SEND".
             3) data that comes along with event. Depends on event."""
         if self._eventHandler: self._eventHandler(realm,event,data)
@@ -282,17 +285,16 @@ class Dispatcher(PlugIn):
 
         session.DEBUG("Dispatching %s stanza with type->%s props->%s id->%s"%(name,typ,stanza.props,ID),'ok')
 
-        list=['default']                                                     # we will use all handlers:
-        if typ in self.handlers[xmlns][name]: list.append(typ)                # from very common...
+        list_=['default']                                                     # we will use all handlers:
+        if typ in self.handlers[xmlns][name]: list_.append(typ)                # from very common...
         for prop in stanza.props:
-            if prop in self.handlers[xmlns][name]: list.append(prop)
-            if typ and typ+prop in self.handlers[xmlns][name]: list.append(typ+prop)  # ...to very particular
+            if prop in self.handlers[xmlns][name]: list_.append(prop)
+            if typ and typ+prop in self.handlers[xmlns][name]: list_.append(typ+prop)  # ...to very particular
 
         chain=self.handlers[xmlns]['default']['default']
-        for key in list:
+        for key in list_:
             if key: chain = chain + self.handlers[xmlns][name][key]
 
-        output=''
         if ID in session._expected:
             user=0
             if isinstance(session._expected[ID], tuple):
@@ -323,7 +325,6 @@ class Dispatcher(PlugIn):
             lastErrNode, lastErr and lastErrCode are set accordingly. """
         if timeout is None: timeout=DefaultTimeout
         self._expected[ID]=None
-        has_timed_out=0
         abort_time=time.time() + timeout
         self.DEBUG("Waiting for ID:%s with timeout %s..." % (ID,timeout),'wait')
         while not self._expected[ID]:

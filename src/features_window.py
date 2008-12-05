@@ -28,8 +28,6 @@ import sys
 import gtk
 import gtkgui_helpers
 
-import dialogs
-
 from common import gajim
 from common import helpers
 
@@ -85,17 +83,17 @@ class FeaturesWindow:
 				_('Requires python-gnome2-extras or compilation of gtkspell module from Gajim sources.'),
 				_('Feature not available under Windows.')),
 			_('Notification-daemon'): (self.notification_available,
-				_('Passive popups notifying for new events.'),	
+				_('Passive popups notifying for new events.'),
 				_('Requires python-notify or instead python-dbus in conjunction with notification-daemon.'),
 				_('Feature not available under Windows.')),
 			_('Trayicon'): (self.trayicon_available,
-				_('A icon in systemtray reflecting the current presence.'), 
+				_('A icon in systemtray reflecting the current presence.'),
 				_('Requires python-gnome2-extras or compiled trayicon module from Gajim sources.'),
 				_('Requires PyGTK >= 2.10.')),
 			_('Idle'): (self.idle_available,
 				_('Ability to measure idle time, in order to set auto status.'),
-				_('Requires compilation of the idle module from Gajim sources.'),
-				_('Requires compilation of the idle module from Gajim sources.')),
+				_('Requires libxss library.'),
+				_('Requires python2.5.')),
 			_('LaTeX'): (self.latex_available,
 				_('Transform LaTeX expressions between $$ $$.'),
 				_('Requires texlive-latex-base and dvipng. You have to set \'use_latex\' to True in the Advanced Configuration Editor.'),
@@ -151,7 +149,6 @@ class FeaturesWindow:
 		if not rows:
 			return
 		path = rows[0]
-		available = self.model[path][1]
 		feature = self.model[path][0].decode('utf-8')
 		text = self.features[feature][1] + '\n'
 		if os.name == 'nt':
@@ -187,7 +184,6 @@ class FeaturesWindow:
 	def gpg_available(self):
 		if os.name == 'nt':
 			return False
-		from common import gajim
 		return gajim.HAVE_GPG
 
 	def network_manager_available(self):
@@ -272,10 +268,10 @@ class FeaturesWindow:
 		texstr += '\\begin{document}\\begin{large}\\begin{gather*}test'
 		texstr += '\\end{gather*}\\end{large}\\end{document}'
 
-		file = open(os.path.join(tmpfile + ".tex"), "w+")
-		file.write(texstr)
-		file.flush()
-		file.close()
+		file_ = open(os.path.join(tmpfile + ".tex"), "w+")
+		file_.write(texstr)
+		file_.flush()
+		file_.close()
 		try:
 			if os.name == 'nt':
 				# CREATE_NO_WINDOW
@@ -311,7 +307,6 @@ class FeaturesWindow:
 		return False
 
 	def pycrypto_available(self):
-		from common import gajim
 		return gajim.HAVE_PYCRYPTO
 
 	def docutils_available(self):
@@ -322,7 +317,6 @@ class FeaturesWindow:
 		return True
 
 	def pysexy_available(self):
-		from common import gajim
 		return gajim.HAVE_PYSEXY
 
 # vim: se ts=3:

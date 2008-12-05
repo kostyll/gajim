@@ -36,7 +36,7 @@ class AdHocCommand:
 	def isVisibleFor(samejid):
 		''' This returns True if that command should be visible and invokable
 		for others.
-		samejid - True when command is invoked by an entity with the same bare 
+		samejid - True when command is invoked by an entity with the same bare
 		jid.'''
 		return True
 
@@ -71,7 +71,7 @@ class AdHocCommand:
 			' bad-request'))
 
 	def cancel(self, request):
-		response, cmd = self.buildResponse(request, status = 'canceled')
+		response = self.buildResponse(request, status = 'canceled')[0]
 		self.connection.connection.send(response)
 		return False	# finish the session
 
@@ -88,7 +88,7 @@ class ChangeStatusCommand(AdHocCommand):
 		# first query...
 		response, cmd = self.buildResponse(request, defaultaction = 'execute',
 			actions = ['execute'])
-		
+
 		cmd.addChild(node = dataforms.SimpleDataForm(
 			title = _('Change status'),
 			instructions = _('Set the presence type and description'),
@@ -113,7 +113,7 @@ class ChangeStatusCommand(AdHocCommand):
 
 		# for next invocation
 		self.execute = self.changestatus
-		
+
 		return True	# keep the session
 
 	def changestatus(self, request):
@@ -193,7 +193,7 @@ class LeaveGroupchatsCommand(AdHocCommand):
 		if not len(options):
 			response, cmd = self.buildResponse(request, status = 'completed')
 			cmd.addChild('note', {}, _('You have not joined a groupchat.'))
-		
+
 			self.connection.connection.send(response)
 			return False
 

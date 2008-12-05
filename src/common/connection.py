@@ -35,6 +35,7 @@
 import os
 import random
 import socket
+import operator
 
 import time
 import locale
@@ -379,29 +380,30 @@ class Connection(ConnectionHandlers):
 				self.dispatch('STANZA_SENT', unicode(data))
 
 	def _select_next_host(self, hosts):
-		'''Chooses best 'real' host basing on the SRV priority and weight data;
-		more info in RFC2782'''
-		hosts_best_prio = []
-		best_prio = 65535
-		sum_weight = 0
-		for h in hosts:
-			if h['prio'] < best_prio:
-				hosts_best_prio = [h]
-				best_prio = h['prio']
-				sum_weight = h['weight']
-			elif h['prio'] == best_prio:
-				hosts_best_prio.append(h)
-				sum_weight += h['weight']
-		if len(hosts_best_prio) == 1:
-			return hosts_best_prio[0]
-		r = random.randint(0, sum_weight)
-		min_w = sum_weight
-		# We return the one for which has the minimum weight and weight >= r
-		for h in hosts_best_prio:
-			if h['weight'] >= r:
-				if h['weight'] <= min_w:
-					min_w = h['weight']
-		return h
+		'''Selects the next host according to RFC2782 p.3 based on it's
+		priority. Chooses between hosts with the same priority randomly,
+		where the probability of being selected is proportional to the weight
+		of the host.'''
+
+		hosts_by_prio = sorted(hosts, key=operator.itemgetter('prio'))
+
+		try:
+			lowest_prio = hosts_by_prio[0]['prio']
+		except IndexError:
+			raise ValueError("No hosts to choose from!")
+
+		hosts_lowest_prio = [h for h in hosts_by_prio if h['prio'] == lowest_prio]
+
+		if len(hosts_lowest_prio) == 1:
+			return hosts_lowest_prio[0]
+		else:
+			rndint = random.randint(0, sum(h['weight'] for h in hosts_lowest_prio))
+			weightsum = 0
+			for host in sorted(hosts_lowest_prio, key=operator.itemgetter(
+			'weight')):
+				weightsum += host['weight']
+				if weightsum >= rndint:
+					return host
 
 	def connect(self, data = None):
 		''' Start a connection to the Jabber server.
@@ -413,7 +415,6 @@ class Connection(ConnectionHandlers):
 
 		if data:
 			hostname = data['hostname']
-			usessl = data['usessl']
 			self.try_connecting_for_foo_secs = 45
 			p = data['proxy']
 			use_srv = True
@@ -760,16 +761,16 @@ class Connection(ConnectionHandlers):
 		to server to detect connection failure at application level.'''
 		if not self.connection:
 			return
-		id = self.connection.getAnID()
+		id_ = self.connection.getAnID()
 		if pingTo:
 			to = pingTo.get_full_jid()
 			self.dispatch('PING_SENT', (pingTo))
 		else:
 			to = gajim.config.get_per('accounts', self.name, 'hostname')
-			self.awaiting_xmpp_ping_id = id
+			self.awaiting_xmpp_ping_id = id_
 		iq = common.xmpp.Iq('get', to=to)
 		iq.addChild(name = 'ping', namespace = common.xmpp.NS_PING)
-		iq.setID(id)
+		iq.setID(id_)
 		def _on_response(resp):
 			timePong = time_time()
 			if not common.xmpp.isResultNode(resp):
@@ -946,9 +947,9 @@ class Connection(ConnectionHandlers):
 		self.connection.set_send_timeout(self.keepalives, self.sendPing)
 		self.connection.onreceive(None)
 		iq = common.xmpp.Iq('get', common.xmpp.NS_PRIVACY, xmlns = '')
-		id = self.connection.getAnID()
-		iq.setID(id)
-		self.awaiting_answers[id] = (PRIVACY_ARRIVED, )
+		id_ = self.connection.getAnID()
+		iq.setID(id_)
+		self.awaiting_answers[id_] = (PRIVACY_ARRIVED, )
 		self.connection.send(iq)
 
 	def send_custom_status(self, show, msg, jid):
@@ -959,7 +960,6 @@ class Connection(ConnectionHandlers):
 		sshow = helpers.get_xmpp_show(show)
 		if not msg:
 			msg = ''
-		keyID = gajim.config.get_per('accounts', self.name, 'keyid')
 		if show == 'offline':
 			p = common.xmpp.Presence(typ = 'unavailable', to = jid)
 			p = self.add_sha(p, False)
@@ -983,7 +983,6 @@ class Connection(ConnectionHandlers):
 		sshow = helpers.get_xmpp_show(show)
 		if not msg:
 			msg = ''
-		keyID = gajim.config.get_per('accounts', self.name, 'keyid')
 		sign_msg = False
 		if not auto and not show == 'offline':
 			sign_msg = True
@@ -1175,7 +1174,7 @@ class Connection(ConnectionHandlers):
 		if delayed:
 			our_jid = gajim.get_jid_from_account(self.name) + '/' + \
 				self.server_resource
-			timestamp = time.strftime('%Y-%m-%dT%TZ', time.gmtime(delayed))
+			timestamp = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(delayed))
 			msg_iq.addChild('delay', namespace=common.xmpp.NS_DELAY2,
 				attrs={'from': our_jid, 'stamp': timestamp})
 
@@ -1302,9 +1301,9 @@ class Connection(ConnectionHandlers):
 			return
 		iq = common.xmpp.Iq('set', common.xmpp.NS_REGISTER, to = agent)
 		iq.getTag('query').setTag('remove')
-		id = self.connection.getAnID()
-		iq.setID(id)
-		self.awaiting_answers[id] = (AGENT_REMOVED, agent)
+		id_ = self.connection.getAnID()
+		iq.setID(id_)
+		self.awaiting_answers[id_] = (AGENT_REMOVED, agent)
 		self.connection.send(iq)
 		self.connection.getRoster().delItem(agent)
 
@@ -1367,11 +1366,11 @@ class Connection(ConnectionHandlers):
 			to_whom_jid += '/' + resource
 		iq = common.xmpp.Iq(to = to_whom_jid, typ = 'get', queryNS =\
 			common.xmpp.NS_LAST)
-		id = self.connection.getAnID()
-		iq.setID(id)
+		id_ = self.connection.getAnID()
+		iq.setID(id_)
 		if groupchat_jid:
-			self.groupchat_jids[id] = groupchat_jid
-		self.last_ids.append(id)
+			self.groupchat_jids[id_] = groupchat_jid
+		self.last_ids.append(id_)
 		self.connection.send(iq)
 
 	def request_os_info(self, jid, resource, groupchat_jid=None):
@@ -1388,11 +1387,11 @@ class Connection(ConnectionHandlers):
 			to_whom_jid += '/' + resource
 		iq = common.xmpp.Iq(to = to_whom_jid, typ = 'get', queryNS =\
 			common.xmpp.NS_VERSION)
-		id = self.connection.getAnID()
-		iq.setID(id)
+		id_ = self.connection.getAnID()
+		iq.setID(id_)
 		if groupchat_jid:
-			self.groupchat_jids[id] = groupchat_jid
-		self.version_ids.append(id)
+			self.groupchat_jids[id_] = groupchat_jid
+		self.version_ids.append(id_)
 		self.connection.send(iq)
 
 	def get_settings(self):
@@ -1401,7 +1400,7 @@ class Connection(ConnectionHandlers):
 			return
 		iq = common.xmpp.Iq(typ='get')
 		iq2 = iq.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
-		iq3 = iq2.addChild(name='gajim', namespace='gajim:prefs')
+		iq2.addChild(name='gajim', namespace='gajim:prefs')
 		self.connection.send(iq)
 
 	def get_bookmarks(self):
@@ -1431,11 +1430,11 @@ class Connection(ConnectionHandlers):
 			# Note: need to handle both None and '' as empty
 			#   thus shouldn't use "is not None"
 			if bm.get('nick', None):
-				iq5 = iq4.setTagData('nick', bm['nick'])
+				iq4.setTagData('nick', bm['nick'])
 			if bm.get('password', None):
-				iq5 = iq4.setTagData('password', bm['password'])
+				iq4.setTagData('password', bm['password'])
 			if bm.get('print_status', None):
-				iq5 = iq4.setTagData('print_status', bm['print_status'])
+				iq4.setTagData('print_status', bm['print_status'])
 		self.connection.send(iq)
 
 	def get_annotations(self):
@@ -1470,9 +1469,9 @@ class Connection(ConnectionHandlers):
 		iq = common.xmpp.Iq(typ='get')
 		iq2 = iq.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
 		iq2.addChild(name='storage', namespace='storage:metacontacts')
-		id = self.connection.getAnID()
-		iq.setID(id)
-		self.awaiting_answers[id] = (METACONTACTS_ARRIVED, )
+		id_ = self.connection.getAnID()
+		iq.setID(id_)
+		self.awaiting_answers[id_] = (METACONTACTS_ARRIVED, )
 		self.connection.send(iq)
 
 	def store_metacontacts(self, tags_list):
@@ -1543,7 +1542,7 @@ class Connection(ConnectionHandlers):
 					# Not in special table, get it from messages DB
 					last_log = gajim.logger.get_last_date_that_has_logs(room_jid,
 						is_room = True)
-			# Create self.last_history_time[room_jid] even if not logging, 
+			# Create self.last_history_time[room_jid] even if not logging,
 			# could be used in connection_handlers
 			if last_log is None:
 				last_log = 0
@@ -1707,7 +1706,7 @@ class Connection(ConnectionHandlers):
 			if gajim.account_is_connected(self.name):
 				hostname = gajim.config.get_per('accounts', self.name, 'hostname')
 				iq = common.xmpp.Iq(typ = 'set', to = hostname)
-				q = iq.setTag(common.xmpp.NS_REGISTER + ' query').setTag('remove')
+				iq.setTag(common.xmpp.NS_REGISTER + ' query').setTag('remove')
 				con.send(iq)
 				on_remove_success(True)
 				return

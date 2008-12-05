@@ -55,9 +55,9 @@ from common import helpers
 from common import gajim
 from common import connection
 from common import passwords
-from common import zeroconf
+from common.zeroconf import connection_zeroconf
 from common import dataforms
-from common import pep
+from common import GnuPG
 
 from common.exceptions import GajimGeneralException
 
@@ -101,7 +101,7 @@ class PreferencesWindow:
 		# Display avatars in roster
 		st = gajim.config.get('show_avatars_in_roster')
 		self.xml.get_widget('show_avatars_in_roster_checkbutton'). \
-			set_active(st) 
+			set_active(st)
 
 		# Display status msg under contact name in roster
 		st = gajim.config.get('show_status_msgs_in_roster')
@@ -141,12 +141,12 @@ class PreferencesWindow:
 		model = gtk.ListStore(str)
 		emoticons_combobox.set_model(model)
 		l = []
-		for dir in emoticons_list:
-			if not os.path.isdir(os.path.join(gajim.DATA_DIR, 'emoticons', dir)) \
-			and not os.path.isdir(os.path.join(gajim.MY_EMOTS_PATH, dir)) :
+		for dir_ in emoticons_list:
+			if not os.path.isdir(os.path.join(gajim.DATA_DIR, 'emoticons', dir_)) \
+			and not os.path.isdir(os.path.join(gajim.MY_EMOTS_PATH, dir_)) :
 				continue
-			if dir != '.svn':
-				l.append(dir)
+			if dir_ != '.svn':
+				l.append(dir_)
 		l.append(_('Disabled'))
 		for i in xrange(len(l)):
 			model.append([l[i]])
@@ -157,9 +157,9 @@ class PreferencesWindow:
 
 		# Set default for single window type
 		choices = common.config.opt_one_window_types
-		type = gajim.config.get('one_message_window')
-		if type in choices:
-			self.one_window_type_combobox.set_active(choices.index(type))
+		type_ = gajim.config.get('one_message_window')
+		if type_ in choices:
+			self.one_window_type_combobox.set_active(choices.index(type_))
 		else:
 			self.one_window_type_combobox.set_active(0)
 
@@ -216,13 +216,13 @@ class PreferencesWindow:
 				'online.png'))
 			files.append(os.path.join(helpers.get_iconset_path(l[i]), '16x16',
 				'online.gif'))
-			for file in files:
-				if os.path.exists(file):
-					preview.set_from_file(file)
+			for file_ in files:
+				if os.path.exists(file_):
+					preview.set_from_file(file_)
 			model.append([preview, l[i]])
 			if gajim.config.get('iconset') == l[i]:
 				self.iconset_combobox.set_active(i)
-	
+
 		# Use transports iconsets
 		st = gajim.config.get('use_transports_iconsets')
 		self.xml.get_widget('transports_iconsets_checkbutton').set_active(st)
@@ -307,9 +307,6 @@ class PreferencesWindow:
 		else:
 			self.xml.get_widget('sounds_scrolledwindow').set_sensitive(False)
 			self.xml.get_widget('browse_sounds_hbox').set_sensitive(False)
-
-		# sound player
-		player = gajim.config.get('soundplayer')
 
 		# sounds treeview
 		self.sound_tree = self.xml.get_widget('sounds_treeview')
@@ -515,7 +512,7 @@ class PreferencesWindow:
 		self.theme_preferences = None
 
 		self.notebook.set_current_page(0)
-		
+
 		self.window.show_all()
 		gtkgui_helpers.possibly_move_window_in_current_desktop(self.window)
 
@@ -612,27 +609,25 @@ class PreferencesWindow:
 		helpers.update_optional_features()
 
 	def apply_speller(self):
-		for acct in gajim.connections:
-			for ctrl in gajim.interface.msg_win_mgr.controls():
-				if isinstance(ctrl, chat_control.ChatControlBase):
-					try:
-						spell_obj = gtkspell.get_from_text_view(ctrl.msg_textview)
-					except Exception:
-						spell_obj = None
+		for ctrl in gajim.interface.msg_win_mgr.controls():
+			if isinstance(ctrl, chat_control.ChatControlBase):
+				try:
+					spell_obj = gtkspell.get_from_text_view(ctrl.msg_textview)
+				except Exception:
+					spell_obj = None
 
-					if not spell_obj:
-						gtkspell.Spell(ctrl.msg_textview)
+				if not spell_obj:
+					gtkspell.Spell(ctrl.msg_textview)
 
 	def remove_speller(self):
-		for acct in gajim.connections:
-			for ctrl in gajim.interface.msg_win_mgr.controls():
-				if isinstance(ctrl, chat_control.ChatControlBase):
-					try:
-						spell_obj = gtkspell.get_from_text_view(ctrl.msg_textview)
-					except Exception:
-						spell_obj = None
-					if spell_obj:
-						spell_obj.detach()
+		for ctrl in gajim.interface.msg_win_mgr.controls():
+			if isinstance(ctrl, chat_control.ChatControlBase):
+				try:
+					spell_obj = gtkspell.get_from_text_view(ctrl.msg_textview)
+				except Exception:
+					spell_obj = None
+				if spell_obj:
+					spell_obj.detach()
 
 	def on_speller_checkbutton_toggled(self, widget):
 		active = widget.get_active()
@@ -644,8 +639,8 @@ class PreferencesWindow:
 				lang = gajim.LANG
 			tv = gtk.TextView()
 			try:
-				spell = gtkspell.Spell(tv, lang)
-			except:
+				gtkspell.Spell(tv, lang)
+			except Exception:
 				dialogs.ErrorDialog(
 					_('Dictionary for lang %s not available') % lang,
 					_('You have to install %s dictionary to use spellchecking, or '
@@ -877,14 +872,14 @@ class PreferencesWindow:
 		for status_ in status:
 			msg = gajim.config.get_per('defaultstatusmsg', status_, 'message')
 			enabled = gajim.config.get_per('defaultstatusmsg', status_, 'enabled')
-			iter = model.append()
+			iter_ = model.append()
 			uf_show = helpers.get_uf_show(status_)
-			model.set(iter, 0, status_, 1, uf_show, 2, msg, 3, enabled)
+			model.set(iter_, 0, status_, 1, uf_show, 2, msg, 3, enabled)
 
 	def on_default_msg_cell_edited(self, cell, row, new_text):
 		model = self.default_msg_tree.get_model()
-		iter = model.get_iter_from_string(row)
-		model.set_value(iter, 2, new_text)
+		iter_ = model.get_iter_from_string(row)
+		model.set_value(iter_, 2, new_text)
 
 	def default_msg_toggled_cb(self, cell, path):
 		model = self.default_msg_tree.get_model()
@@ -906,16 +901,16 @@ class PreferencesWindow:
 	def save_status_messages(self, model):
 		for msg in gajim.config.get_per('statusmsg'):
 			gajim.config.del_per('statusmsg', msg)
-		iter = model.get_iter_first()
-		while iter:
-			val = model[iter][0].decode('utf-8')
-			if model[iter][1]: # we have a preset message
+		iter_ = model.get_iter_first()
+		while iter_:
+			val = model[iter_][0].decode('utf-8')
+			if model[iter_][1]: # we have a preset message
 				if not val: # no title, use message text for title
-					val = model[iter][1]
+					val = model[iter_][1]
 				gajim.config.add_per('statusmsg', val)
-				msg = helpers.to_one_line(model[iter][1].decode('utf-8'))
+				msg = helpers.to_one_line(model[iter_][1].decode('utf-8'))
 				gajim.config.set_per('statusmsg', val, 'message', msg)
-			iter = model.iter_next(iter)
+			iter_ = model.iter_next(iter_)
 		gajim.interface.save_config()
 
 	def on_msg_treemodel_row_changed(self, model, path, iter_):
@@ -966,7 +961,7 @@ class PreferencesWindow:
 
 	def on_log_show_changes_checkbutton_toggled(self, widget):
 		self.on_checkbutton_toggled(widget, 'log_contact_status_changes')
-	
+
 	def on_log_encrypted_chats_checkbutton_toggled(self, widget):
 		self.on_checkbutton_toggled(widget, 'log_encrypted_sessions')
 
@@ -993,46 +988,45 @@ class PreferencesWindow:
 		for msg_name in preset_status:
 			msg_text = gajim.config.get_per('statusmsg', msg_name, 'message')
 			msg_text = helpers.from_one_line(msg_text)
-			iter = model.append()
-			model.set(iter, 0, msg_name, 1, msg_text)
+			iter_ = model.append()
+			model.set(iter_, 0, msg_name, 1, msg_text)
 
 	def on_msg_cell_edited(self, cell, row, new_text):
 		model = self.msg_tree.get_model()
-		iter = model.get_iter_from_string(row)
-		model.set_value(iter, 0, new_text)
+		iter_ = model.get_iter_from_string(row)
+		model.set_value(iter_, 0, new_text)
 
 	def on_msg_treeview_cursor_changed(self, widget, data = None):
-		(model, iter) = self.msg_tree.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.msg_tree.get_selection().get_selected()
+		if not iter_:
 			return
 		self.xml.get_widget('delete_msg_button').set_sensitive(True)
 		buf = self.xml.get_widget('msg_textview').get_buffer()
-		msg = model[iter][1]
+		msg = model[iter_][1]
 		buf.set_text(msg)
 
 	def on_new_msg_button_clicked(self, widget, data = None):
 		model = self.msg_tree.get_model()
-		iter = model.append()
-		model.set(iter, 0, _('status message title'), 1, _('status message text'))
-		self.msg_tree.set_cursor(model.get_path(iter))
+		iter_ = model.append()
+		model.set(iter_, 0, _('status message title'), 1, _('status message text'))
+		self.msg_tree.set_cursor(model.get_path(iter_))
 
 	def on_delete_msg_button_clicked(self, widget, data = None):
-		(model, iter) = self.msg_tree.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.msg_tree.get_selection().get_selected()
+		if not iter_:
 			return
 		buf = self.xml.get_widget('msg_textview').get_buffer()
-		model.remove(iter)
+		model.remove(iter_)
 		buf.set_text('')
 		self.xml.get_widget('delete_msg_button').set_sensitive(False)
 
 	def on_msg_textview_changed(self, widget, data = None):
-		(model, iter) = self.msg_tree.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.msg_tree.get_selection().get_selected()
+		if not iter_:
 			return
 		buf = self.xml.get_widget('msg_textview').get_buffer()
 		first_iter, end_iter = buf.get_bounds()
-		name = model.get_value(iter, 0)
-		model.set_value(iter, 1, buf.get_text(first_iter, end_iter))
+		model.set_value(iter_, 1, buf.get_text(first_iter, end_iter))
 
 	def on_msg_treeview_key_press_event(self, widget, event):
 		if event.keyval == gtk.keysyms.Delete:
@@ -1048,7 +1042,7 @@ class PreferencesWindow:
 		model.set_sort_column_id(1, gtk.SORT_ASCENDING)
 
 		# NOTE: sounds_ui_names MUST have all items of
-		# sounds = gajim.config.get_per('soundevents') as keys 
+		# sounds = gajim.config.get_per('soundevents') as keys
 		sounds_dict = {
 			'first_message_received': _('First Message Received'),
 			'next_message_received_focused': _('Next Message Received Focused'),
@@ -1070,54 +1064,54 @@ class PreferencesWindow:
 			model.append((enabled, sound_ui_name, path, sound_event_config_name))
 
 	def on_treeview_sounds_cursor_changed(self, widget, data = None):
-		(model, iter) = self.sound_tree.get_selection().get_selected()
+		(model, iter_) = self.sound_tree.get_selection().get_selected()
 		sounds_entry = self.xml.get_widget('sounds_entry')
-		if not iter:
+		if not iter_:
 			sounds_entry.set_text('')
 			return
-		path_to_snd_file = model[iter][2]
+		path_to_snd_file = model[iter_][2]
 		sounds_entry.set_text(path_to_snd_file)
 
 	def on_browse_for_sounds_button_clicked(self, widget, data = None):
-		(model, iter) = self.sound_tree.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.sound_tree.get_selection().get_selected()
+		if not iter_:
 			return
 		def on_ok(widget, path_to_snd_file):
 			self.dialog.destroy()
-			model, iter = self.sound_tree.get_selection().get_selected()
+			model, iter_ = self.sound_tree.get_selection().get_selected()
 			if not path_to_snd_file:
-				model[iter][2] = ''
+				model[iter_][2] = ''
 				self.xml.get_widget('sounds_entry').set_text('')
-				model[iter][0] = False
+				model[iter_][0] = False
 				return
 			directory = os.path.dirname(path_to_snd_file)
 			gajim.config.set('last_sounds_dir', directory)
 			self.xml.get_widget('sounds_entry').set_text(path_to_snd_file)
 
-			model[iter][2] = path_to_snd_file # set new path to sounds_model
-			model[iter][0] = True # set the sound to enabled
+			model[iter_][2] = path_to_snd_file # set new path to sounds_model
+			model[iter_][0] = True # set the sound to enabled
 
 		def on_cancel(widget):
 			self.dialog.destroy()
-			model, iter = self.sound_tree.get_selection().get_selected()
-			model[iter][2] = ''
-			model[iter][0] = False
+			model, iter_ = self.sound_tree.get_selection().get_selected()
+			model[iter_][2] = ''
+			model[iter_][0] = False
 
-		path_to_snd_file = model[iter][2].decode('utf-8')
+		path_to_snd_file = model[iter_][2].decode('utf-8')
 		path_to_snd_file = os.path.join(os.getcwd(), path_to_snd_file)
 		self.dialog = dialogs.SoundChooserDialog(path_to_snd_file, on_ok,
 			on_cancel)
 
 	def on_sounds_entry_changed(self, widget):
 		path_to_snd_file = widget.get_text()
-		model, iter = self.sound_tree.get_selection().get_selected()
-		model[iter][2] = path_to_snd_file # set new path to sounds_model
+		model, iter_ = self.sound_tree.get_selection().get_selected()
+		model[iter_][2] = path_to_snd_file # set new path to sounds_model
 
 	def on_play_button_clicked(self, widget):
-		model, iter = self.sound_tree.get_selection().get_selected()
-		if not iter:
+		model, iter_ = self.sound_tree.get_selection().get_selected()
+		if not iter_:
 			return
-		snd_event_config_name = model[iter][3]
+		snd_event_config_name = model[iter_][3]
 		helpers.play_sound(snd_event_config_name)
 
 	def on_open_advanced_editor_button_clicked(self, widget, data = None):
@@ -1143,11 +1137,11 @@ class ManageProxiesWindow:
 	def fill_proxies_treeview(self):
 		model = self.proxies_treeview.get_model()
 		model.clear()
-		iter = model.append()
-		model.set(iter, 0, _('None'))
+		iter_ = model.append()
+		model.set(iter_, 0, _('None'))
 		for p in gajim.config.get_per('proxies'):
-			iter = model.append()
-			model.set(iter, 0, p)
+			iter_ = model.append()
+			model.set(iter_, 0, p)
 
 	def init_list(self):
 		self.xml.get_widget('remove_proxy_button').set_sensitive(False)
@@ -1175,16 +1169,16 @@ class ManageProxiesWindow:
 		i = 1
 		while ('proxy' + unicode(i)) in proxies:
 			i += 1
-		iter = model.append()
-		model.set(iter, 0, 'proxy' + unicode(i))
+		iter_ = model.append()
+		model.set(iter_, 0, 'proxy' + unicode(i))
 		gajim.config.add_per('proxies', 'proxy' + unicode(i))
 
 	def on_remove_proxy_button_clicked(self, widget):
-		(model, iter) = self.proxies_treeview.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.proxies_treeview.get_selection().get_selected()
+		if not iter_:
 			return
-		proxy = model[iter][0].decode('utf-8')
-		model.remove(iter)
+		proxy = model[iter_][0].decode('utf-8')
+		model.remove(iter_)
 		gajim.config.del_per('proxies', proxy)
 		self.xml.get_widget('remove_proxy_button').set_sensitive(False)
 
@@ -1199,10 +1193,10 @@ class ManageProxiesWindow:
 	def on_proxies_treeview_cursor_changed(self, widget):
 		#FIXME: check if off proxy settings are correct (see
 		# http://trac.gajim.org/changeset/1921#file2 line 1221
-		(model, iter) = widget.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = widget.get_selection().get_selected()
+		if not iter_:
 			return
-		proxy = model[iter][0]
+		proxy = model[iter_][0]
 		self.xml.get_widget('proxyname_entry').set_text(proxy)
 		proxyhost_entry = self.xml.get_widget('proxyhost_entry')
 		proxyport_entry = self.xml.get_widget('proxyport_entry')
@@ -1244,10 +1238,10 @@ class ManageProxiesWindow:
 			self.on_remove_proxy_button_clicked(widget)
 
 	def on_proxyname_entry_changed(self, widget):
-		(model, iter) = self.proxies_treeview.get_selection().get_selected()
-		if not iter:
+		(model, iter_) = self.proxies_treeview.get_selection().get_selected()
+		if not iter_:
 			return
-		old_name = model.get_value(iter, 0).decode('utf-8')
+		old_name = model.get_value(iter_, 0).decode('utf-8')
 		new_name = widget.get_text().decode('utf-8')
 		if new_name == '':
 			return
@@ -1259,7 +1253,7 @@ class ManageProxiesWindow:
 		for option in config:
 			gajim.config.set_per('proxies', new_name, option,
 				config[option][common.config.OPT_VAL])
-		model.set_value(iter, 0, new_name)
+		model.set_value(iter_, 0, new_name)
 
 	def on_proxytype_combobox_changed(self, widget):
 		types = ['http', 'socks5']
@@ -1349,13 +1343,13 @@ class AccountsWindow:
 
 	def select_account(self, account):
 		model = self.accounts_treeview.get_model()
-		iter = model.get_iter_root()
-		while iter:
-			acct = model[iter][0].decode('utf-8')
+		iter_ = model.get_iter_root()
+		while iter_:
+			acct = model[iter_][0].decode('utf-8')
 			if account == acct:
-				self.accounts_treeview.set_cursor(model.get_path(iter))
+				self.accounts_treeview.set_cursor(model.get_path(iter_))
 				return
-			iter = model.iter_next(iter)
+			iter_ = model.iter_next(iter_)
 
 	def init_accounts(self):
 		'''initialize listStore with existing accounts'''
@@ -1365,8 +1359,8 @@ class AccountsWindow:
 		model = self.accounts_treeview.get_model()
 		model.clear()
 		for account in gajim.config.get_per('accounts'):
-			iter = model.append()
-			model.set(iter, 0, account)
+			iter_ = model.append()
+			model.set(iter_, 0, account)
 
 	def resend(self, account):
 		show = gajim.SHOW_LIST[gajim.connections[account].connected]
@@ -1383,7 +1377,7 @@ class AccountsWindow:
 		gajim.connections[self.current_account].connected > 0:
 			def login(account, show_before, status_before):
 				''' login with previous status'''
-				# first make sure connection is really closed, 
+				# first make sure connection is really closed,
 				# 0.5 may not be enough
 				gajim.connections[account].disconnect(True)
 				gajim.interface.roster.send_status(account, show_before,
@@ -1415,9 +1409,9 @@ class AccountsWindow:
 	def on_accounts_treeview_cursor_changed(self, widget):
 		'''Activate modify buttons when a row is selected, update accounts info'''
 		sel = self.accounts_treeview.get_selection()
-		(model, iter) = sel.get_selected()
-		if iter:
-			account = model[iter][0].decode('utf-8')
+		(model, iter_) = sel.get_selected()
+		if iter_:
+			account = model[iter_][0].decode('utf-8')
 		else:
 			account = None
 		if self.current_account and self.current_account == account:
@@ -1447,7 +1441,7 @@ class AccountsWindow:
 
 		self.remove_button.set_sensitive(True)
 		self.rename_button.set_sensitive(True)
-		if iter:
+		if iter_:
 			self.current_account = account
 			if account == gajim.ZEROCONF_ACC_NAME:
 				self.remove_button.set_sensitive(False)
@@ -1689,7 +1683,7 @@ class AccountsWindow:
 				gajim.interface.instances[account]['remove_account'] = \
 					RemoveAccountWindow(account)
 		if win_opened:
-			dialog = dialogs.ConfirmationDialog(
+			dialogs.ConfirmationDialog(
 				_('You have opened chat in account %s') % account,
 				_('All chat and groupchat windows will be closed. Do you want to '
 				'continue?'),
@@ -1894,7 +1888,7 @@ class AccountsWindow:
 
 	def on_synchronise_contacts_button1_clicked(self, widget):
 		try:
-			dialog = dialogs.SynchroniseSelectAccountDialog(self.current_account)
+			dialogs.SynchroniseSelectAccountDialog(self.current_account)
 		except GajimGeneralException:
 			# If we showed ErrorDialog, there will not be dialog instance
 			return
@@ -1908,7 +1902,7 @@ class AccountsWindow:
 					self.xml.get_widget('password_entry1').set_text(new_password)
 
 		try:
-			dialog = dialogs.ChangePasswordDialog(self.current_account, on_changed)
+			dialogs.ChangePasswordDialog(self.current_account, on_changed)
 		except GajimGeneralException:
 			# if we showed ErrorDialog, there will not be dialog instance
 			return
@@ -2073,14 +2067,10 @@ class AccountsWindow:
 				gajim.config.set_per('accounts', self.current_account, 'keyid',
 					keyID[0])
 
-		instance = dialogs.ChooseGPGKeyDialog(_('OpenPGP Key Selection'),
+		dialogs.ChooseGPGKeyDialog(_('OpenPGP Key Selection'),
 			_('Choose your OpenPGP key'), secret_keys, on_key_selected)
 
 	def on_use_gpg_agent_checkbutton_toggled(self, widget):
-		if self.current_account == gajim.ZEROCONF_ACC_NAME:
-			wiget_name_ext = '2'
-		else:
-			wiget_name_ext = '1'
 		self.on_checkbutton_toggled(widget, 'use_gpg_agent')
 
 	def on_edit_details_button1_clicked(self, widget):
@@ -2125,7 +2115,7 @@ class AccountsWindow:
 		gajim.interface.roster.setup_and_draw_roster()
 
 	def on_enable_zeroconf_checkbutton2_toggled(self, widget):
-		# don't do anything if there is an account with the local name but is a 
+		# don't do anything if there is an account with the local name but is a
 		# normal account
 		if gajim.ZEROCONF_ACC_NAME in gajim.connections and not \
 		gajim.connections[gajim.ZEROCONF_ACC_NAME].is_zeroconf:
@@ -2170,8 +2160,8 @@ class AccountsWindow:
 		elif not gajim.config.get('enable_zeroconf') and widget.get_active():
 			self.xml.get_widget('zeroconf_notebook').set_sensitive(True)
 			# enable (will create new account if not present)
-			gajim.connections[gajim.ZEROCONF_ACC_NAME] = common.zeroconf.\
-				connection_zeroconf.ConnectionZeroconf(gajim.ZEROCONF_ACC_NAME)
+			gajim.connections[gajim.ZEROCONF_ACC_NAME] = connection_zeroconf.\
+				ConnectionZeroconf(gajim.ZEROCONF_ACC_NAME)
 			if gajim.connections[gajim.ZEROCONF_ACC_NAME].gpg:
 				self.xml.get_widget('gpg_choose_button2').set_sensitive(True)
 			self.init_account_gpg()
@@ -2236,11 +2226,11 @@ class AccountsWindow:
 	def on_jabber_id_entry2_changed(self, widget):
 		if self.ignore_events:
 			return
-		id = widget.get_text().decode('utf-8')
-		if self.option_changed('zeroconf_jabber_id', id):
+		id_ = widget.get_text().decode('utf-8')
+		if self.option_changed('zeroconf_jabber_id', id_):
 			self.need_relogin = True
 		gajim.config.set_per('accounts', self.current_account,
-			'zeroconf_jabber_id', id)
+			'zeroconf_jabber_id', id_)
 
 	def on_email_entry2_changed(self, widget):
 		if self.ignore_events:
@@ -2441,8 +2431,8 @@ class GroupchatConfigWindow:
 	def on_cell_edited(self, cell, path, new_text):
 		model = self.affiliation_treeview['outcast'].get_model()
 		new_text = new_text.decode('utf-8')
-		iter = model.get_iter(path)
-		model[iter][1] = new_text
+		iter_ = model.get_iter(path)
+		model[iter_][1] = new_text
 
 	def on_add_button_clicked(self, widget, affiliation):
 		if affiliation == 'outcast':
@@ -2470,7 +2460,7 @@ class GroupchatConfigWindow:
 				return
 			model = self.affiliation_treeview[affiliation].get_model()
 			model.append((jid,'', '', ''))
-		instance = dialogs.InputDialog(title, prompt, ok_handler=on_ok)
+		dialogs.InputDialog(title, prompt, ok_handler=on_ok)
 
 	def on_remove_button_clicked(self, widget, affiliation):
 		selection = self.affiliation_treeview[affiliation].get_selection()
@@ -2480,9 +2470,9 @@ class GroupchatConfigWindow:
 			row_refs.append(gtk.TreeRowReference(model, path))
 		for row_ref in row_refs:
 			path = row_ref.get_path()
-			iter = model.get_iter(path)
-			jid = model[iter][0]
-			model.remove(iter)
+			iter_ = model.get_iter(path)
+			jid = model[iter_][0]
+			model.remove(iter_)
 		self.remove_button[affiliation].set_sensitive(False)
 
 	def on_affiliation_treeview_cursor_changed(self, widget, affiliation):
@@ -2514,19 +2504,19 @@ class GroupchatConfigWindow:
 			users_dict = {}
 			actual_jid_list = []
 			model = self.affiliation_treeview[affiliation].get_model()
-			iter = model.get_iter_first()
+			iter_ = model.get_iter_first()
 			# add new jid
-			while iter:
-				jid = model[iter][0].decode('utf-8')
+			while iter_:
+				jid = model[iter_][0].decode('utf-8')
 				actual_jid_list.append(jid)
 				if jid not in self.start_users_dict[affiliation] or \
 				(affiliation == 'outcast' and 'reason' in self.start_users_dict[affiliation]\
 				[jid] and self.start_users_dict[affiliation][jid]\
-				['reason'] != model[iter][1].decode('utf-8')):
+				['reason'] != model[iter_][1].decode('utf-8')):
 					users_dict[jid] = {'affiliation': affiliation}
 					if affiliation == 'outcast':
-						users_dict[jid]['reason'] = model[iter][1].decode('utf-8')
-				iter = model.iter_next(iter)
+						users_dict[jid]['reason'] = model[iter_][1].decode('utf-8')
+				iter_ = model.iter_next(iter_)
 			# remove removed one
 			for jid in self.start_users_dict[affiliation]:
 				if jid not in actual_jid_list:
@@ -2576,7 +2566,7 @@ class RemoveAccountWindow:
 						gajim.connections[self.account].unregister_account(
 							self._on_remove_success)
 
-					w = dialogs.PassphraseDialog(
+					dialogs.PassphraseDialog(
 						_('Password Required'),
 						_('Enter your password for account %s') % self.account,
 						_('Save password'), ok_handler=on_ok)
@@ -2587,7 +2577,7 @@ class RemoveAccountWindow:
 				self._on_remove_success(True)
 
 		if gajim.connections[self.account].connected:
-			dialog = dialogs.ConfirmationDialog(
+			dialogs.ConfirmationDialog(
 				_('Account "%s" is connected to the server') % self.account,
 				_('If you remove it, the connection will be lost.'),
 				on_response_ok=remove)
@@ -2652,7 +2642,7 @@ class ManageBookmarksWindow:
 				continue
 			if not gajim.connections[account].private_storage_supported:
 				continue
-			iter = self.treestore.append(None, [None, account, None, None,
+			iter_ = self.treestore.append(None, [None, account, None, None,
 				None, None, None, None])
 
 			for bookmark in gajim.connections[account].bookmarks:
@@ -2672,7 +2662,7 @@ class ManageBookmarksWindow:
 				print_status = bookmark.get('print_status', '')
 				if print_status not in ('', 'all', 'in_and_out', 'none'):
 					print_status = ''
-				self.treestore.append( iter, [
+				self.treestore.append(iter_, [
 						account,
 						bookmark['name'],
 						bookmark['jid'],
@@ -2724,12 +2714,12 @@ class ManageBookmarksWindow:
 		self.window.show_all()
 
 	def on_bookmarks_treeview_button_press_event(self, widget, event):
-		(model, iter) = self.selection.get_selected()
-		if not iter:
+		(model, iter_) = self.selection.get_selected()
+		if not iter_:
 			# Removed a bookmark before
 			return
 
-		if model.iter_parent(iter):
+		if model.iter_parent(iter_):
 			# The currently selected node is a bookmark
 			return not self.check_valid_bookmark()
 
@@ -2740,18 +2730,18 @@ class ManageBookmarksWindow:
 		'''Add a new bookmark.'''
 		# Get the account that is currently used
 		# (the parent of the currently selected item)
-		(model, iter) = self.selection.get_selected()
-		if not iter: # Nothing selected, do nothing
+		(model, iter_) = self.selection.get_selected()
+		if not iter_: # Nothing selected, do nothing
 			return
 
-		parent = model.iter_parent(iter)
+		parent = model.iter_parent(iter_)
 
 		if parent:
 			# We got a bookmark selected, so we add_to the parent
 			add_to = parent
 		else:
 			# No parent, so we got an account -> add to this.
-			add_to = iter
+			add_to = iter_
 
 		account = model[add_to][1].decode('utf-8')
 		nick = gajim.nicks[account]
@@ -2765,24 +2755,24 @@ class ManageBookmarksWindow:
 		'''
 		Remove selected bookmark.
 		'''
-		(model, iter) = self.selection.get_selected()
-		if not iter: # Nothing selected
+		(model, iter_) = self.selection.get_selected()
+		if not iter_: # Nothing selected
 			return
 
-		if not model.iter_parent(iter):
+		if not model.iter_parent(iter_):
 			# Don't remove account iters
 			return
 
-		model.remove(iter)
+		model.remove(iter_)
 		self.clear_fields()
 
 	def check_valid_bookmark(self):
 		'''
 		Check if all neccessary fields are entered correctly.
 		'''
-		(model, iter) = self.selection.get_selected()
+		(model, iter_) = self.selection.get_selected()
 
-		if not model.iter_parent(iter):
+		if not model.iter_parent(iter_):
 			#Account data can't be changed
 			return
 
@@ -2800,8 +2790,8 @@ class ManageBookmarksWindow:
 		Parse the treestore data into our new bookmarks array,
 		then send the new bookmarks to the server.
 		'''
-		(model, iter) = self.selection.get_selected()
-		if iter and model.iter_parent(iter):
+		(model, iter_) = self.selection.get_selected()
+		if iter_ and model.iter_parent(iter_):
 			#bookmark selected, check it
 			if not self.check_valid_bookmark():
 				return
@@ -2833,9 +2823,9 @@ class ManageBookmarksWindow:
 		'''
 		Fill in the bookmark's data into the fields.
 		'''
-		(model, iter) = selection.get_selected()
+		(model, iter_) = selection.get_selected()
 
-		if not iter:
+		if not iter_:
 			# After removing the last bookmark for one account
 			# this will be None, so we will just:
 			return
@@ -2844,7 +2834,7 @@ class ManageBookmarksWindow:
 			self.server_entry, self.pass_entry, self.autojoin_checkbutton,
 			self.minimize_checkbutton, self.print_status_combobox]
 
-		if model.iter_parent(iter):
+		if model.iter_parent(iter_):
 			# make the fields sensitive
 			for field in widgets:
 				field.set_sensitive(True)
@@ -2857,8 +2847,8 @@ class ManageBookmarksWindow:
 			return
 
 		# Fill in the data for childs
-		self.title_entry.set_text(model[iter][1])
-		room_jid = model[iter][2].decode('utf-8')
+		self.title_entry.set_text(model[iter_][1])
+		room_jid = model[iter_][2].decode('utf-8')
 		try:
 			(room, server) = room_jid.split('@')
 		except ValueError:
@@ -2868,13 +2858,13 @@ class ManageBookmarksWindow:
 		self.room_entry.set_text(room)
 		self.server_entry.set_text(server)
 
-		self.autojoin_checkbutton.set_active(model[iter][3])
-		self.minimize_checkbutton.set_active(model[iter][4])
+		self.autojoin_checkbutton.set_active(model[iter_][3])
+		self.minimize_checkbutton.set_active(model[iter_][4])
 		# sensitive only if auto join is checked
-		self.minimize_checkbutton.set_sensitive(model[iter][3])
+		self.minimize_checkbutton.set_sensitive(model[iter_][3])
 
-		if model[iter][5] is not None:
-			password = model[iter][5].decode('utf-8')
+		if model[iter_][5] is not None:
+			password = model[iter_][5].decode('utf-8')
 		else:
 			password = None
 
@@ -2882,66 +2872,66 @@ class ManageBookmarksWindow:
 			self.pass_entry.set_text(password)
 		else:
 			self.pass_entry.set_text('')
-		nick = model[iter][6]
+		nick = model[iter_][6]
 		if nick:
 			nick = nick.decode('utf-8')
 			self.nick_entry.set_text(nick)
 		else:
 			self.nick_entry.set_text('')
 
-		print_status = model[iter][7]
+		print_status = model[iter_][7]
 		opts = sorted(self.option_list.keys())
 		self.print_status_combobox.set_active(opts.index(print_status))
 
 	def on_title_entry_changed(self, widget):
-		(model, iter) = self.selection.get_selected()
-		if iter: # After removing a bookmark, we got nothing selected
-			if model.iter_parent(iter):
+		(model, iter_) = self.selection.get_selected()
+		if iter_: # After removing a bookmark, we got nothing selected
+			if model.iter_parent(iter_):
 				# Don't clear the title field for account nodes
-				model[iter][1] = self.title_entry.get_text()
+				model[iter_][1] = self.title_entry.get_text()
 
 	def on_nick_entry_changed(self, widget):
-		(model, iter) = self.selection.get_selected()
-		if iter:
-			model[iter][6] = self.nick_entry.get_text()
+		(model, iter_) = self.selection.get_selected()
+		if iter_:
+			model[iter_][6] = self.nick_entry.get_text()
 
 	def on_server_entry_changed(self, widget):
-		(model, iter) = self.selection.get_selected()
-		if iter:
+		(model, iter_) = self.selection.get_selected()
+		if iter_:
 			room_jid = self.room_entry.get_text().decode('utf-8').strip() + '@' + \
 				self.server_entry.get_text().decode('utf-8').strip()
-			model[iter][2] = room_jid.replace(' ', '')
+			model[iter_][2] = room_jid.replace(' ', '')
 
 	def on_room_entry_changed(self, widget):
-		(model, iter) = self.selection.get_selected()
-		if iter:
+		(model, iter_) = self.selection.get_selected()
+		if iter_:
 			room_jid = self.room_entry.get_text().decode('utf-8') + '@' + \
 				self.server_entry.get_text().decode('utf-8')
-			model[iter][2] = room_jid
+			model[iter_][2] = room_jid
 
 	def on_pass_entry_changed(self, widget):
-		(model, iter) = self.selection.get_selected()
-		if iter:
-			model[iter][5] = self.pass_entry.get_text()
+		(model, iter_) = self.selection.get_selected()
+		if iter_:
+			model[iter_][5] = self.pass_entry.get_text()
 
 	def on_autojoin_checkbutton_toggled(self, widget):
-		(model, iter) = self.selection.get_selected()
-		if iter:
-			model[iter][3] = self.autojoin_checkbutton.get_active()
-			self.minimize_checkbutton.set_sensitive(model[iter][3])
+		(model, iter_) = self.selection.get_selected()
+		if iter_:
+			model[iter_][3] = self.autojoin_checkbutton.get_active()
+			self.minimize_checkbutton.set_sensitive(model[iter_][3])
 
 	def on_minimize_checkbutton_toggled(self, widget):
-		(model, iter) = self.selection.get_selected()
-		if iter:
-			model[iter][4] = self.minimize_checkbutton.get_active()
+		(model, iter_) = self.selection.get_selected()
+		if iter_:
+			model[iter_][4] = self.minimize_checkbutton.get_active()
 
 	def on_print_status_combobox_changed(self, widget):
 		active = widget.get_active()
 		model = widget.get_model()
 		print_status = model[active][1]
-		(model2, iter) = self.selection.get_selected()
-		if iter:
-			model2[iter][7] = print_status
+		(model2, iter_) = self.selection.get_selected()
+		if iter_:
+			model2[iter_][7] = print_status
 
 	def clear_fields(self):
 		widgets = [ self.title_entry, self.nick_entry, self.room_entry,
@@ -3514,19 +3504,19 @@ class ManagePEPServicesWindow:
 
 	def node_removed(self, node):
 		model = self.treeview.get_model()
-		iter = model.get_iter_root()
-		while iter:
-			if model[iter][0] == node:
-				model.remove(iter)
+		iter_ = model.get_iter_root()
+		while iter_:
+			if model[iter_][0] == node:
+				model.remove(iter_)
 				break
-			iter = model.get_iter_next(iter)
+			iter_ = model.get_iter_next(iter_)
 
 	def on_delete_button_clicked(self, widget):
 		selection = self.treeview.get_selection()
 		if not selection:
 			return
-		model, iter = selection.get_selected()
-		node = model[iter][0]
+		model, iter_ = selection.get_selected()
+		node = model[iter_][0]
 		our_jid = gajim.get_jid_from_account(self.account)
 		gajim.connections[self.account].send_pb_delete(our_jid, node)
 
@@ -3534,8 +3524,8 @@ class ManagePEPServicesWindow:
 		selection = self.treeview.get_selection()
 		if not selection:
 			return
-		model, iter = selection.get_selected()
-		node = model[iter][0]
+		model, iter_ = selection.get_selected()
+		node = model[iter_][0]
 		our_jid = gajim.get_jid_from_account(self.account)
 		gajim.connections[self.account].request_pb_configuration(our_jid, node)
 
@@ -3546,7 +3536,7 @@ class ManagePEPServicesWindow:
 			gajim.connections[self.account].send_pb_configure(our_jid, node, form)
 		window = dialogs.DataFormWindow(form, (on_ok, node))
 		title = "Configure %s" % node
-		window.set_title(title) 
+		window.set_title(title)
 		window.show_all()
 
 # vim: se ts=3:

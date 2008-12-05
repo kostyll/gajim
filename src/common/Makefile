@@ -1,6 +1,6 @@
 include ../../extra.mk
 
-SUBDIRS = xmpp zeroconf ${IDLEMODULE}
+SUBDIRS = xmpp zeroconf
 
 SRCS = GnuPG.py			\
        GnuPGInterface.py	\
@@ -25,6 +25,7 @@ SRCS = GnuPG.py			\
        gajim.py			\
        helpers.py		\
        i18n.py			\
+       idle.py			\
        logger.py		\
        nslookup.py		\
        optparser.py		\

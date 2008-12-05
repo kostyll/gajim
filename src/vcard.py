@@ -118,8 +118,8 @@ class VcardWindow:
 		self.fill_jabber_page()
 		annotations = gajim.connections[self.account].annotations
 		if self.contact.jid in annotations:
-			buffer = self.xml.get_widget('textview_annotation').get_buffer()
-			buffer.set_text(annotations[self.contact.jid])
+			buffer_ = self.xml.get_widget('textview_annotation').get_buffer()
+			buffer_.set_text(annotations[self.contact.jid])
 
 		self.xml.signal_autoconnect(self)
 		self.window.show_all()
@@ -133,9 +133,9 @@ class VcardWindow:
 		if self.update_progressbar_timeout_id is not None:
 			gobject.source_remove(self.update_progressbar_timeout_id)
 		del gajim.interface.instances[self.account]['infos'][self.contact.jid]
-		buffer = self.xml.get_widget('textview_annotation').get_buffer()
-		annotation = buffer.get_text(buffer.get_start_iter(),
-			buffer.get_end_iter())
+		buffer_ = self.xml.get_widget('textview_annotation').get_buffer()
+		annotation = buffer_.get_text(buffer_.get_start_iter(),
+			buffer_.get_end_iter())
 		connection = gajim.connections[self.account]
 		if annotation != connection.annotations.get(self.contact.jid, ''):
 			connection.annotations[self.contact.jid] = annotation
@@ -155,7 +155,7 @@ class VcardWindow:
 				self.contact.jid, self.account, self.contact.get_shown_name() +
 				'.jpeg')
 			menu.append(menuitem)
-			menu.connect('selection-done', lambda w:w.destroy())	
+			menu.connect('selection-done', lambda w:w.destroy())
 			# show the menu
 			menu.show_all()
 			menu.popup(None, None, None, event.button, event.time)
@@ -300,7 +300,7 @@ class VcardWindow:
 			self.contact.get_shown_name() +
 			'</span></b>')
 		self.xml.get_widget('jid_label').set_text(self.contact.jid)
-		
+
 		subscription_label = self.xml.get_widget('subscription_label')
 		ask_label = self.xml.get_widget('ask_label')
 		if self.gc_contact:
@@ -442,7 +442,7 @@ class ZeroconfVcardWindow:
 				self.contact.jid, self.account, self.contact.get_shown_name() +
 				'.jpeg')
 			menu.append(menuitem)
-			menu.connect('selection-done', lambda w:w.destroy())	
+			menu.connect('selection-done', lambda w:w.destroy())
 			# show the menu
 			menu.show_all()
 			menu.popup(None, None, None, event.button, event.time)
@@ -493,7 +493,7 @@ class ZeroconfVcardWindow:
 		tip = gtk.Tooltips()
 		status_label_eventbox = self.xml.get_widget('status_label_eventbox')
 		tip.set_tip(status_label_eventbox, stats)
-	
+
 	def fill_contact_page(self):
 		tooltips = gtk.Tooltips()
 		self.xml.get_widget('nickname_label').set_markup(
@@ -521,7 +521,7 @@ class ZeroconfVcardWindow:
 		self.fill_status_label()
 
 	#	gajim.connections[self.account].request_vcard(self.contact.jid, self.is_fake)
-	
+
 	def fill_personal_page(self):
 		contact = gajim.connections[gajim.ZEROCONF_ACC_NAME].roster.getItem(self.contact.jid)
 		for key in ('1st', 'last', 'jid', 'email'):

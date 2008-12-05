@@ -27,11 +27,13 @@ Transports are stackable so you - f.e. TLS use HTPPROXYsocket or TCPsocket as mo
 Also exception 'error' is defined to allow capture of this module specific exceptions.
 """
 
-import socket,select,base64,dispatcher
+import socket
+import select
+import base64
+import dispatcher
 from simplexml import ustr
 from client import PlugIn
 from protocol import *
-import sys
 import os
 import errno
 
@@ -54,15 +56,7 @@ def temp_failure_retry(func, *args, **kwargs):
             else:
                 raise
 
-class error:
-    """An exception to be raised in case of low-level errors in methods of 'transports' module."""
-    def __init__(self,comment):
-        """Cache the descriptive string"""
-        self._comment=comment
-
-    def __str__(self):
-        """Serialise exception into pre-cached descriptive string."""
-        return self._comment
+DBG_SOCKET = "socket"
 
 class TCPsocket(PlugIn):
     """ This class defines direct TCP connection method. """
@@ -70,7 +64,7 @@ class TCPsocket(PlugIn):
         """ Cache connection point 'server'. 'server' is the tuple of (host, port)
             absolutely the same as standard tcp socket uses. """
         PlugIn.__init__(self)
-        self.DBG_LINE='socket'
+        self.DBG_LINE = DBG_SOCKET
         self._exported_methods=[self.send,self.disconnect]
 
         self._server = server
@@ -83,6 +77,7 @@ class TCPsocket(PlugIn):
         if not self.connect(self._server): return
         self._owner.Connection=self
         self._owner.RegisterDisconnectHandler(self.disconnected)
+        owner.debug_flags.append(DBG_SOCKET)
         return 'ok'
 
     def getHost(self):
@@ -105,8 +100,10 @@ class TCPsocket(PlugIn):
                     self._recv=self._sock.recv
                     self.DEBUG("Successfully connected to remote host %s"%repr(server),'start')
                     return 'ok'
-                except: continue
-        except: pass
+                except Exception:
+                    continue
+        except Exception:
+            pass
 
     def plugout(self):
         """ Disconnect from the remote server and unregister self.disconnected method from
@@ -117,12 +114,16 @@ class TCPsocket(PlugIn):
 
     def receive(self):
         """ Reads all pending incoming data. Calls owner's disconnected() method if appropriate."""
-        try: received = self._recv(1024000)
-        except: received = ''
+        try:
+            received = self._recv(1024000)
+        except socket.error:
+            received = ''
 
         while temp_failure_retry(select.select,[self._sock],[],[],0)[0]:
-            try: add = self._recv(1024000)
-            except: add=''
+            try:
+                add = self._recv(1024000)
+            except socket.error:
+                add=''
             received +=add
             if not add: break
 
@@ -206,7 +207,7 @@ class HTTPPROXYsocket(TCPsocket):
             self._owner.disconnected()
             return
         try: proto,code,desc=reply.split('\n')[0].split(' ',2)
-        except: raise error('Invalid proxy reply')
+        except: raise Exception('Invalid proxy reply')
         if code!='200':
             self.DEBUG('Invalid proxy reply: %s %s %s'%(proto,code,desc),'error')
             self._owner.disconnected()
@@ -233,7 +234,7 @@ class TLS(PlugIn):
         """
         if 'TLS' in owner.__dict__: return  # Already enabled.
         PlugIn.PlugIn(self,owner)
-        DBG_LINE='TLS'
+        self.DBG_LINE='TLS'
         if now: return self._startSSL()
         if self._owner.Dispatcher.Stream.features:
             try: self.FeaturesHandler(self._owner.Dispatcher,self._owner.Dispatcher.Stream.features)
@@ -266,7 +267,7 @@ class TLS(PlugIn):
 
     def _startSSL(self):
         """ Immidiatedly switch socket to TLS mode. Used internally."""
-        """ Here we should switch pending_data to hint mode."""
+        # Here we should switch pending_data to hint mode.
         tcpsock=self._owner.Connection
         tcpsock._sslObj    = socket.ssl(tcpsock._sock, None, None)
         tcpsock._sslIssuer = tcpsock._sslObj.issuer()

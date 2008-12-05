@@ -61,9 +61,15 @@ class NonSASL(PlugIn):
             token=query.getTagData('token')
             seq=query.getTagData('sequence')
             self.DEBUG("Performing zero-k authentication",'ok')
-            hash = sha.new(sha.new(self.password).hexdigest()+token).hexdigest()
-            for foo in xrange(int(seq)): hash = sha.new(hash).hexdigest()
-            query.setTagData('hash',hash)
+
+            def hasher(s):
+                return sha.new(s).hexdigest()
+
+            def hash_n_times(s, count):
+                return count and hasher(hash_n_times(s, count-1)) or s
+
+            hash_ = hash_n_times(hasher(hasher(self.password)+token), int(seq))
+            query.setTagData('hash', hash_)
             method='0k'
         else:
             self.DEBUG("Sequre methods unsupported, performing plain text authentication",'warn')
@@ -155,8 +161,10 @@ class SASL(PlugIn):
         if challenge.getNamespace()!=NS_SASL: return
         if challenge.getName()=='failure':
             self.startsasl='failure'
-            try: reason=challenge.getChildren()[0]
-            except: reason=challenge
+            try:
+                reason=challenge.getChildren()[0]
+            except Exception:
+                reason=challenge
             self.DEBUG('Failed SASL authentification: %s'%reason,'error')
             raise NodeProcessed
         elif challenge.getName()=='success':
@@ -182,10 +190,8 @@ class SASL(PlugIn):
             resp['username']=self.username
             resp['realm']=self._owner.Server
             resp['nonce']=chal['nonce']
-            cnonce=''
-            for i in range(7):
-                cnonce+=hex(int(random.random()*65536*4096))[2:]
-            resp['cnonce']=cnonce
+            resp['cnonce'] = ''.join("%x" % randint(0, 2**28) for randint in
+                itertools.repeat(random.randint, 7))
             resp['nc']=('00000001')
             resp['qop']='auth'
             resp['digest-uri']='xmpp/'+self._owner.Server
@@ -202,7 +208,7 @@ class SASL(PlugIn):
             node=Node('response',attrs={'xmlns':NS_SASL},payload=[base64.encodestring(sasl_data[:-1]).replace('\r','').replace('\n','')])
             self._owner.send(node.__str__())
         elif 'rspauth' in chal: self._owner.send(Node('response',attrs={'xmlns':NS_SASL}).__str__())
-        else: 
+        else:
             self.startsasl='failure'
             self.DEBUG('Failed SASL authentification: unknown challenge','error')
         raise NodeProcessed

@@ -1,4 +1,4 @@
-##   features.py 
+##   features.py
 ##
 ##   Copyright (C) 2003-2004 Alexey "Snake" Nezhdanov
 ##
@@ -49,10 +49,10 @@ def _discover(disp,ns,jid,node=None,fb2b=0,fb2a=1):
 
 def discoverItems(disp,jid,node=None):
     """ Query remote object about any items that it contains. Return items list. """
-    """ According to JEP-0030:
-        query MAY have node attribute
-        item: MUST HAVE jid attribute and MAY HAVE name, node, action attributes.
-        action attribute of item can be either of remove or update value."""
+    # According to JEP-0030:
+    # query MAY have node attribute
+    # item: MUST HAVE jid attribute and MAY HAVE name, node, action attributes.
+    # action attribute of item can be either of remove or update value.
     ret=[]
     for i in _discover(disp,NS_DISCO_ITEMS,jid,node):
         if i.getName()=='agent' and i.getTag('name'): i.setAttr('name',i.getTagData('name'))
@@ -61,10 +61,10 @@ def discoverItems(disp,jid,node=None):
 
 def discoverInfo(disp,jid,node=None):
     """ Query remote object about info that it publishes. Returns identities and features lists."""
-    """ According to JEP-0030:
-        query MAY have node attribute
-        identity: MUST HAVE category and name attributes and MAY HAVE type attribute.
-        feature: MUST HAVE var attribute"""
+    # According to JEP-0030:
+    # query MAY have node attribute
+    # identity: MUST HAVE category and name attributes and MAY HAVE type attribute.
+    # feature: MUST HAVE var attribute"""
     identities , features = [] , []
     for i in _discover(disp,NS_DISCO_INFO,jid,node):
         if i.getName()=='identity': identities.append(i.attrs)
@@ -82,7 +82,7 @@ def discoverInfo(disp,jid,node=None):
 def getRegInfo(disp,host,info={},sync=True):
     """ Gets registration form from remote host.
         You can pre-fill the info dictionary.
-        F.e. if you are requesting info on registering user joey than specify 
+        F.e. if you are requesting info on registering user joey than specify
         info as {'username':'joey'}. See JEP-0077 for details.
         'disp' must be connected dispatcher instance."""
     iq=Iq('get',NS_REGISTER,to=host)
@@ -142,14 +142,15 @@ def getPrivacyLists(disp):
     """ Requests privacy lists from connected server.
         Returns dictionary of existing lists on success."""
     try:
-        dict={'lists':[]}
+        dict_={'lists':[]}
         resp=disp.SendAndWaitForResponse(Iq('get',NS_PRIVACY))
         if not isResultNode(resp): return
-        for list in resp.getQueryPayload():
-            if list.getName()=='list': dict['lists'].append(list.getAttr('name'))
-            else: dict[list.getName()]=list.getAttr('name')
-        return dict
-    except: pass
+        for list_ in resp.getQueryPayload():
+            if list_.getName()=='list': dict_['lists'].append(list_.getAttr('name'))
+            else: dict_[list_.getName()]=list_.getAttr('name')
+        return dict_
+    except Exception:
+        pass
 
 def getPrivacyList(disp,listname):
     """ Requests specific privacy list listname. Returns list of XML nodes (rules)
@@ -157,7 +158,8 @@ def getPrivacyList(disp,listname):
     try:
         resp=disp.SendAndWaitForResponse(Iq('get',NS_PRIVACY,payload=[Node('list',{'name':listname})]))
         if isResultNode(resp): return resp.getQueryPayload()[0]
-    except: pass
+    except Exception:
+        pass
 
 def setActivePrivacyList(disp,listname=None,typ='active'):
     """ Switches privacy list 'listname' to specified type.

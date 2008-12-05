@@ -49,18 +49,18 @@ class Roster:
 					diffs[key] = self._data[key]['status']
 		#print 'roster_zeroconf.py: diffs:' + str(diffs)
 		return diffs
-		
-	def setItem(self, jid, name = '', groups = ''):
+
+	def setItem(self, jid, name='', groups=''):
 		#print 'roster_zeroconf.py: setItem %s' % jid
 		contact = self.zeroconf.get_contact(jid)
 		if not contact:
 			return
 
-		(service_jid, domain, interface, protocol, host, address, port, bare_jid, txt)  \
-			= contact
+		host, address, port = contact[4:7]
+		txt = contact[8]
 
 		self._data[jid]={}
-		self._data[jid]['ask'] = 'no'  #?
+		self._data[jid]['ask'] = 'none'
 		self._data[jid]['subscription'] = 'both'
 		self._data[jid]['groups'] = []
 		self._data[jid]['resources'] = {}
@@ -80,7 +80,7 @@ class Roster:
 			self._data[jid]['name'] = nm
 		else:
 			self._data[jid]['name'] = jid
-		if status == 'avail': 
+		if status == 'avail':
 			status = 'online'
 		self._data[jid]['txt_dict'] = txt_dict
 		if 'msg' not in self._data[jid]['txt_dict']:
@@ -92,25 +92,25 @@ class Roster:
 		#print 'roster_zeroconf.py: delItem %s' % jid
 		if jid in self._data:
 			del self._data[jid]
-		
+
 	def getItem(self, jid):
 		#print 'roster_zeroconf.py: getItem: %s' % jid
 		if jid in self._data:
 			return self._data[jid]
 
-	def __getitem__(self,jid):
+	def __getitem__(self, jid):
 		#print 'roster_zeroconf.py: __getitem__'
 		return self._data[jid]
-	
+
 	def getItems(self):
 		#print 'roster_zeroconf.py: getItems'
 		# Return list of all [bare] JIDs that the roster currently tracks.
 		return self._data.keys()
-	
+
 	def keys(self):
 		#print 'roster_zeroconf.py: keys'
 		return self._data.keys()
-	
+
 	def getRaw(self):
 		#print 'roster_zeroconf.py: getRaw'
 		return self._data
@@ -118,7 +118,7 @@ class Roster:
 	def getResources(self, jid):
 		#print 'roster_zeroconf.py: getResources(%s)' % jid
 		return {}
-		
+
 	def getGroups(self, jid):
 		return self._data[jid]['groups']
 
@@ -138,23 +138,23 @@ class Roster:
 		#print 'roster_zeroconf.py: getShow'
 		return self.getStatus(jid)
 
-	def getPriority(jid):
+	def getPriority(self, jid):
 		return 5
 
-	def getSubscription(self,jid):
+	def getSubscription(self, jid):
 		#print 'roster_zeroconf.py: getSubscription'
 		return 'both'
 
-	def Subscribe(self,jid):
-		pass
-		
-	def Unsubscribe(self,jid):
-		pass
-	
-	def Authorize(self,jid):
+	def Subscribe(self, jid):
 		pass
 
-	def Unauthorize(self,jid):
+	def Unsubscribe(self, jid):
+		pass
+
+	def Authorize(self, jid):
+		pass
+
+	def Unauthorize(self, jid):
 		pass
 
 # vim: se ts=3:

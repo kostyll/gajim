@@ -27,6 +27,7 @@ import os
 import sys
 import stat
 
+import exceptions
 from common import gajim
 import logger
 
@@ -41,7 +42,7 @@ except ImportError:
 
 def create_log_db():
 	print _('creating logs database')
-	con = sqlite.connect(logger.LOG_DB_PATH) 
+	con = sqlite.connect(logger.LOG_DB_PATH)
 	os.chmod(logger.LOG_DB_PATH, 0600) # rw only for us
 	cur = con.cursor()
 	# create the tables
@@ -60,19 +61,19 @@ def create_log_db():
 			jid TEXT UNIQUE,
 			type INTEGER
 		);
-		
+
 		CREATE TABLE unread_messages(
 			message_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
 			jid_id INTEGER
 		);
-		
+
 		CREATE INDEX idx_unread_messages_jid_id ON unread_messages (jid_id);
-		
+
 		CREATE TABLE transports_cache (
 			transport TEXT UNIQUE,
 			type INTEGER
 		);
-		
+
 		CREATE TABLE logs(
 			log_line_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
 			jid_id INTEGER,
@@ -83,7 +84,7 @@ def create_log_db():
 			message TEXT,
 			subject TEXT
 		);
-		
+
 		CREATE INDEX idx_logs_jid_id_kind ON logs (jid_id, kind);
 
 		CREATE TABLE caps_cache (
@@ -136,7 +137,7 @@ def check_and_possibly_create_paths():
 			print _('%s is a directory but should be a file') % LOG_DB_PATH
 			print _('Gajim will now exit')
 			sys.exit()
-		
+
 	else: # dot_gajim doesn't exist
 		if dot_gajim: # is '' on win9x so avoid that
 			create_path(dot_gajim)

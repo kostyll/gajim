@@ -1,4 +1,4 @@
-##   filetransfer.py 
+##   filetransfer.py
 ##
 ##   Copyright (C) 2004 Alexey "Snake" Nezhdanov
 ##
@@ -28,7 +28,7 @@ class IBB(PlugIn):
     """ IBB used to transfer small-sized data chunk over estabilished xmpp connection.
         Data is split into small blocks (by default 3000 bytes each), encoded as base 64
         and sent to another entity that compiles these blocks back into the data chunk.
-        This is very inefficiend but should work under any circumstances. Note that 
+        This is very inefficiend but should work under any circumstances. Note that
         using IBB normally should be the last resort.
     """
     def __init__(self):
@@ -58,21 +58,21 @@ class IBB(PlugIn):
 
     def StreamOpenHandler(self,conn,stanza):
         """ Handles opening of new incoming stream. Used internally. """
-        """
-<iq type='set' 
-    from='romeo@montague.net/orchard'
-    to='juliet@capulet.com/balcony'
-    id='inband_1'>
-  <open sid='mySID' 
-        block-size='4096'
-        xmlns='http://jabber.org/protocol/ibb'/>
-</iq>
-"""
+        # <iq type='set'
+        #     from='romeo@montague.net/orchard'
+        #     to='juliet@capulet.com/balcony'
+        #     id='inband_1'>
+        #   <open sid='mySID'
+        #         block-size='4096'
+        #         xmlns='http://jabber.org/protocol/ibb'/>
+        # </iq>
         err=None
         sid,blocksize=stanza.getTagAttr('open','sid'),stanza.getTagAttr('open','block-size')
         self.DEBUG('StreamOpenHandler called sid->%s blocksize->%s'%(sid,blocksize),'info')
-        try: blocksize=int(blocksize)
-        except: err=ERR_BAD_REQUEST
+        try:
+            blocksize=int(blocksize)
+        except Exception:
+            err=ERR_BAD_REQUEST
         if not sid or not blocksize: err=ERR_BAD_REQUEST
         elif sid in self._streams.keys(): err=ERR_UNEXPECTED_REQUEST
         if err: rep=Error(stanza,err)
@@ -101,7 +101,8 @@ class IBB(PlugIn):
         self.DEBUG('SendHandler called','info')
         for sid in self._streams.keys():
             stream=self._streams[sid]
-            if stream['direction'][:2]=='|>': cont=1
+            if stream['direction'][:2]=='|>':
+                pass
             elif stream['direction'][0]=='>':
                 chunk=stream['fp'].read(stream['block-size'])
                 if chunk:
@@ -110,29 +111,27 @@ class IBB(PlugIn):
                     if stream['seq']==65536: stream['seq']=0
                     conn.send(Protocol('message',stream['direction'][1:],payload=[datanode,self._ampnode]))
                 else:
-                    """ notify the other side about stream closing
-                        notify the local user about sucessfull send
-                        delete the local stream"""
+                    # notify the other side about stream closing
+                    # notify the local user about sucessfull send
+                    # delete the local stream
                     conn.send(Protocol('iq',stream['direction'][1:],'set',payload=[Node(NS_IBB+' close',{'sid':sid})]))
                     conn.Event(self.DBG_LINE,'SUCCESSFULL SEND',stream)
                     del self._streams[sid]
                     self._owner.UnregisterCycleHandler(self.SendHandler)
 
-                    """
-<message from='romeo@montague.net/orchard' to='juliet@capulet.com/balcony' id='msg1'>
-  <data xmlns='http://jabber.org/protocol/ibb' sid='mySID' seq='0'>
-    qANQR1DBwU4DX7jmYZnncmUQB/9KuKBddzQH+tZ1ZywKK0yHKnq57kWq+RFtQdCJ
-    WpdWpR0uQsuJe7+vh3NWn59/gTc5MDlX8dS9p0ovStmNcyLhxVgmqS8ZKhsblVeu
-    IpQ0JgavABqibJolc3BKrVtVV1igKiX/N7Pi8RtY1K18toaMDhdEfhBRzO/XB0+P
-    AQhYlRjNacGcslkhXqNjK5Va4tuOAPy2n1Q8UUrHbUd0g+xJ9Bm0G0LZXyvCWyKH
-    kuNEHFQiLuCY6Iv0myq6iX6tjuHehZlFSh80b5BVV9tNLwNR5Eqz1klxMhoghJOA
-  </data>
-  <amp xmlns='http://jabber.org/protocol/amp'>
-    <rule condition='deliver-at' value='stored' action='error'/>
-    <rule condition='match-resource' value='exact' action='error'/>
-  </amp>
-</message>
-"""
+# <message from='romeo@montague.net/orchard' to='juliet@capulet.com/balcony' id='msg1'>
+#   <data xmlns='http://jabber.org/protocol/ibb' sid='mySID' seq='0'>
+#     qANQR1DBwU4DX7jmYZnncmUQB/9KuKBddzQH+tZ1ZywKK0yHKnq57kWq+RFtQdCJ
+#     WpdWpR0uQsuJe7+vh3NWn59/gTc5MDlX8dS9p0ovStmNcyLhxVgmqS8ZKhsblVeu
+#     IpQ0JgavABqibJolc3BKrVtVV1igKiX/N7Pi8RtY1K18toaMDhdEfhBRzO/XB0+P
+#     AQhYlRjNacGcslkhXqNjK5Va4tuOAPy2n1Q8UUrHbUd0g+xJ9Bm0G0LZXyvCWyKH
+#     kuNEHFQiLuCY6Iv0myq6iX6tjuHehZlFSh80b5BVV9tNLwNR5Eqz1klxMhoghJOA
+#   </data>
+#   <amp xmlns='http://jabber.org/protocol/amp'>
+#     <rule condition='deliver-at' value='stored' action='error'/>
+#     <rule condition='match-resource' value='exact' action='error'/>
+#   </amp>
+# </message>
 
     def ReceiveHandler(self,conn,stanza):
         """ Receive next portion of incoming datastream and store it write
@@ -140,8 +139,12 @@ class IBB(PlugIn):
         """
         sid,seq,data=stanza.getTagAttr('data','sid'),stanza.getTagAttr('data','seq'),stanza.getTagData('data')
         self.DEBUG('ReceiveHandler called sid->%s seq->%s'%(sid,seq),'info')
-        try: seq=int(seq); data=base64.decodestring(data)
-        except: seq=''; data=''
+        try:
+            seq=int(seq)
+            data=base64.decodestring(data)
+        except Exception:
+            seq=''
+            data=''
         err=None
         if not sid in self._streams.keys(): err=ERR_ITEM_NOT_FOUND
         else:

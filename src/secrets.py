@@ -21,6 +21,7 @@
 
 from common.configpaths import gajimpaths
 
+import Crypto
 from common import crypto
 from common import exceptions
 
@@ -53,7 +54,7 @@ class Secrets:
 		except KeyError:
 			return []
 
-	# retained secrets are stored as a tuple of the secret and whether the user 
+	# retained secrets are stored as a tuple of the secret and whether the user
 	# has verified it
 	def save_new_srs(self, account, jid, secret, verified):
 		if not account in self.srs:
@@ -68,7 +69,7 @@ class Secrets:
 
 	def find_srs(self, account, jid, srs):
 		our_secrets = self.srs[account][jid]
-		return filter(lambda (x,y): x == srs, our_secrets)[0]
+		return [(x, y) for x, y in our_secrets if x == srs][0]
 
 	# has the user verified this retained secret?
 	def srs_verified(self, account, jid, srs):

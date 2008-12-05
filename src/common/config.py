@@ -191,7 +191,7 @@ class Config:
 		'noconfirm_close_muc_rooms': [opt_str, '', _('Never ask before closing group chat tab/window in this space separated list of group chat jids.')],
 		'notify_on_file_complete': [opt_bool, True],
 		'file_transfers_port': [opt_int, 28011],
-		'ft_add_hosts_to_send': [opt_str, '', _('Comma separated list of hosts that we send, in addition of local interfaces, for File Transfer in case of address translation/port forwarding.')], 
+		'ft_add_hosts_to_send': [opt_str, '', _('Comma separated list of hosts that we send, in addition of local interfaces, for File Transfer in case of address translation/port forwarding.')],
 		'conversation_font': [opt_str, ''],
 		'use_kib_mib': [opt_bool, False, _('IEC standard says KiB = 1024 bytes, KB = 1000 bytes.')],
 		'notify_on_all_muc_messages': [opt_bool, False],
@@ -475,11 +475,11 @@ class Config:
 			cb(data, opt, None, self.__options[opt])
 		for opt in self.__options_per_key:
 			cb(data, opt, None, None)
-			dict = self.__options_per_key[opt][1]
-			for opt2 in dict.keys():
+			dict_ = self.__options_per_key[opt][1]
+			for opt2 in dict_.keys():
 				cb(data, opt2, [opt], None)
-				for opt3 in dict[opt2]:
-					cb(data, opt3, [opt, opt2], dict[opt2][opt3])
+				for opt3 in dict_[opt2]:
+					cb(data, opt3, [opt, opt2], dict_[opt2][opt3])
 
 	def get_children(self, node=None):
 		''' Tree-like interface '''
@@ -557,7 +557,7 @@ class Config:
 		if optname not in self.__options:
 			return None
 		return self.__options[optname][OPT_VAL]
-		
+
 	def get_desc(self, optname):
 		if optname not in self.__options:
 			return None
@@ -574,7 +574,7 @@ class Config:
 		if typename not in self.__options_per_key:
 #			raise RuntimeError, 'option %s does not exist' % typename
 			return
-		
+
 		opt = self.__options_per_key[typename]
 		if name in opt[1]:
 			# we already have added group name before
@@ -589,7 +589,7 @@ class Config:
 		opt = self.__options_per_key[typename]
 		if subname is None:
 			del opt[1][name]
-		# if subname is specified, delete the item in the group.	
+		# if subname is specified, delete the item in the group.
 		elif subname in opt[1][name]:
 			del opt[1][name][subname]
 
@@ -599,11 +599,11 @@ class Config:
 			return
 		if not key:
 			return
-		dict = self.__options_per_key[optname][1]
-		if key not in dict:
-#			raise RuntimeError, '%s is not a key of %s' % (key, dict)
+		dict_ = self.__options_per_key[optname][1]
+		if key not in dict_:
+#			raise RuntimeError, '%s is not a key of %s' % (key, dict_)
 			self.add_per(optname, key)
-		obj = dict[key]
+		obj = dict_[key]
 		if subname not in obj:
 #			raise RuntimeError, '%s is not a key of %s' % (subname, obj)
 			return
@@ -617,16 +617,16 @@ class Config:
 	def get_per(self, optname, key = None, subname = None): # per_group_of_option
 		if optname not in self.__options_per_key:
 			return None
-		dict = self.__options_per_key[optname][1]
+		dict_ = self.__options_per_key[optname][1]
 		if not key:
-			return dict.keys()
-		if key not in dict:
+			return dict_.keys()
+		if key not in dict_:
 			if optname in self.__options_per_key \
 			and subname in self.__options_per_key[optname][0]:
 				return self.__options_per_key \
 					[optname][0][subname][1]
 			return None
-		obj = dict[key]
+		obj = dict_[key]
 		if not subname:
 			return obj
 		if subname not in obj:
@@ -636,12 +636,12 @@ class Config:
 	def get_desc_per(self, optname, key = None, subname = None):
 		if optname not in self.__options_per_key:
 			return None
-		dict = self.__options_per_key[optname][1]
+		dict_ = self.__options_per_key[optname][1]
 		if not key:
 			return None
-		if key not in dict:
+		if key not in dict_:
 			return None
-		obj = dict[key]
+		obj = dict_[key]
 		if not subname:
 			return None
 		if subname not in obj:
@@ -653,12 +653,12 @@ class Config:
 	def get_restart_per(self, optname, key = None, subname = None):
 		if optname not in self.__options_per_key:
 			return False
-		dict = self.__options_per_key[optname][1]
+		dict_ = self.__options_per_key[optname][1]
 		if not key:
 			return False
-		if key not in dict:
+		if key not in dict_:
 			return False
-		obj = dict[key]
+		obj = dict_[key]
 		if not subname:
 			return False
 		if subname not in obj:

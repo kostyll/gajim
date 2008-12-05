@@ -85,21 +85,21 @@ class MessageWindow(object):
 			orig_window.destroy()
 			del orig_window
 
-		# NOTE: we use 'connect_after' here because in 
+		# NOTE: we use 'connect_after' here because in
 		# MessageWindowMgr._new_window we register handler that saves window
 		# state when closing it, and it should be called before
 		# MessageWindow._on_window_delete, which manually destroys window
 		# through win.destroy() - this means no additional handlers for
 		# 'delete-event' are called.
-		id = self.window.connect_after('delete-event', self._on_window_delete)
-		self.handlers[id] = self.window
-		id = self.window.connect('destroy', self._on_window_destroy)
-		self.handlers[id] = self.window
-		id = self.window.connect('focus-in-event', self._on_window_focus)
-		self.handlers[id] = self.window
+		id_ = self.window.connect_after('delete-event', self._on_window_delete)
+		self.handlers[id_] = self.window
+		id_ = self.window.connect('destroy', self._on_window_destroy)
+		self.handlers[id_] = self.window
+		id_ = self.window.connect('focus-in-event', self._on_window_focus)
+		self.handlers[id_] = self.window
 
 		keys=['<Control>f', '<Control>g', '<Control>h', '<Control>i',
-			'<Control>l', '<Control>L', '<Control>n', '<Control>u', '<Control>v',
+			'<Control>l', '<Control>L', '<Control>n', '<Control>u',
 			'<Control>b', '<Control><Shift>Tab', '<Control>Tab', '<Control>F4',
 			'<Control>w', '<Control>Page_Up', '<Control>Page_Down', '<Alt>Right',
 			'<Alt>Left', '<Alt>a', '<Alt>c', '<Alt>m', '<Alt>t', 'Escape'] + \
@@ -116,12 +116,12 @@ class MessageWindow(object):
 		self.window.add_events(gtk.gdk.POINTER_MOTION_MASK)
 		self.alignment = self.xml.get_widget('alignment')
 
-		id = self.notebook.connect('switch-page',
+		id_ = self.notebook.connect('switch-page',
 			self._on_notebook_switch_page)
-		self.handlers[id] = self.notebook
-		id = self.notebook.connect('key-press-event',
+		self.handlers[id_] = self.notebook
+		id_ = self.notebook.connect('key-press-event',
 			self._on_notebook_key_press)
-		self.handlers[id] = self.notebook
+		self.handlers[id_] = self.notebook
 
 		# Remove the glade pages
 		while self.notebook.get_n_pages():
@@ -166,10 +166,7 @@ class MessageWindow(object):
 			self.account = new_name
 
 	def get_num_controls(self):
-		n = 0
-		for dict in self._controls.values():
-			n += len(dict)
-		return n
+		return sum(len(d) for d in self._controls.values())
 
 	def resize(self, width, height):
 		gtkgui_helpers.resize_window(self.window, width, height)
@@ -213,7 +210,6 @@ class MessageWindow(object):
 			self.on_delete_ok -= 1
 
 		# Make sure all controls are okay with being deleted
-		ctrl_to_minimize = []
 		self.on_delete_ok = self.get_nb_controls()
 		for ctrl in self.controls():
 			ctrl.allow_shutdown(self.CLOSE_CLOSE_BUTTON, on_yes, on_no,
@@ -257,12 +253,12 @@ class MessageWindow(object):
 		xml = gtkgui_helpers.get_glade('message_window.glade', 'chat_tab_ebox')
 		tab_label_box = xml.get_widget('chat_tab_ebox')
 		widget = xml.get_widget('tab_close_button')
-		id = widget.connect('clicked', self._on_close_button_clicked, control)
-		control.handlers[id] = widget
+		id_ = widget.connect('clicked', self._on_close_button_clicked, control)
+		control.handlers[id_] = widget
 
-		id = tab_label_box.connect('button-press-event', self.on_tab_eventbox_button_press_event,
+		id_ = tab_label_box.connect('button-press-event', self.on_tab_eventbox_button_press_event,
 					control.widget)
-		control.handlers[id] = tab_label_box
+		control.handlers[id_] = tab_label_box
 		self.notebook.append_page(control.widget, tab_label_box)
 
 		# If GTK+ version >= 2.10, use gtk native way to reorder tabs
@@ -337,16 +333,6 @@ class MessageWindow(object):
 				control._on_change_nick_menuitem_activate(None)
 			elif keyval == gtk.keysyms.u: # CTRL + u: emacs style clear line
 				control.clear(control.msg_textview)
-			elif keyval == gtk.keysyms.v: # CTRL + v: Paste into msg_textview
-				if not control.msg_textview.is_focus():
-					control.msg_textview.grab_focus()
-				# Paste into the msg textview
-				event = gtk.gdk.Event(gtk.gdk.KEY_PRESS)
-				event.window = self.window.window
-				event.time = int(time.time())
-				event.state = gtk.gdk.CONTROL_MASK
-				event.keyval = gtk.keysyms.v
-				control.msg_textview.emit('key_press_event', event)
 			elif control.type_id == message_control.TYPE_GC and \
 			keyval == gtk.keysyms.b: # CTRL + b
 				control._on_bookmark_room_menuitem_activate(None)
@@ -401,6 +387,7 @@ class MessageWindow(object):
 		elif keyval == gtk.keysyms.Escape and \
 				gajim.config.get('escape_key_closes'): # Escape
 			self.remove_tab(control, self.CLOSE_ESC)
+		return True
 
 	def _on_close_button_clicked(self, button, control):
 		'''When close button is pressed: close a tab'''
@@ -452,9 +439,6 @@ class MessageWindow(object):
 			label = None
 		elif self.get_num_controls() == 1:
 			label = name
-			state = control.contact.chatstate
-			if state and bool(len(state)):
-				label = '%s (%s)' % (label, _(state.capitalize()))
 		else:
 			label = _('Messages')
 
@@ -582,8 +566,6 @@ class MessageWindow(object):
 			else:
 				status_img.set_from_pixbuf(tab_img.get_pixbuf())
 
-		self.show_title()
-
 	def repaint_themed_widgets(self):
 		'''Repaint controls in the window with theme color'''
 		# iterate through controls and repaint
@@ -676,11 +658,7 @@ class MessageWindow(object):
 				yield ctrl
 
 	def get_nb_controls(self):
-		nb_ctrl = 0
-		for jid_dict in self._controls.values():
-			for ctrl in jid_dict.values():
-				nb_ctrl += 1
-		return nb_ctrl
+		return sum(len(jid_dict) for jid_dict in self._controls.values())
 
 	def move_to_next_unread_tab(self, forward):
 		ind = self.notebook.get_current_page()
@@ -708,7 +686,7 @@ class MessageWindow(object):
 				# If no composing contact found yet, check if this one is composing
 					first_composing_ind = ind
 			if ind == current:
-				break # a complete cycle without finding an unread tab 
+				break # a complete cycle without finding an unread tab
 		if found:
 			self.notebook.set_current_page(ind)
 		elif first_composing_ind != -1:
@@ -747,15 +725,36 @@ class MessageWindow(object):
 			control.msg_textview.grab_focus()
 
 	def _on_notebook_key_press(self, widget, event):
-		# Ctrl+PageUP / DOWN has to be handled by notebook
-		if (event.state & gtk.gdk.CONTROL_MASK and
-				event.keyval in (gtk.keysyms.Page_Down, gtk.keysyms.Page_Up)):
-			return False
 		# when tab itself is selected, make sure <- and -> are allowed for navigating between tabs
 		if event.keyval in (gtk.keysyms.Left, gtk.keysyms.Right):
 			return False
 
 		control = self.get_active_control()
+
+		if event.state & gtk.gdk.SHIFT_MASK:
+			# CTRL + SHIFT + TAB
+			if event.state & gtk.gdk.CONTROL_MASK and \
+			event.keyval == gtk.keysyms.ISO_Left_Tab:
+				self.move_to_next_unread_tab(False)
+				return True
+			# SHIFT + PAGE_[UP|DOWN]: send to conv_textview
+			elif event.keyval in (gtk.keysyms.Page_Down, gtk.keysyms.Page_Up):
+				control.conv_textview.tv.emit('key_press_event', event)
+				return True
+		elif event.state & gtk.gdk.CONTROL_MASK:
+			if event.keyval == gtk.keysyms.Tab: # CTRL + TAB
+				self.move_to_next_unread_tab(True)
+				return True
+			# Ctrl+PageUP / DOWN has to be handled by notebook
+			elif event.keyval == gtk.keysyms.Page_Down:
+				self.move_to_next_unread_tab(True)
+				return True
+			elif event.keyval == gtk.keysyms.Page_Up:
+				self.move_to_next_unread_tab(False)
+				return True
+		elif event.keyval == gtk.keysyms.Control_L:
+			return True
+
 		if isinstance(control, ChatControlBase):
 			# we forwarded it to message textview
 			control.msg_textview.emit('key_press_event', event)
@@ -781,7 +780,7 @@ class MessageWindow(object):
 		selection, type_, time):
 		'''Reorder the tabs according to the drop position'''
 		source_page_num = int(selection.data)
-		dest_page_num, to_right = self.get_tab_at_xy(x, y)
+		dest_page_num = self.get_tab_at_xy(x, y)[0]
 		source_child = self.notebook.get_nth_page(source_page_num)
 		if dest_page_num != source_page_num:
 			self.notebook.reorder_child(source_child, dest_page_num)

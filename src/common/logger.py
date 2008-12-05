@@ -176,9 +176,9 @@ class Logger:
 		pm (so higly unlikely) and if we fail we do not go chaos
 		(user will see the first pm as if it was message in room's public chat)
 		and after that all okay'''
-		
-		if jid.find('/') > -1: 
-			possible_room_jid, possible_nick = jid.split('/', 1)
+
+		if jid.find('/') > -1:
+			possible_room_jid = jid.split('/', 1)[1]
 			return self.jid_is_room_jid(possible_room_jid)
 		else:
 			# it's not a full jid, so it's not a pm one
@@ -336,7 +336,7 @@ class Logger:
 		try:
 			self.cur.execute(sql, values)
 		except sqlite.DatabaseError:
-			raise exceptions.DatabaseMalformed 
+			raise exceptions.DatabaseMalformed
 		except sqlite.OperationalError, e:
 			raise exceptions.PysqliteOperationalError(str(e))
 		message_id = None
@@ -373,7 +373,7 @@ class Logger:
 		for message in results:
 			msg_id = message[0]
 			# here we get infos for that message, and related jid from jids table
-			# do NOT change order of SELECTed things, unless you change function(s) 
+			# do NOT change order of SELECTed things, unless you change function(s)
 			# that called this function
 			self.cur.execute('''
 				SELECT logs.log_line_id, logs.message, logs.time, logs.subject,
@@ -480,7 +480,7 @@ class Logger:
 		returns a list of tupples containg time, kind, message,
 		list with empty tupple if nothing found to meet our demands'''
 		try:
-			jid_id = self.get_jid_id(jid)
+			self.get_jid_id(jid)
 		except exceptions.PysqliteOperationalError, e:
 			# Error trying to create a new jid_id. This means there is no log
 			return []
@@ -522,7 +522,7 @@ class Logger:
 		for each row in a list of tupples,
 		returns list with empty tupple if we found nothing to meet our demands'''
 		try:
-			jid_id = self.get_jid_id(jid)
+			self.get_jid_id(jid)
 		except exceptions.PysqliteOperationalError, e:
 			# Error trying to create a new jid_id. This means there is no log
 			return []
@@ -547,7 +547,7 @@ class Logger:
 		for each row in a list of tupples,
 		returns list with empty tupple if we found nothing to meet our demands'''
 		try:
-			jid_id = self.get_jid_id(jid)
+			self.get_jid_id(jid)
 		except exceptions.PysqliteOperationalError, e:
 			# Error trying to create a new jid_id. This means there is no log
 			return []
@@ -574,7 +574,7 @@ class Logger:
 	def get_days_with_logs(self, jid, year, month, max_day, account):
 		'''returns the list of days that have logs (not status messages)'''
 		try:
-			jid_id = self.get_jid_id(jid)
+			self.get_jid_id(jid)
 		except exceptions.PysqliteOperationalError, e:
 			# Error trying to create a new jid_id. This means there is no log
 			return []
@@ -751,7 +751,7 @@ class Logger:
 		# the data field contains binary object (gzipped data), this is a hack
 		# to get that data without trying to convert it to unicode
 		try:
-			self.cur.execute('SELECT hash_method, hash, data FROM caps_cache;');
+			self.cur.execute('SELECT hash_method, hash, data FROM caps_cache;')
 		except sqlite.OperationalError:
 			# might happen when there's no caps_cache table yet
 			# -- there's no data to read anyway then
@@ -759,7 +759,7 @@ class Logger:
 
 		# list of corrupted entries that will be removed
 		to_be_removed = []
-		for hash_method, hash, data in self.cur:
+		for hash_method, hash_, data in self.cur:
 			# for each row: unpack the data field
 			# (format: (category, type, name, category, type, name, ...
 			#   ..., 'FEAT', feature1, feature2, ...).join(' '))
@@ -768,7 +768,7 @@ class Logger:
 				data = GzipFile(fileobj=StringIO(str(data))).read().decode('utf-8').split('\0')
 			except IOError:
 				# This data is corrupted. It probably contains non-ascii chars
-				to_be_removed.append((hash_method, hash))
+				to_be_removed.append((hash_method, hash_))
 				continue
 			i=0
 			identities = list()
@@ -787,9 +787,9 @@ class Logger:
 				i += 1
 
 			# yield the row
-			yield hash_method, hash, identities, features
-		for hash_method, hash in to_be_removed:
-			sql = 'DELETE FROM caps_cache WHERE hash_method = "%s" AND hash = "%s"' % (hash_method, hash)
+			yield hash_method, hash_, identities, features
+		for hash_method, hash_ in to_be_removed:
+			sql = 'DELETE FROM caps_cache WHERE hash_method = "%s" AND hash = "%s"' % (hash_method, hash_)
 			self.simple_commit(sql)
 
 	def add_caps_entry(self, hash_method, hash_, identities, features):

@@ -28,6 +28,7 @@ from common import gajim
 from common import xmpp
 from common import exceptions
 
+import itertools
 import random
 import string
 
@@ -91,8 +92,8 @@ class StanzaSession(object):
 		return any_removed
 
 	def generate_thread_id(self):
-		return ''.join([random.choice(string.ascii_letters) for x in xrange(0,
-			32)])
+		return ''.join([f(string.ascii_letters) for f in itertools.repeat(
+			random.choice, 32)])
 
 	def send(self, msg):
 		if self.thread_id:
@@ -239,12 +240,12 @@ class EncryptedStanzaSession(StanzaSession):
 
 	def sign(self, string):
 		if self.negotiated['sign_algs'] == (XmlDsig + 'rsa-sha256'):
-			hash = crypto.sha256(string)
-			return crypto.encode_mpi(gajim.pubkey.sign(hash, '')[0])
+			hash_ = crypto.sha256(string)
+			return crypto.encode_mpi(gajim.pubkey.sign(hash_, '')[0])
 
 	def encrypt_stanza(self, stanza):
-		encryptable = filter(lambda x: x.getName() not in ('error', 'amp',
-			'thread'), stanza.getChildren())
+		encryptable = [x for x in stanza.getChildren() if x.getName() not in ('error', 'amp',
+			'thread')]
 
 		# XXX can also encrypt contents of <error/> elements in stanzas @type =
 		# 'error'
@@ -283,7 +284,7 @@ class EncryptedStanzaSession(StanzaSession):
 		return stanza
 
 	def is_xep_200_encrypted(self, msg):
-		msg.getTag('c', namespace=common.xmpp.NS_STANZA_CRYPTO)
+		msg.getTag('c', namespace=xmpp.NS_STANZA_CRYPTO)
 
 	def hmac(self, key, content):
 		return HMAC.new(key, content, self.hash_alg).digest()
@@ -323,8 +324,7 @@ class EncryptedStanzaSession(StanzaSession):
 		stanza.delChild(c)
 
 		# contents of <c>, minus <mac>, minus whitespace
-		macable = ''.join(map(str, filter(lambda x: x.getName() != 'mac',
-			c.getChildren())))
+		macable = ''.join(str(x) for x in c.getChildren() if x.getName() != 'mac')
 
 		received_mac = base64.b64decode(c.getTagData('mac'))
 		calculated_mac = self.hmac(self.km_o, macable + \
@@ -364,8 +364,8 @@ class EncryptedStanzaSession(StanzaSession):
 
 	def c7lize_mac_id(self, form):
 		kids = form.getChildren()
-		macable = filter(lambda x: x.getVar() not in ('mac', 'identity'), kids)
-		return ''.join(map(lambda el: xmpp.c14n.c14n(el), macable))
+		macable = [x for x in kids if x.getVar() not in ('mac', 'identity')]
+		return ''.join(xmpp.c14n.c14n(el) for el in macable)
 
 	def verify_identity(self, form, dh_i, sigmai, i_o):
 		m_o = base64.b64decode(form['mac'])
@@ -386,22 +386,21 @@ class EncryptedStanzaSession(StanzaSession):
 			parsed = xmpp.Node(node='<node>' + plaintext + '</node>')
 
 			if self.negotiated['recv_pubkey'] == 'hash':
-				fingerprint = parsed.getTagData('fingerprint')
-
+				# fingerprint = parsed.getTagData('fingerprint')
 				# XXX find stored pubkey or terminate session
-				raise 'unimplemented'
+				raise NotImplementedError()
 			else:
 				if self.negotiated['sign_algs'] == (XmlDsig + 'rsa-sha256'):
 					keyvalue = parsed.getTag(name='RSAKeyValue', namespace=XmlDsig)
 
-					n, e = map(lambda x: crypto.decode_mpi(base64.b64decode(
-						keyvalue.getTagData(x))), ('Modulus', 'Exponent'))
+					n, e = (crypto.decode_mpi(base64.b64decode(
+						keyvalue.getTagData(x))) for x in ('Modulus', 'Exponent'))
 					eir_pubkey = RSA.construct((n,long(e)))
 
 					pubkey_o = xmpp.c14n.c14n(keyvalue)
 				else:
 					# XXX DSA, etc.
-					raise 'unimplemented'
+					raise NotImplementedError()
 
 			enc_sig = parsed.getTag(name='SignatureValue',
 				namespace=XmlDsig).getData()
@@ -424,9 +423,9 @@ class EncryptedStanzaSession(StanzaSession):
 		mac_o_calculated = self.hmac(self.ks_o, content)
 
 		if self.negotiated['recv_pubkey']:
-			hash = crypto.sha256(mac_o_calculated)
+			hash_ = crypto.sha256(mac_o_calculated)
 
-			if not eir_pubkey.verify(hash, signature):
+			if not eir_pubkey.verify(hash_, signature):
 				raise exceptions.NegotiationError, 'public key signature verification failed!'
 
 		elif mac_o_calculated != mac_o:
@@ -438,8 +437,8 @@ class EncryptedStanzaSession(StanzaSession):
 				pubkey = secrets.secrets().my_pubkey(self.conn.name)
 				fields = (pubkey.n, pubkey.e)
 
-				cb_fields = map(lambda f: base64.b64encode(crypto.encode_mpi(f)),
-					fields)
+				cb_fields = [base64.b64encode(crypto.encode_mpi(f)) for f in
+					fields]
 
 				pubkey_s = '<RSAKeyValue xmlns="http://www.w3.org/2000/09/xmldsig#"'
 				'><Modulus>%s</Modulus><Exponent>%s</Exponent></RSAKeyValue>' % \
@@ -447,7 +446,7 @@ class EncryptedStanzaSession(StanzaSession):
 		else:
 			pubkey_s = ''
 
-		form_s2 = ''.join(map(lambda el: xmpp.c14n.c14n(el), form.getChildren()))
+		form_s2 = ''.join(xmpp.c14n.c14n(el) for el in form.getChildren())
 
 		old_c_s = self.c_s
 		content = self.n_o + self.n_s + crypto.encode_mpi(dh_i) + pubkey_s + \
@@ -478,7 +477,7 @@ class EncryptedStanzaSession(StanzaSession):
 
 			if self.sigmai:
 				# XXX save retained secret?
-				self.check_identity(lambda : ())
+				self.check_identity(tuple)
 
 		return (xmpp.DataField(name='identity', value=base64.b64encode(id_s)),
 			xmpp.DataField(name='mac', value=base64.b64encode(m_s)))
@@ -543,12 +542,12 @@ class EncryptedStanzaSession(StanzaSession):
 			',') ]
 
 		x.addChild(node=xmpp.DataField(name='modp', typ='list-single',
-			options=map(lambda x: [ None, x ], modp_options)))
+			options=[[None, x] for x in modp_options]))
 
 		x.addChild(node=self.make_dhfield(modp_options, sigmai))
 		self.sigmai = sigmai
 
-		self.form_s = ''.join(map(lambda el: xmpp.c14n.c14n(el), x.getChildren()))
+		self.form_s = ''.join(xmpp.c14n.c14n(el) for el in x.getChildren())
 
 		feature.addChild(node=x)
 
@@ -574,9 +573,9 @@ class EncryptedStanzaSession(StanzaSession):
 		self.hash_alg = SHA256
 		self.compression = None
 
-		for name, field in map(lambda name: (name, form.getField(name)),
-		form.asDict().keys()):
-			options = map(lambda x: x[1], field.getOptions())
+		for name in form.asDict():
+			field = form.getField(name)
+			options = [x[1] for x in field.getOptions()]
 			values = field.getValues()
 
 			if not field.getType() in ('list-single', 'list-multi'):
@@ -677,9 +676,8 @@ class EncryptedStanzaSession(StanzaSession):
 			b64ed = base64.b64encode(to_add[name])
 			x.addChild(node=xmpp.DataField(name=name, value=b64ed))
 
-		self.form_o = ''.join(map(lambda el: xmpp.c14n.c14n(el),
-			form.getChildren()))
-		self.form_s = ''.join(map(lambda el: xmpp.c14n.c14n(el), x.getChildren()))
+		self.form_o = ''.join(xmpp.c14n.c14n(el) for el in form.getChildren())
+		self.form_s = ''.join(xmpp.c14n.c14n(el) for el in x.getChildren())
 
 		self.status = 'responded-e2e'
 
@@ -771,7 +769,7 @@ class EncryptedStanzaSession(StanzaSession):
 		else:
 			srses = secrets.secrets().retained_secrets(self.conn.name,
 				self.jid.getStripped())
-			rshashes = [self.hmac(self.n_s, rs) for (rs,v) in srses]
+			rshashes = [self.hmac(self.n_s, rs[0]) for rs in srses]
 
 			if not rshashes:
 				# we've never spoken before, but we'll pretend we have
@@ -783,8 +781,7 @@ class EncryptedStanzaSession(StanzaSession):
 			result.addChild(node=xmpp.DataField(name='dhkeys',
 				value=base64.b64encode(crypto.encode_mpi(e))))
 
-			self.form_o = ''.join(map(lambda el: xmpp.c14n.c14n(el),
-				form.getChildren()))
+			self.form_o = ''.join(xmpp.c14n.c14n(el) for el in form.getChildren())
 
 		# MUST securely destroy K unless it will be used later to generate the
 		# final shared secret
@@ -838,7 +835,8 @@ class EncryptedStanzaSession(StanzaSession):
 		rshashes = [base64.b64decode(rshash) for rshash in form.getField(
 			'rshashes').getValues()]
 
-		for (secret, verified) in srses:
+		for s in srses:
+			secret = s[0]
 			if self.hmac(self.n_o, secret) in rshashes:
 				srs = secret
 				break
@@ -889,7 +887,8 @@ class EncryptedStanzaSession(StanzaSession):
 
 		srshash = base64.b64decode(form['srshash'])
 
-		for (secret, verified) in srses:
+		for s in srses:
+			secret = s[0]
 			if self.hmac(secret, 'Shared Retained Secret') == srshash:
 				srs = secret
 				break
