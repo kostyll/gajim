@@ -1,0 +1,34 @@
+--- gtk+-2.14.4/gdk/quartz/gdkevents-quartz.c.orig	2008-10-17 06:06:35.000000000 +0200
++++ gtk+-2.14.4/gdk/quartz/gdkevents-quartz.c	2008-11-28 16:20:20.000000000 +0100
+@@ -473,11 +473,9 @@
+   if (nsflags & NSShiftKeyMask)
+     modifiers |= GDK_SHIFT_MASK;
+   if (nsflags & NSControlKeyMask)
+-    modifiers |= GDK_CONTROL_MASK;
+-  if (nsflags & NSCommandKeyMask)
+-    modifiers |= GDK_META_MASK;
+-  if (nsflags & NSAlternateKeyMask)
+     modifiers |= GDK_MOD1_MASK;
++  if (nsflags & NSCommandKeyMask)
++    modifiers |= GDK_CONTROL_MASK;
+
+   return modifiers;
+ }
+@@ -1587,7 +1585,7 @@
+         {
+         case GDK_Meta_R:
+         case GDK_Meta_L:
+-          mask = GDK_META_MASK;
++          mask = GDK_MOD1_MASK;
+           break;
+         case GDK_Shift_R:
+         case GDK_Shift_L:
+@@ -1598,7 +1596,7 @@
+           break;
+         case GDK_Alt_R:
+         case GDK_Alt_L:
+-          mask = GDK_MOD1_MASK;
++          mask = GDK_MOD5_MASK;
+           break;
+         case GDK_Control_R:
+         case GDK_Control_L:
