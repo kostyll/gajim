@@ -183,6 +183,7 @@ AC_CONFIG_FILES([
 	scripts/gajim-remote
 	po/Makefile.in
 ])
+BUILDSYS_TOUCH_DEPS
 AC_OUTPUT
 echo " 
 ***************************** 
