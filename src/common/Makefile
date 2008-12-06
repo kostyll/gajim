@@ -41,7 +41,7 @@ SRCS = GnuPG.py			\
 
 include ../../buildsys.mk
 
-all: ${OBJS} idle.so
+all: ${OBJS}
 
 install-extra:
 	for i in ${OBJS}; do \
