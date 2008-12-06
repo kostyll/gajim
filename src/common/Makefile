@@ -43,11 +43,6 @@ include ../../buildsys.mk
 
 all: ${OBJS} idle.so
 
-# Don't depend on the actual file, we can create the symlink anyway
-idle.so:
-	rm -f idle.so
-	ln -s idle_c/idle.so idle.so
-
 install-extra:
 	for i in ${OBJS}; do \
 		${INSTALL_STATUS}; \
