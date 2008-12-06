@@ -26,8 +26,6 @@ SRCS = adhoc_commands.py		\
        history_window.py		\
        htmltextview.py			\
        ipython_view.py			\
-       lastfm.py			\
-       lastfm_track_listener.py		\
        message_control.py		\
        message_textview.py		\
        message_window.py		\
