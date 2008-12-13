@@ -146,7 +146,7 @@ dnl ****
 AC_ARG_ENABLE(trayicon,
   [  --disable-trayicon      do not build trayicon module [default yes]],
   enable_trayicon=$enableval, enable_trayicon=yes)
-if test "x$enable_trayicon" = "xyes" -a "x$have_cocoa" = "xyes"; then
+if test "x$enable_trayicon" = "xyes" -a "x$have_cocoa" != "xyes"; then
 	have_trayicon=true
 	AC_SUBST(TRAYMODULE, traymodule)
 else
