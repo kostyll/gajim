@@ -1,24 +1,18 @@
-SRCS = __init__.py	\
-       auth.py		\
-       auth_nb.py	\
-       browser.py	\
-       c14n.py		\
-       client.py	\
-       client_nb.py	\
-       commands.py	\
-       debug.py		\
-       dispatcher.py	\
-       dispatcher_nb.py	\
-       features.py	\
-       features_nb.py	\
-       filetransfer.py	\
-       idlequeue.py	\
-       protocol.py	\
-       roster.py	\
-       roster_nb.py	\
-       session.py	\
-       simplexml.py	\
-       transports.py	\
+SRCS = __init__.py		\
+       auth_nb.py		\
+       bosh.py			\
+       c14n.py			\
+       client.py		\
+       client_nb.py		\
+       debug.py			\
+       dispatcher_nb.py		\
+       features_nb.py		\
+       idlequeue.py		\
+       protocol.py		\
+       proxy_connectors.py	\
+       roster_nb.py		\
+       simplexml.py		\
+       tls_nb.py		\
        transports_nb.py
 
 include ../../../buildsys.mk

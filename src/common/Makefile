@@ -27,12 +27,12 @@ SRCS = GnuPG.py			\
        i18n.py			\
        idle.py			\
        logger.py		\
-       nslookup.py		\
        optparser.py		\
        passwords.py		\
        pep.py			\
        proxy65_manager.py	\
        pubsub.py		\
+       resolver.py		\
        rst_xhtml_generator.py	\
        sleepy.py		\
        socks5.py		\

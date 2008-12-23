@@ -313,7 +313,7 @@ class Config:
 			'keep_alives_enabled': [ opt_bool, True],
 			# send keepalive every N seconds of inactivity
 			'keep_alive_every_foo_secs': [ opt_int, 55 ],
-			'time_for_keep_alive_answer': [ opt_int, 20, _('How many seconds to wait for the answer of keepalive packet before we try to reconnect.') ],
+			'time_for_keep_alive_answer': [ opt_int, 30, _('How many seconds to wait for the answer of keepalive packet before we try to reconnect.') ],
 			# try for 2 minutes before giving up (aka. timeout after those seconds)
 			'try_connecting_for_foo_secs': [ opt_int, 60 ],
 			'http_auth': [opt_str, 'ask'], # yes, no, ask
@@ -358,8 +358,17 @@ class Config:
 			'type': [ opt_str, 'http' ],
 			'host': [ opt_str, '' ],
 			'port': [ opt_int, 3128 ],
+			'useauth': [ opt_bool, False ],
 			'user': [ opt_str, '' ],
 			'pass': [ opt_str, '' ],
+			'bosh_uri': [ opt_str, '' ],
+			'bosh_port': [ opt_int, 80 ],
+			'bosh_useproxy': [ opt_bool, False ],
+			'bosh_wait': [ opt_int, 30 ],
+			'bosh_hold': [ opt_int, 2 ],
+			'bosh_content': [ opt_str, 'text/xml; charset=utf-8' ],
+			'bosh_http_pipelining': [ opt_bool, False ],
+			'bosh_wait_for_restart_response': [ opt_bool, False ],
 		}, {}),
 		'themes': ({
 			'accounttextcolor': [ opt_color, 'black', '', True ],

@@ -2352,6 +2352,13 @@ class SingleMessageWindow:
 		for to_whom_jid in sender_list:
 			if to_whom_jid in self.completion_dict:
 				to_whom_jid = self.completion_dict[to_whom_jid].jid
+			try:
+				to_whom_jid = helpers.parse_jid(to_whom_jid)
+			except helpers.InvalidFormat:
+				ErrorDialog(_('Invalid Jabber ID'),
+					_('It is not possible to send a message to %s, this JID is not '
+					'valid.') % to_whom_jid)
+				return
 
 			subject = self.subject_entry.get_text().decode('utf-8')
 			begin, end = self.message_tv_buffer.get_bounds()
@@ -3168,7 +3175,8 @@ class AddSpecialNotificationDialog:
 		active = widget.get_active()
 		if active == 1: # user selected 'choose sound'
 			def on_ok(widget, path_to_snd_file):
-				print path_to_snd_file
+				pass
+				#print path_to_snd_file
 
 			def on_cancel(widget):
 				widget.set_active(0) # go back to No Sound
@@ -3180,11 +3188,9 @@ class AddSpecialNotificationDialog:
 		conditions = ('online', 'chat', 'online_and_chat',
 			'away', 'xa', 'away_and_xa', 'dnd', 'xa_and_dnd', 'offline')
 		active = self.condition_combobox.get_active()
-		print conditions[active]
 
 		active_iter = self.listen_sound_combobox.get_active_iter()
 		listen_sound_model = self.listen_sound_combobox.get_model()
-		print listen_sound_model[active_iter][0]
 
 class AdvancedNotificationsWindow:
 	events_list = ['message_received', 'contact_connected',

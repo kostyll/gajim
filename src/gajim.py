@@ -71,7 +71,8 @@ import logging
 consoleloghandler = logging.StreamHandler()
 consoleloghandler.setLevel(1)
 consoleloghandler.setFormatter(
-logging.Formatter('%(asctime)s %(name)s: %(levelname)s: %(message)s'))
+	logging.Formatter('%(asctime)s %(name)s: %(levelname)s: %(message)s')
+	)
 log = logging.getLogger('gajim')
 log.setLevel(logging.WARNING)
 log.addHandler(consoleloghandler)
@@ -266,7 +267,7 @@ import common.sleepy
 
 from common.xmpp import idlequeue
 from common.zeroconf import connection_zeroconf
-from common import nslookup
+from common import resolver
 from common import proxy65_manager
 from common import socks5
 from common import helpers
@@ -625,7 +626,7 @@ class Interface:
 			ctrl.print_conversation('Error %s: %s' % (array[2], array[1]))
 
 	def handle_event_con_type(self, account, con_type):
-		# ('CON_TYPE', account, con_type) which can be 'ssl', 'tls', 'tcp'
+		# ('CON_TYPE', account, con_type) which can be 'ssl', 'tls', 'plain'
 		gajim.con_types[account] = con_type
 		self.roster.draw_account(account)
 
@@ -849,20 +850,17 @@ class Interface:
 				# lost they'll be not decryptable (note that
 				# this contradicts XEP-0201 - trying to get that
 				# in the XEP, though)
-				#
-				# FIXME: This *REALLY* are TOO many leves of
-				#	 indentation! We even need to introduce
-				#	 a temp var here to make it somehow fit!
+
+				# there won't be any sessions here if the contact terminated
+				# their sessions before going offline (which we do)
 				for sess in conn.get_sessions(ji):
 					if (ji+'/'+resource) != str(sess.jid):
 						continue
-					ctrl = sess.control
-					if ctrl:
-						ctrl.no_autonegotiation = False
+					if sess.control:
+						sess.control.no_autonegotiation = False
 					if sess.enable_encryption:
 						sess.terminate_e2e()
-						conn.delete_session(jid,
-						sess.thread_id)
+						conn.delete_session(jid, sess.thread_id)
 
 			self.roster.chg_contact_status(contact1, array[1], status_message,
 				account)
@@ -3168,7 +3166,7 @@ class Interface:
 			# gajim.idlequeue.process() each foo miliseconds
 			gajim.idlequeue = GlibIdleQueue()
 		# resolve and keep current record of resolved hosts
-		gajim.resolver = nslookup.Resolver(gajim.idlequeue)
+		gajim.resolver = resolver.get_resolver(gajim.idlequeue)
 		gajim.socks5queue = socks5.SocksQueue(gajim.idlequeue,
 			self.handle_event_file_rcv_completed,
 			self.handle_event_file_progress,
@@ -3328,6 +3326,10 @@ class Interface:
 			gobject.timeout_add(200, self.process_connections)
 		gobject.timeout_add_seconds(gajim.config.get(
 			'check_idle_every_foo_seconds'), self.read_sleepy)
+
+		# when using libasyncns we need to process resolver in regular intervals
+		if resolver.USE_LIBASYNCNS:
+			gobject.timeout_add(200, gajim.resolver.process)
 
 		def remote_init():
 			if gajim.config.get('remote_control'):
