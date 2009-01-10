@@ -2,11 +2,11 @@ SRCS = __init__.py		\
        auth_nb.py		\
        bosh.py			\
        c14n.py			\
-       client.py		\
        client_nb.py		\
        dispatcher_nb.py		\
        features_nb.py		\
        idlequeue.py		\
+       plugin.py		\
        protocol.py		\
        proxy_connectors.py	\
        roster_nb.py		\
