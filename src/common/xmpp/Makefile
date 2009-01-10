@@ -4,7 +4,6 @@ SRCS = __init__.py		\
        c14n.py			\
        client.py		\
        client_nb.py		\
-       debug.py			\
        dispatcher_nb.py		\
        features_nb.py		\
        idlequeue.py		\
