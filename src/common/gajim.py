@@ -176,6 +176,9 @@ else:
 	if system('gpg -h >/dev/null 2>&1'):
 		HAVE_GPG = False
 
+import latex
+HAVE_LATEX = latex.check_for_latex_support()
+
 gajim_identity = {'type': 'pc', 'category': 'client', 'name': 'Gajim'}
 gajim_common_features = [xmpp.NS_BYTESTREAM, xmpp.NS_SI, xmpp.NS_FILE,
 	xmpp.NS_MUC, xmpp.NS_MUC_USER, xmpp.NS_MUC_ADMIN, xmpp.NS_MUC_OWNER,
