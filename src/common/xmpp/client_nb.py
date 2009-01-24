@@ -92,6 +92,8 @@ class NonBlockingClient:
 			self.NonBlockingHTTP.PlugOut()
 		if 'NonBlockingBOSH' in self.__dict__:
 			self.NonBlockingBOSH.PlugOut()
+		# FIXME: we never unplug dispatcher, only on next connect
+		# See _xmpp_connect_machine and SASLHandler
 
 		connected = self.connected
 		stream_started = self.stream_started
@@ -129,7 +131,7 @@ class NonBlockingClient:
 		self.disconnecting = False
 
 	def connect(self, on_connect, on_connect_failure, hostname=None, port=5222,
-	on_proxy_failure=None, proxy=None, secure_tuple=(None, None, None)):
+	on_proxy_failure=None, proxy=None, secure_tuple=('plain', None, None)):
 		''' 
 		Open XMPP connection (open XML streams in both directions).
 
@@ -304,10 +306,18 @@ class NonBlockingClient:
 			if data:
 				self.Dispatcher.ProcessNonBlocking(data)
 			if not hasattr(self, 'Dispatcher') or \
-			self.Dispatcher.Stream._document_attrs is None:
+				self.Dispatcher.Stream._document_attrs is None:
 				self._xmpp_connect_machine(
 					mode='FAILURE',
 					data='Error on stream open')
+				return
+
+			# if terminating stanza was received after init request then client gets
+			# disconnected from bosh transport plugin and we have to end the stream
+			# negotiating process straight away.
+			# fixes #4657
+			if not self.connected: return
+
 			if self.incoming_stream_version() == '1.0':
 				if not self.got_features:
 					on_next_receive('RECEIVE_STREAM_FEATURES')
@@ -346,12 +356,12 @@ class NonBlockingClient:
 			if self.desired_security == 'plain':
 				# if we want and have plain connection, we're done now
 				self._on_connect()
-				return
 			else:
 				# try to negotiate TLS
 				if self.incoming_stream_version() != '1.0':
 					# if stream version is less than 1.0, we can't do more
-					log.warn('While connecting with type = "tls": stream version is less than 1.0')
+					log.warn('While connecting with type = "tls": stream version ' +
+						'is less than 1.0')
 					self._on_connect()
 					return
 				if self.Dispatcher.Stream.features.getTag('starttls'):
@@ -359,16 +369,15 @@ class NonBlockingClient:
 					self.stream_started = False
 					log.info('TLS supported by remote server. Requesting TLS start.')
 					self._tls_negotiation_handler()
-					return
 				else:
-					log.warn('While connecting with type = "tls": TLS unsupported by remote server')
+					log.warn('While connecting with type = "tls": TLS unsupported ' +
+						'by remote server')
 					self._on_connect()
-					return
-
+	
 		elif self.connected in ['ssl', 'tls']:
 			self._on_connect()
-			return
-		assert False # should never be reached
+		else:
+			assert False, 'Stream opened for unsupported connection'
 
 	def _tls_negotiation_handler(self, con=None, tag=None):
 		''' takes care of TLS negotioation with <starttls> '''
@@ -477,7 +486,7 @@ class NonBlockingClient:
 			# wrong user/pass, stop auth
 			if 'SASL' in self.__dict__:
 				self.SASL.PlugOut()
-			self.connected = None # FIXME: is this intended?
+			self.connected = None # FIXME: is this intended? We use ''elsewhere
 			self._on_sasl_auth(None)
 		elif self.SASL.startsasl == 'success':
 			auth_nb.NonBlockingBind.get_instance().PlugIn(self)

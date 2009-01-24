@@ -181,6 +181,7 @@ class Connection(ConnectionHandlers):
 
 	def put_event(self, ev):
 		if ev[0] in gajim.handlers:
+			log.debug('Sending %s event to GUI: %s' % (ev[0], ev[1:]))
 			gajim.handlers[ev[0]](self.name, ev[1])
 
 	def dispatch(self, event, data):
@@ -707,6 +708,9 @@ class Connection(ConnectionHandlers):
 					self.dispatch('FINGERPRINT_ERROR',
 						(con.Connection.ssl_fingerprint_sha1,))
 					return True
+			else:
+				gajim.config.set_per('accounts', self.name, 'ssl_fingerprint_sha1',
+					con.Connection.ssl_fingerprint_sha1)
 		self._register_handlers(con, con_type)
 		con.auth( 
 			user=name, 
@@ -1158,6 +1162,7 @@ class Connection(ConnectionHandlers):
 			fjid = str(session.jid)
 
 		if keyID and self.USE_GPG:
+			xhtml = None
 			if keyID ==  'UNKNOWN':
 				error = _('Neither the remote presence is signed, nor a key was assigned.')
 			elif keyID.endswith('MISMATCH'):

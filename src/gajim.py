@@ -605,6 +605,12 @@ class Interface:
 	def handle_event_status(self, account, status): # OUR status
 		#('STATUS', account, status)
 		model = self.roster.status_combobox.get_model()
+		if status in ('offline', 'error'):
+			for name in self.instances[account]['online_dialog'].keys():
+				# .keys() is needed to not have a dictionary length changed during
+				# iteration error
+				self.instances[account]['online_dialog'][name].destroy()
+				del self.instances[account]['online_dialog'][name]
 		if status == 'offline':
 			# sensitivity for this menuitem
 			if gajim.get_number_of_connected_accounts() == 0:
@@ -637,7 +643,8 @@ class Interface:
 					ctrl.parent_win.redraw_tab(ctrl)
 
 		self.roster.on_status_changed(account, status)
-		if account in self.show_vcard_when_connect:
+		if account in self.show_vcard_when_connect and status not in ('offline',
+		'error'):
 			self.edit_own_details(account)
 		if self.remote_ctrl:
 			self.remote_ctrl.raise_signal('AccountPresence', (status, account))
@@ -1964,6 +1971,7 @@ class Interface:
 		server = gajim.config.get_per('accounts', account, 'hostname')
 
 		def on_ok(is_checked):
+			del self.instances[account]['online_dialog']['ssl_error']
 			if is_checked[0]:
 				# Check if cert is already in file
 				certs = ''
@@ -1990,6 +1998,7 @@ class Interface:
 			gajim.connections[account].ssl_certificate_accepted()
 
 		def on_cancel():
+			del self.instances[account]['online_dialog']['ssl_error']
 			gajim.connections[account].disconnect(on_purpose=True)
 			self.handle_event_status(account, 'offline')
 
@@ -2000,18 +2009,23 @@ class Interface:
 		else:
 			checktext1 = ''
 		checktext2 = _('Ignore this error for this certificate.')
-		dialogs.ConfirmationDialogDubbleCheck(pritext, sectext, checktext1,
+		if 'ssl_error' in self.instances[account]['online_dialog']:
+			self.instances[account]['online_dialog']['ssl_error'].destroy()
+		self.instances[account]['online_dialog']['ssl_error'] = \
+			dialogs.ConfirmationDialogDubbleCheck(pritext, sectext, checktext1,
 			checktext2, on_response_ok=on_ok, on_response_cancel=on_cancel)
 
 	def handle_event_fingerprint_error(self, account, data):
 		# ('FINGERPRINT_ERROR', account, (new_fingerprint,))
 		def on_yes(is_checked):
+			del self.instances[account]['online_dialog']['fingerprint_error']
 			gajim.config.set_per('accounts', account, 'ssl_fingerprint_sha1',
 				data[0])
 			# Reset the ignored ssl errors
 			gajim.config.set_per('accounts', account, 'ignore_ssl_errors', '')
 			gajim.connections[account].ssl_certificate_accepted()
 		def on_no():
+			del self.instances[account]['online_dialog']['fingerprint_error']
 			gajim.connections[account].disconnect(on_purpose=True)
 			self.handle_event_status(account, 'offline')
 		pritext = _('SSL certificate error')
@@ -2020,7 +2034,10 @@ class Interface:
 			'\n\nDo you still want to connect and update the fingerprint of the '
 			'certificate?') % {'old': gajim.config.get_per('accounts', account,
 			'ssl_fingerprint_sha1'), 'new': data[0]}
-		dialog = dialogs.YesNoDialog(pritext, sectext, on_response_yes=on_yes,
+		if 'fingerprint_error' in self.instances[account]['online_dialog']:
+			self.instances[account]['online_dialog']['fingerprint_error'].destroy()
+		self.instances[account]['online_dialog']['fingerprint_error'] = \
+			dialogs.YesNoDialog(pritext, sectext, on_response_yes=on_yes,
 			on_response_no=on_no)
 
 	def handle_event_plain_connection(self, account, data):
@@ -2030,11 +2047,15 @@ class Interface:
 			if not is_checked[0]:
 				on_cancel()
 				return
+			# On cancel call del self.instances, so don't call it another time
+			# before
+			del self.instances[account]['online_dialog']['plain_connection']
 			if is_checked[1]:
 				gajim.config.set_per('accounts', account,
 					'warn_when_plaintext_connection', False)
-			gajim.connections[account].connection_accepted(data[0], 'tcp')
+			gajim.connections[account].connection_accepted(data[0], 'plain')
 		def on_cancel():
+			del self.instances[account]['online_dialog']['plain_connection']
 			gajim.connections[account].disconnect(on_purpose=True)
 			self.handle_event_status(account, 'offline')
 		pritext = _('Insecure connection')
@@ -2042,7 +2063,10 @@ class Interface:
 			'connection. Are you sure you want to do that?')
 		checktext1 = _('Yes, I really want to connect insecurely')
 		checktext2 = _('Do _not ask me again')
-		dialog = dialogs.ConfirmationDialogDubbleCheck(pritext, sectext,
+		if 'plain_connection' in self.instances[account]['online_dialog']:
+			self.instances[account]['online_dialog']['plain_connection'].destroy()
+		self.instances[account]['online_dialog']['plain_connection'] = \
+			dialogs.ConfirmationDialogDubbleCheck(pritext, sectext,
 			checktext1, checktext2, on_response_ok=on_ok,
 			on_response_cancel=on_cancel, is_modal=False)
 
@@ -2050,6 +2074,7 @@ class Interface:
 		# ('INSECURE_SSL_CONNECTION', account, (connection, connection_type))
 		server = gajim.config.get_per('accounts', account, 'hostname')
 		def on_ok(is_checked):
+			del self.instances[account]['online_dialog']['insecure_ssl']
 			if not is_checked[0]:
 				on_cancel()
 				return
@@ -2065,6 +2090,7 @@ class Interface:
 				return
 			gajim.connections[account].connection_accepted(data[0], data[1])
 		def on_cancel():
+			del self.instances[account]['online_dialog']['insecure_ssl']
 			gajim.connections[account].disconnect(on_purpose=True)
 			self.handle_event_status(account, 'offline')
 		pritext = _('Insecure connection')
@@ -2072,7 +2098,10 @@ class Interface:
 			'connection. You should install PyOpenSSL to prevent that. Are you sure you want to do that?')
 		checktext1 = _('Yes, I really want to connect insecurely')
 		checktext2 = _('Do _not ask me again')
-		dialog = dialogs.ConfirmationDialogDubbleCheck(pritext, sectext,
+		if 'insecure_ssl' in self.instances[account]['online_dialog']:
+			self.instances[account]['online_dialog']['insecure_ssl'].destroy()
+		self.instances[account]['online_dialog']['insecure_ssl'] = \
+			dialogs.ConfirmationDialogDubbleCheck(pritext, sectext,
 			checktext1, checktext2, on_response_ok=on_ok,
 			on_response_cancel=on_cancel, is_modal=False)
 
@@ -2472,6 +2501,9 @@ class Interface:
 		# basic matches that may occur earlier
 		self.emot_and_basic = basic_pattern + emoticons_pattern
 
+		# needed for xhtml display
+		self.emot_only = emoticons_pattern
+
 		# at least one character in 3 parts (before @, after @, after .)
 		self.sth_at_sth_dot_sth = r'\S+@\S+\.\S*[^\s)?]'
 
@@ -2777,18 +2809,18 @@ class Interface:
 		state = self.sleeper.getState()
 		for account in gajim.connections:
 			if account not in gajim.sleeper_state or \
-					not gajim.sleeper_state[account]:
+			not gajim.sleeper_state[account]:
 				continue
 			if state == common.sleepy.STATE_AWAKE and \
-				gajim.sleeper_state[account] in ('autoaway', 'autoxa'):
+			gajim.sleeper_state[account] in ('autoaway', 'autoxa'):
 				# we go online
 				self.roster.send_status(account, 'online',
 					gajim.status_before_autoaway[account])
 				gajim.status_before_autoaway[account] = ''
 				gajim.sleeper_state[account] = 'online'
 			elif state == common.sleepy.STATE_AWAY and \
-				gajim.sleeper_state[account] == 'online' and \
-				gajim.config.get('autoaway'):
+			gajim.sleeper_state[account] == 'online' and \
+			gajim.config.get('autoaway'):
 				# we save out online status
 				gajim.status_before_autoaway[account] = \
 					gajim.connections[account].status
@@ -2805,10 +2837,9 @@ class Interface:
 						}
 				self.roster.send_status(account, 'away', auto_message, auto=True)
 				gajim.sleeper_state[account] = 'autoaway'
-			elif state == common.sleepy.STATE_XA and (\
-				gajim.sleeper_state[account] == 'autoaway' or \
-				gajim.sleeper_state[account] == 'online') and \
-				gajim.config.get('autoxa'):
+			elif state == common.sleepy.STATE_XA and \
+			gajim.sleeper_state[account] in ('online', 'autoaway',
+			'autoaway-forced') and gajim.config.get('autoxa'):
 				# we go extended away [we pass True to auto param]
 				auto_message = gajim.config.get('autoxa_message')
 				if not auto_message:
@@ -2863,16 +2894,16 @@ class Interface:
 		helpers.launch_browser_mailer(kind, url)
 
 	def process_connections(self):
-		''' called each foo (200) miliseconds. Check for idlequeue timeouts.
-		'''
+		''' Called each foo (200) miliseconds. Check for idlequeue timeouts.	'''
 		try:
 			gajim.idlequeue.process()
 		except Exception:
 			# Otherwise, an exception will stop our loop
-			if gajim.idlequeue.__class__ == idlequeue.GlibIdleQueue:
-				gobject.timeout_add_seconds(2, self.process_connections)
+			timeout, in_seconds = gajim.idlequeue.PROCESS_TIMEOUT
+			if in_seconds:
+				gobject.timeout_add_seconds(timeout, self.process_connections)
 			else:
-				gobject.timeout_add(200, self.process_connections)
+				gobject.timeout_add(timeout, self.process_connections)
 			raise
 		return True # renew timeout (loop for ever)
 
@@ -3117,15 +3148,7 @@ class Interface:
 		else:
 			gajim.log.setLevel(None)
 
-		# pygtk2.8+ on win, breaks io_add_watch.
-		# We use good old select.select()
-		if os.name == 'nt':
-			gajim.idlequeue = idlequeue.SelectIdleQueue()
-		else:
-			# in a nongui implementation, just call:
-			# gajim.idlequeue = IdleQueue() , and
-			# gajim.idlequeue.process() each foo miliseconds
-			gajim.idlequeue = idlequeue.GlibIdleQueue()
+		gajim.idlequeue = idlequeue.get_idlequeue()
 		# resolve and keep current record of resolved hosts
 		gajim.resolver = resolver.get_resolver(gajim.idlequeue)
 		gajim.socks5queue = socks5.SocksQueue(gajim.idlequeue,
@@ -3152,7 +3175,9 @@ class Interface:
 
 		for a in gajim.connections:
 			self.instances[a] = {'infos': {}, 'disco': {}, 'gc_config': {},
-				'search': {}}
+				'search': {}, 'online_dialog': {}}
+			# online_dialog contains all dialogs that have a meaning only when we
+			# are not disconnected
 			self.minimized_controls[a] = {}
 			gajim.contacts.add_account(a)
 			gajim.groups[a] = {}
@@ -3181,6 +3206,13 @@ class Interface:
 		if dbus_support.supported:
 			def gnome_screensaver_ActiveChanged_cb(active):
 				if not active:
+					for account in gajim.connections:
+						if gajim.sleeper_state[account] == 'autoaway-forced':
+							# We came back online ofter gnome-screensaver autoaway
+							self.roster.send_status(account, 'online',
+								gajim.status_before_autoaway[account])
+							gajim.status_before_autoaway[account] = ''
+							gajim.sleeper_state[account] = 'online'
 					return
 				if not gajim.config.get('autoaway'):
 					# Don't go auto away if user disabled the option
@@ -3197,9 +3229,16 @@ class Interface:
 						auto_message = gajim.config.get('autoaway_message')
 						if not auto_message:
 							auto_message = gajim.connections[account].status
+						else:
+							auto_message = auto_message.replace('$S','%(status)s')
+							auto_message = auto_message.replace('$T','%(time)s')
+							auto_message = auto_message % {
+								'status': gajim.status_before_autoaway[account],
+								'time': gajim.config.get('autoxatime')
+							}
 						self.roster.send_status(account, 'away', auto_message,
 							auto=True)
-						gajim.sleeper_state[account] = 'autoaway'
+						gajim.sleeper_state[account] = 'autoaway-forced'
 
 			try:
 				bus = dbus.SessionBus()
@@ -3281,10 +3320,11 @@ class Interface:
 		self.last_ftwindow_update = 0
 
 		gobject.timeout_add(100, self.autoconnect)
-		if gajim.idlequeue.__class__ == idlequeue.GlibIdleQueue:
-			gobject.timeout_add_seconds(2, self.process_connections)
+		timeout, in_seconds = gajim.idlequeue.PROCESS_TIMEOUT
+		if in_seconds:
+			gobject.timeout_add_seconds(timeout, self.process_connections)
 		else:
-			gobject.timeout_add(200, self.process_connections)
+			gobject.timeout_add(timeout, self.process_connections)
 		gobject.timeout_add_seconds(gajim.config.get(
 			'check_idle_every_foo_seconds'), self.read_sleepy)
 

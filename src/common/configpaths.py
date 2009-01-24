@@ -119,7 +119,12 @@ class ConfigPaths:
 		else:
 			self.add('DATA', os.path.join(u'..', windowsify(u'data')))
 		self.add('HOME', fse(os.path.expanduser('~')))
-		self.add('TMP', fse(tempfile.gettempdir()))
+		try:
+			self.add('TMP', fse(tempfile.gettempdir()))
+		except IOError, e:
+			print >> sys.stderr, 'Error opening tmp folder: %s\nUsing %s' % (
+				str(e), os.path.expanduser('~'))
+			self.add('TMP', fse(os.path.expanduser('~')))
 
 		try:
 			import svn_config

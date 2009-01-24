@@ -163,7 +163,6 @@ class ChatControlBase(MessageControl):
 
 		# Create banner and connect signals
 		widget = self.xml.get_widget('banner_eventbox')
-		widget.set_property('height-request', gajim.config.get('chat_avatar_height'))
 		id_ = widget.connect('button-press-event',
 			self._on_banner_eventbox_button_press_event)
 		self.handlers[id_] = widget
@@ -1074,6 +1073,7 @@ class ChatControl(ChatControlBase):
 		ChatControlBase.__init__(self, self.TYPE_ID, parent_win,
 			'chat_child_vbox', contact, acct, resource)
 
+		self.gpg_is_active = False
 		# for muc use:
 		# widget = self.xml.get_widget('muc_window_actions_button')
 		self.actions_button = self.xml.get_widget('message_window_actions_button')
@@ -1167,6 +1167,8 @@ class ChatControl(ChatControlBase):
 		self.handlers[id_] = message_tv_buffer
 
 		widget = self.xml.get_widget('avatar_eventbox')
+		widget.set_property('height-request', gajim.config.get(
+			'chat_avatar_height'))
 		id_ = widget.connect('enter-notify-event',
 			self.on_avatar_eventbox_enter_notify_event)
 		self.handlers[id_] = widget
@@ -1199,7 +1201,6 @@ class ChatControl(ChatControlBase):
 		# Enable encryption if needed
 		self.no_autonegotiation = False
 		e2e_is_active = self.session and self.session.enable_encryption
-		self.gpg_is_active = False
 		gpg_pref = gajim.config.get_per('contacts', contact.jid,
 			'gpg_enabled')
 
@@ -1231,7 +1232,8 @@ class ChatControl(ChatControlBase):
 	def update_toolbar(self):
 		# Formatting
 		if gajim.capscache.is_supported(self.contact, NS_XHTML_IM) \
-		and not gajim.capscache.is_supported(self.contact, 'notexistant'):
+		and not gajim.capscache.is_supported(self.contact, 'notexistant') \
+		and not self.gpg_is_active:
 			self._formattings_button.set_sensitive(True)
 		else:
 			self._formattings_button.set_sensitive(False)

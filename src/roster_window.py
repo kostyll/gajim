@@ -1407,19 +1407,6 @@ class RosterWindow:
 			self.tree.expand_row(path, False)
 		return False
 
-	def _adjust_contact_expand_collapse_state(self, jid, account):
-		'''Expand/collapse group row based on self.collapsed_rows'''
-		iterC = self._get_contact_iter(jid, account)
-		if not iterC:
-			# Contact not visible
-			return
-		path = self.modelfilter.get_path(iterC)
-		if account + group in self.collapsed_rows:
-			self.tree.collapse_row(path)
-		else:
-			self.tree.expand_row(path, False)
-		return False
-
 ##############################################################################
 ### Roster and Modelfilter handling
 ##############################################################################
@@ -2832,6 +2819,7 @@ class RosterWindow:
 		if jid in gajim.interface.minimized_controls[account]:
 			ctrl = gajim.interface.minimized_controls[account][jid]
 			ctrl.shutdown()
+			ctrl.got_disconnected()
 		self.remove_groupchat(jid, account)
 
 	def on_send_single_message_menuitem_activate(self, widget, account,
@@ -3561,7 +3549,7 @@ class RosterWindow:
 			contact = gajim.contacts.get_contact(account, jid)
 			for group in contact.groups:
 				if account + group + jid in self.collapsed_rows:
-					self.collapsed_rows.append(account + group + jid)
+					self.collapsed_rows.remove(account + group + jid)
 			family = gajim.contacts.get_metacontacts_family(account, jid)
 			nearby_family = \
 				self._get_nearby_family_and_big_brother(family, account)[0]

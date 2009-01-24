@@ -4,6 +4,7 @@
 ## Copyright (C) 2003-2007 Yann Leboulanger <asterix AT lagaule.org>
 ## Copyright (C) 2005-2007 Nikos Kouremenos <kourem AT gmail.com>
 ## Copyright (C) 2006 Dimitur Kirov <dkirov AT gmail.com>
+## Copyright (C) 2008-2009 Julien Pivotto <roidelapluie AT gmail.com>
 ##
 ## This file is part of Gajim.
 ##
@@ -104,23 +105,24 @@ class MessageTextView(gtk.TextView):
 
 	def get_active_tags(self):
 		buffer = self.get_buffer()
-		return_val = buffer.get_selection_bounds()
-		if return_val: # if sth was selected
-			start, finish = return_val[0], return_val[1]
-		else:
-			start, finish = buffer.get_bounds()
+		start, finish = self.get_active_iters()
 		active_tags = []
 		for tag in start.get_tags():
 			active_tags.append(tag.get_property('name'))
 		return 	active_tags
 
-	def set_tag(self, widget, tag):
+	def get_active_iters(self):
 		buffer = self.get_buffer()
 		return_val = buffer.get_selection_bounds()
 		if return_val: # if sth was selected
 			start, finish = return_val[0], return_val[1]
 		else:
 			start, finish = buffer.get_bounds()
+		return (start, finish)
+		
+	def set_tag(self, widget, tag):
+		buffer = self.get_buffer()
+		start, finish = self.get_active_iters()
 		if start.has_tag(self.other_tags[tag]):
 			buffer.remove_tag_by_name(tag, start, finish)
 		else:
@@ -132,11 +134,7 @@ class MessageTextView(gtk.TextView):
 
 	def clear_tags(self, widget):
 		buffer = self.get_buffer()
-		return_val = buffer.get_selection_bounds()
-		if return_val: # if sth was selected
-			start, finish = return_val[0], return_val[1]
-		else:
-			start, finish = buffer.get_bounds()
+		start, finish = self.get_active_iters()
 		buffer.remove_all_tags(start, finish)
 
 	def color_set(self, widget, response, color):
@@ -155,11 +153,7 @@ class MessageTextView(gtk.TextView):
 			self.end_tags[tag_name] = '</span>'
 			self.color_tags.append(tag_name)
 
-		return_val = buffer.get_selection_bounds()
-		if return_val: # if sth was selected
-			start, finish = return_val[0], return_val[1]
-		else:
-			start, finish = buffer.get_bounds()
+		start, finish = self.get_active_iters()
 
 		for tag in self.color_tags:
 			buffer.remove_tag_by_name(tag, start, finish)
@@ -193,11 +187,7 @@ class MessageTextView(gtk.TextView):
 			self.end_tags[tag_name] = '</span>'
 			self.fonts_tags.append(tag_name)
 
-		return_val = buffer.get_selection_bounds()
-		if return_val: # if sth was selected
-			start, finish = return_val[0], return_val[1]
-		else:
-			start, finish = buffer.get_bounds()
+		start, finish = self.get_active_iters()
 
 		for tag in self.fonts_tags:
 			buffer.remove_tag_by_name(tag, start, finish)
@@ -221,8 +211,9 @@ class MessageTextView(gtk.TextView):
 		tags['bold'] = False
 		iter = buffer.get_start_iter()
 		old = buffer.get_start_iter()
-		texte = ''
+		text = ''
 		modified = False
+
 		def xhtml_special(text):
 			text = text.replace('<', '&lt;')
 			text = text.replace('>', '&gt;')
@@ -233,20 +224,18 @@ class MessageTextView(gtk.TextView):
 			tag_name = tag.get_property('name')
 			if tag_name not in self.begin_tags:
 				continue
-			texte += self.begin_tags[tag_name]
+			text += self.begin_tags[tag_name]
 			modified = True
 		while (iter.forward_to_tag_toggle(None) and not iter.is_end()):
-			modified = True
-			texte += xhtml_special(buffer.get_text(old, iter))
+			text += xhtml_special(buffer.get_text(old, iter))
 			old.forward_to_tag_toggle(None)
-			new_tags = []
-			old_tags = []
-			end_tags = []
+			new_tags, old_tags, end_tags = [], [], []
 			for tag in iter.get_toggled_tags(True):
 				tag_name = tag.get_property('name')
 				if tag_name not in self.begin_tags:
 					continue
 				new_tags.append(tag_name)
+				modified = True
 
 			for tag in iter.get_tags():
 				tag_name = tag.get_property('name')
@@ -262,23 +251,23 @@ class MessageTextView(gtk.TextView):
 				end_tags.append(tag_name)
 
 			for tag in old_tags:
-				texte += self.end_tags[tag]
+				text += self.end_tags[tag]
 			for tag in end_tags:
-				texte += self.end_tags[tag]
+				text += self.end_tags[tag]
 			for tag in new_tags:
-				texte += self.begin_tags[tag]
+				text += self.begin_tags[tag]
 			for tag in old_tags:
-				texte += self.begin_tags[tag]
+				text += self.begin_tags[tag]
 
-		texte += xhtml_special(buffer.get_text(old, buffer.get_end_iter()))
+		text += xhtml_special(buffer.get_text(old, buffer.get_end_iter()))
 		for tag in iter.get_toggled_tags(False):
 			tag_name = tag.get_property('name')
 			if tag_name not in self.end_tags:
 				continue
-			texte += self.end_tags[tag_name]
+			text += self.end_tags[tag_name]
 
 		if modified:
-			return '<p>' + self.make_clickable_urls(texte) + '</p>'
+			return '<p>' + self.make_clickable_urls(text) + '</p>'
 		else:
 			return None
 
