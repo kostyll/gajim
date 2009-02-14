@@ -53,6 +53,12 @@ try:
 except Exception:
 	pass
 
+if sys.platform == 'darwin':
+	try:
+		from Cocoa import NSSound
+	except ImportError:
+		pass
+
 special_groups = (_('Transports'), _('Not in Roster'), _('Observers'), _('Groupchats'))
 
 class InvalidFormat(Exception):
@@ -771,9 +777,9 @@ def play_sound_file(path_to_soundfile):
 		return
 	if sys.platform == 'darwin':
 		try:
-			from osx import nsapp
-			nsapp.playFile(path_to_soundfile)
-		except ImportError:
+			snd = NSSound.alloc()
+			snd.initWithContentsOfFile_byReference_(path_to_soundfile, True).play()
+		except NameError:
 			pass
 	elif os.name == 'nt':
 		try:

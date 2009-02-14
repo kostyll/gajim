@@ -173,37 +173,6 @@ static PyObject * nsapp_setNetworkCB(PyObject *self, PyObject *args)
 	return Py_None;
 }
 
-static PyObject * nsapp_playFile(PyObject *self, PyObject *args)
-{
-    GAJIM_POOL_ALLOC
-
-    const char* cstr = NULL;
-
-    if (!PyArg_ParseTuple(args, "s", &cstr))
-    {
-        return NULL;
-    }
-
-    NSSound* snd = [[NSSound alloc] initWithContentsOfFile:
-                                      [[NSString alloc] initWithUTF8String: cstr]
-                                    byReference: YES];
-    if (!snd)
-    {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-
-    if (![snd play])
-    {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-
-    GAJIM_POOL_FREE
-
-	return Py_BuildValue("b", 1);
-}
-
 static PyObject * nsapp_getBundlePath(PyObject *self, PyObject *args)
 {
     GAJIM_POOL_ALLOC
@@ -237,8 +206,6 @@ static PyMethodDef nsappMethods[] =
      "Callback to call when the network state changes"},
     {"getBundlePath", nsapp_getBundlePath, METH_VARARGS,
      "Get the path to the bundle we were run from"},
-    {"playFile", nsapp_playFile, METH_VARARGS,
-     "Play a sound file"},
 	{NULL, NULL, 0, NULL}
 };
 
