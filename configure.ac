@@ -161,7 +161,6 @@ AC_OUTPUT
 echo " 
 ***************************** 
   Build features:
-    spell check ...... ${have_gtkspell}
     remote control ... ${have_remote}
     trayicon ......... ${have_trayicon}
     idle module OSX .. ${have_idle_osx}
