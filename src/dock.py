@@ -21,7 +21,6 @@
 import os
 from common import gajim
 from common import helpers
-import osx
 
 HAS_SYSTRAY_CAPABILITIES = True
 DOCK_IMAGES = {}
@@ -78,7 +77,7 @@ class Dock:
 	
 	def bounce(self):
 		try:
-			osx.nsapp.requestUserAttention()
+			NSApp.requestUserAttention_(NSInformationalRequest)
 		except NameError:
 			pass
 

@@ -173,16 +173,6 @@ static PyObject * nsapp_setNetworkCB(PyObject *self, PyObject *args)
 	return Py_None;
 }
 
-static PyObject * nsapp_requestUserAttention(PyObject *self, PyObject *args)
-{
-    GAJIM_POOL_ALLOC
-    [NSApp requestUserAttention:NSInformationalRequest];
-    GAJIM_POOL_FREE
-
-	Py_INCREF(Py_None);
-	return Py_None;
-}
-
 static PyObject * nsapp_playFile(PyObject *self, PyObject *args)
 {
     GAJIM_POOL_ALLOC
@@ -249,8 +239,6 @@ static PyMethodDef nsappMethods[] =
      "Get the path to the bundle we were run from"},
     {"playFile", nsapp_playFile, METH_VARARGS,
      "Play a sound file"},
-    {"requestUserAttention", nsapp_requestUserAttention, METH_VARARGS,
-     "Sends a request for the users attention to the window manager"},
 	{NULL, NULL, 0, NULL}
 };
 
