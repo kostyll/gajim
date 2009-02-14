@@ -430,6 +430,7 @@ parser = optparser.OptionsParser(config_filename)
 import roster_window
 import profile_window
 import config
+from threading import Thread
 
 
 class PassphraseRequest:
@@ -488,6 +489,22 @@ class PassphraseRequest:
 		dialogs.PassphraseDialog(title, second, ok_handler=(_ok, 1),
 			cancel_handler=_cancel)
 		self.dialog_created = True
+
+
+class ThreadInterface: 
+		def __init__(self, func, func_args, callback, callback_args): 
+			'''Call a function in a thread 
+			
+			:param func: the function to call in the thread 
+			:param func_args: list or arguments for this function 
+			:param callback: callback to call once function is finished 
+			:param callback_args: list of arguments for this callback 
+			''' 
+			def thread_function(func, func_args, callback, callback_args): 
+				output = func(*func_args) 
+				gobject.idle_add(callback, output, *callback_args) 
+			Thread(target=thread_function, args=(func, func_args, callback, 
+				callback_args)).start()
 
 class Interface:
 
@@ -1168,6 +1185,18 @@ class Interface:
 		if self.remote_ctrl:
 			self.remote_ctrl.raise_signal('OsInfo', (account, array))
 
+	def handle_event_entity_time(self, account, array):
+		#'ENTITY_TIME' (account, (jid, resource, time_info))
+		win = None
+		if array[0] in self.instances[account]['infos']:
+			win = self.instances[account]['infos'][array[0]]
+		elif array[0] + '/' + array[1] in self.instances[account]['infos']:
+			win = self.instances[account]['infos'][array[0] + '/' + array[1]]
+		if win:
+			win.set_entity_time(array[1], array[2])
+		if self.remote_ctrl:
+			self.remote_ctrl.raise_signal('EntityTime', (account, array))
+
 	def handle_event_gc_notify(self, account, array):
 		#'GC_NOTIFY' (account, (room_jid, show, status, nick,
 		# role, affiliation, jid, reason, actor, statusCode, newNick, avatar_sha))
@@ -1239,6 +1268,8 @@ class Interface:
 		jids = array[0].split('/', 1)
 		room_jid = jids[0]
 
+		msg = array[1]
+
 		gc_control = self.msg_win_mgr.get_gc_control(room_jid, account)
 		if not gc_control and \
 		room_jid in self.minimized_controls[account]:
@@ -1257,9 +1288,11 @@ class Interface:
 			# message from someone
 			nick = jids[1]
 
-		gc_control.on_message(nick, array[1], array[2], array[3], xhtml, array[5])
+		gc_control.on_message(nick, msg, array[2], array[3], xhtml, array[5])
 
 		if self.remote_ctrl:
+			highlight = gc_control.needs_visual_notification(msg)
+			array += (highlight,)
 			self.remote_ctrl.raise_signal('GCMessage', (account, array))
 
 	def handle_event_gc_subject(self, account, array):
@@ -2029,10 +2062,11 @@ class Interface:
 			gajim.connections[account].disconnect(on_purpose=True)
 			self.handle_event_status(account, 'offline')
 		pritext = _('SSL certificate error')
-		sectext = _('It seems the SSL certificate has changed or your connection '
-			'is being hacked.\nOld fingerprint: %(old)s\nNew fingerprint: %(new)s'
-			'\n\nDo you still want to connect and update the fingerprint of the '
-			'certificate?') % {'old': gajim.config.get_per('accounts', account,
+		sectext = _('It seems the SSL certificate of account %(account)s has '
+			'changed or your connection is being hacked.\nOld fingerprint: %(old)s'
+			'\nNew fingerprint: %(new)s\n\nDo you still want to connect and update'
+			' the fingerprint of the certificate?') % {'account': account,
+			'old': gajim.config.get_per('accounts', account,
 			'ssl_fingerprint_sha1'), 'new': data[0]}
 		if 'fingerprint_error' in self.instances[account]['online_dialog']:
 			self.instances[account]['online_dialog']['fingerprint_error'].destroy()
@@ -2148,6 +2182,7 @@ class Interface:
 			'VCARD': self.handle_event_vcard,
 			'LAST_STATUS_TIME': self.handle_event_last_status_time,
 			'OS_INFO': self.handle_event_os_info,
+			'ENTITY_TIME': self.handle_event_entity_time,
 			'GC_NOTIFY': self.handle_event_gc_notify,
 			'GC_MSG': self.handle_event_gc_msg,
 			'GC_SUBJECT': self.handle_event_gc_subject,
@@ -3073,6 +3108,7 @@ class Interface:
 
 	def __init__(self):
 		gajim.interface = self
+		gajim.thread_interface = ThreadInterface
 		# This is the manager and factory of message windows set by the module
 		self.msg_win_mgr = None
 		self.jabber_state_images = {'16': {}, '32': {}, 'opened': {},

@@ -1,5 +1,5 @@
 AC_INIT([Gajim - A Jabber Instant Messager],
-		[0.12.1.1-svn],[http://trac.gajim.org/],[gajim])
+		[0.12.1.2-svn],[http://trac.gajim.org/],[gajim])
 AC_PREREQ([2.59])
 AC_CONFIG_MACRO_DIR(m4)
 AC_CONFIG_SRCDIR(src)
@@ -161,18 +161,11 @@ AM_CHECK_PYTHON_HEADERS(,[AC_MSG_ERROR(could not find Python headers)])
 AC_SUBST([PYTHON_INCLUDES])
 
 AS_AC_EXPAND(DATADIR, "${datadir}")
-
-AS_AC_EXPAND(LIBDIR, ${libdir})
-
+AS_AC_EXPAND(LIBDIR, "${libdir}")
 AS_AC_EXPAND(DOCDIR, "${docdir}")
 
 AC_SUBST(VERSION)
 AC_SUBST(PACKAGE, gajim)
-AC_SUBST(DATADIR)
-AC_SUBST(LIBDIR)
-AS_AC_EXPAND(DATADIR, "${DATADIR}")
-AC_SUBST(DOCDIR)
-AS_AC_EXPAND(DOCDIR, "${DOCDIR}")
 
 AC_CONFIG_FILES([ 
 	buildsys.mk

@@ -134,7 +134,9 @@ class ChatControlBase(MessageControl):
 
 	def handle_message_textview_mykey_press(self, widget, event_keyval,
 	event_keymod):
-		pass # Derived should implement this rather than connecting to the event itself.
+		# Derived should implement this rather than connecting to the event
+		# itself.
+		pass
 
 	def status_url_clicked(self, widget, url):
 		helpers.launch_browser_mailer('url', url)
@@ -167,12 +169,14 @@ class ChatControlBase(MessageControl):
 			self._on_banner_eventbox_button_press_event)
 		self.handlers[id_] = widget
 
-		self.urlfinder = re.compile(r"(www\.(?!\.)|[a-z][a-z0-9+.-]*://)[^\s<>'\"]+[^!,\.\s<>\)'\"\]]")
+		self.urlfinder = re.compile(
+			r"(www\.(?!\.)|[a-z][a-z0-9+.-]*://)[^\s<>'\"]+[^!,\.\s<>\)'\"\]]")
 
 		if gajim.HAVE_PYSEXY:
 			import sexy
 			self.banner_status_label = sexy.UrlLabel()
-			self.banner_status_label.connect('url_activated', self.status_url_clicked)
+			self.banner_status_label.connect('url_activated',
+				self.status_url_clicked)
 		else:
 			self.banner_status_label = gtk.Label()
 		self.banner_status_label.set_selectable(True)
@@ -275,29 +279,7 @@ class ChatControlBase(MessageControl):
 
 		# Attach speller
 		if gajim.config.get('use_speller') and HAS_GTK_SPELL:
-			try:
-				spell = gtkspell.Spell(self.msg_textview)
-				# loop removing non-existant dictionaries
-				# iterating on a copy
-				for lang in dict(langs):
-					try:
-						spell.set_language(langs[lang])
-					except Exception:
-						del langs[lang]
-				# now set the one the user selected
-				per_type = 'contacts'
-				if self.type_id == message_control.TYPE_GC:
-					per_type = 'rooms'
-				lang = gajim.config.get_per(per_type, self.contact.jid,
-					'speller_language')
-				if not lang:
-					# use the default one
-					lang = gajim.config.get('speller_language')
-				if lang:
-					self.msg_textview.lang = lang
-					spell.set_language(lang)
-			except (gobject.GError, RuntimeError):
-				dialogs.AspellDictError(lang)
+			self.set_speller()
 		self.conv_textview.tv.show()
 		self._paint_banner()
 
@@ -307,8 +289,37 @@ class ChatControlBase(MessageControl):
 		self.smooth = True
 		self.msg_textview.grab_focus()
 
+	def set_speller(self):
+		try:
+			lang = gajim.config.get('speller_language')
+			if not lang:
+				lang = gajim.LANG
+			spell = gtkspell.Spell(self.msg_textview, lang)
+			# loop removing non-existant dictionaries
+			# iterating on a copy
+			for lang in dict(langs):
+				try:
+					spell.set_language(langs[lang])
+				except Exception:
+					del langs[lang]
+			# now set the one the user selected
+			per_type = 'contacts'
+			if self.type_id == message_control.TYPE_GC:
+				per_type = 'rooms'
+			lang = gajim.config.get_per(per_type, self.contact.jid,
+				'speller_language')
+			if not lang:
+				# use the default one
+				lang = gajim.config.get('speller_language')
+			if lang:
+				self.msg_textview.lang = lang
+				spell.set_language(lang)
+		except (gobject.GError, RuntimeError):
+			dialogs.AspellDictError(lang)
+
 	def on_msg_textview_populate_popup(self, textview, menu):
-		'''we override the default context menu and we prepend an option to switch languages'''
+		'''we override the default context menu and we prepend an option to switch
+		languages'''
 		def _on_select_dictionary(widget, lang):
 			per_type = 'contacts'
 			if self.type_id == message_control.TYPE_GC:
@@ -589,21 +600,19 @@ class ChatControlBase(MessageControl):
 			return True
 		return False
 
-	def send_message(self, message, keyID = '', type_ = 'chat', chatstate = None,
-	msg_id = None, composing_xep = None, resource = None,
-	process_command = True, xhtml = None):
+	def send_message(self, message, keyID='', type_='chat', chatstate=None,
+	msg_id=None, composing_xep=None, resource=None, process_command=True,
+	xhtml=None, callback=None, callback_args=[]):
 		'''Send the given message to the active tab. Doesn't return None if error
 		'''
 		if not message or message == '\n':
 			return None
 
-		ret = None
-
 		if not process_command or not self._process_command(message):
-			ret = MessageControl.send_message(self, message, keyID, type_ = type_,
-				chatstate = chatstate, msg_id = msg_id,
-				composing_xep = composing_xep, resource = resource,
-				user_nick = self.user_nick, xhtml = xhtml)
+			MessageControl.send_message(self, message, keyID, type_=type_,
+				chatstate=chatstate, msg_id=msg_id, composing_xep=composing_xep,
+				resource=resource, user_nick=self.user_nick, xhtml=xhtml,
+				callback=callback, callback_args=callback_args)
 
 			# Record message history
 			self.save_sent_message(message)
@@ -614,8 +623,6 @@ class ChatControlBase(MessageControl):
 		# Clear msg input
 		message_buffer = self.msg_textview.get_buffer()
 		message_buffer.set_text('') # clear message buffer (and tv of course)
-
-		return ret
 
 	def save_sent_message(self, message):
 		# save the message, so user can scroll though the list with key up/down
@@ -662,7 +669,7 @@ class ChatControlBase(MessageControl):
 				# other_tags_for_text == ['marked'] --> highlighted gc message
 				gajim.last_message_time[self.account][full_jid] = time.time()
 
-		if kind in ('incoming', 'incoming_queue'):
+		if kind in ('incoming', 'incoming_queue', 'error'):
 			gc_message = False
 			if self.type_id == message_control.TYPE_GC:
 				gc_message = True
@@ -672,7 +679,7 @@ class ChatControlBase(MessageControl):
 			not self.parent_win.is_active() or not end)) or \
 			(gc_message and \
 			jid in gajim.interface.minimized_controls[self.account])) and \
-			kind in ('incoming', 'incoming_queue'):
+			kind in ('incoming', 'incoming_queue', 'error'):
 				# we want to have save this message in events list
 				# other_tags_for_text == ['marked'] --> highlighted gc message
 				if gc_message:
@@ -704,7 +711,7 @@ class ChatControlBase(MessageControl):
 		if (not self.parent_win.get_active_control() or \
 		self != self.parent_win.get_active_control() or \
 		not self.parent_win.is_active() or not end) and \
-		kind in ('incoming', 'incoming_queue'):
+		kind in ('incoming', 'incoming_queue', 'error'):
 			self.parent_win.redraw_tab(self)
 			if not self.parent_win.is_active():
 				self.parent_win.show_title(True, self) # Enabled Urgent hint
@@ -1617,7 +1624,8 @@ class ChatControl(ChatControlBase):
 			ChatControlBase.print_conversation_line(self, msg,
 				'status', '', None)
 
-			loggable = gajim.config.get('log_encrypted_sessions')
+			loggable = gajim.config.get_per('accounts', self.account,
+				'log_encrypted_sessions')
 
 			if self.session:
 				self.session.loggable = loggable
@@ -1796,11 +1804,7 @@ class ChatControl(ChatControlBase):
 				gobject.source_remove(self.possible_inactive_timeout_id)
 				self._schedule_activity_timers()
 
-		id_ = ChatControlBase.send_message(self, message, keyID,
-			type_ = 'chat', chatstate = chatstate_to_send,
-			composing_xep = composing_xep,
-			process_command = process_command, xhtml = xhtml)
-		if id_:
+		def _on_sent(id_, contact, message, encrypted, xhtml):
 			# XXX: Once we have fallback to disco, remove notexistant check
 			if gajim.capscache.is_supported(contact, NS_RECEIPTS) \
 			and not gajim.capscache.is_supported(contact,
@@ -1813,6 +1817,11 @@ class ChatControl(ChatControlBase):
 			self.print_conversation(message, self.contact.jid,
 				encrypted = encrypted, xep0184_id = xep0184_id,
 				xhtml = xhtml)
+
+		ChatControlBase.send_message(self, message, keyID, type_='chat',
+			chatstate=chatstate_to_send, composing_xep=composing_xep,
+			process_command=process_command, xhtml=xhtml, callback=_on_sent,
+			callback_args=[contact, message, encrypted, xhtml])
 
 	def check_for_possible_paused_chatstate(self, arg):
 		''' did we move mouse of that window or write something in message
@@ -1898,18 +1907,24 @@ class ChatControl(ChatControlBase):
 
 	def print_conversation(self, text, frm='', tim=None, encrypted=False,
 	subject=None, xhtml=None, simple=False, xep0184_id=None):
-		# TODO: contact? ITYM frm.
 		'''Print a line in the conversation:
-		if contact is set to status: it's a status message
-		if contact is set to another value: it's an outgoing message
-		if contact is set to print_queue: it is incomming from queue
-		if contact is not set: it's an incomming message'''
+		if frm is set to status: it's a status message
+		if frm is set to error: it's an error message
+			The difference between status and error is mainly that with error, msg
+			count as a new message (in systray and in control).
+		if frm is set to info: it's a information message
+		if frm is set to print_queue: it is incomming from queue
+		if frm is set to another value: it's an outgoing message
+		if frm is not set: it's an incomming message'''
 		contact = self.contact
 
 		if frm == 'status':
 			if not gajim.config.get('print_status_in_chats'):
 				return
 			kind = 'status'
+			name = ''
+		elif frm == 'error':
+			kind = 'error'
 			name = ''
 		elif frm == 'info':
 			kind = 'info'
@@ -2403,10 +2418,10 @@ class ChatControl(ChatControlBase):
 
 			e2e_is_active = self.session and \
 				self.session.enable_encryption
-			e2e_pref = gajim.config.get_per('accounts',
-				self.account, 'autonegotiate_esessions') and \
-				gajim.config.get_per('contacts',
-				self.contact.jid, 'autonegotiate_esessions')
+			e2e_pref = gajim.config.get_per('accounts', self.account,
+				'enable_esessions') and gajim.config.get_per('accounts',
+				self.account, 'autonegotiate_esessions') and gajim.config.get_per(
+				'contacts', self.contact.jid, 'autonegotiate_esessions')
 			want_e2e = not e2e_is_active and not self.gpg_is_active \
 				and e2e_pref
 

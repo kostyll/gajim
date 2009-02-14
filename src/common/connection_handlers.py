@@ -38,6 +38,7 @@ import hashlib
 from time import (altzone, daylight, gmtime, localtime, mktime, strftime,
 	time as time_time, timezone, tzname)
 from calendar import timegm
+import datetime
 
 import socks5
 import common.xmpp
@@ -766,9 +767,9 @@ class ConnectionDisco:
 		hostname = gajim.config.get_per('accounts', self.name,
 													'hostname')
 		id_ = iq_obj.getID()
-		if jid == hostname and id_[0] == 'p':
+		if jid == hostname and id_[:6] == 'Gajim_':
 			for item in items:
-				self.discoverInfo(item['jid'], id_prefix='p')
+				self.discoverInfo(item['jid'], id_prefix='Gajim_')
 		else:
 			self.dispatch('AGENT_INFO_ITEMS', (jid, node, items))
 
@@ -800,7 +801,7 @@ class ConnectionDisco:
 			raise common.xmpp.NodeProcessed
 
 		id_ = unicode(iq_obj.getAttr('id'))
-		if id_[0] == 'p':
+		if id_[:6] == 'Gajim_':
 			# We get this request from echo.server
 			raise common.xmpp.NodeProcessed
 
@@ -867,7 +868,7 @@ class ConnectionDisco:
 		if not identities: # ejabberd doesn't send identities when we browse online users
 		#FIXME: see http://www.jabber.ru/bugzilla/show_bug.cgi?id=225
 			identities = [{'category': 'server', 'type': 'im', 'name': node}]
-		if id_[0] == 'p':
+		if id_[:6] == 'Gajim_':
 			if jid == gajim.config.get_per('accounts', self.name, 'hostname'):
 				if features.__contains__(common.xmpp.NS_GMAILNOTIFY):
 					gajim.gmail_domains.append(jid)
@@ -1426,6 +1427,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		self.last_ids = []
 		# IDs of jabber:iq:version requests
 		self.version_ids = []
+		# IDs of urn:xmpp:time requests
+		self.entity_time_ids = []
 		# ID of urn:xmpp:ping requests
 		self.awaiting_xmpp_ping_id = None
 		self.continue_connect_info = None
@@ -1474,6 +1477,10 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		if id_ in self.last_ids:
 			self.dispatch('LAST_STATUS_TIME', (jid_stripped, resource, -1, ''))
 			self.last_ids.remove(id_)
+			return
+		if id_ in self.entity_time_ids:
+			self.dispatch('ENTITY_TIME', (jid_stripped, resource, ''))
+			self.entity_time_ids.remove(id_)
 			return
 		if id_ == self.awaiting_xmpp_ping_id:
 			self.awaiting_xmpp_ping_id = None
@@ -1550,7 +1557,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		qp = iq_obj.getTag('query')
 		qp.setTagData('name', 'Gajim')
 		qp.setTagData('version', gajim.version)
-		send_os = gajim.config.get('send_os_info')
+		send_os = gajim.config.get_per('accounts', self.name, 'send_os_info')
 		if send_os:
 			qp.setTagData('os', helpers.get_os_info())
 		self.connection.send(iq_obj)
@@ -1633,11 +1640,53 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		qp = iq_obj.setTag('time',
 			namespace=common.xmpp.NS_TIME_REVISED)
 		qp.setTagData('utc', strftime('%Y-%m-%dT%H:%M:%SZ', gmtime()))
-		zone = -(timezone, altzone)[daylight] / 60
+		isdst = time.localtime().tm_isdst
+		zone = -(timezone, altzone)[isdst] / 60
 		tzo = (zone / 60, abs(zone % 60))
 		qp.setTagData('tzo', '%+03d:%02d' % (tzo))
 		self.connection.send(iq_obj)
 		raise common.xmpp.NodeProcessed
+
+	def _TimeRevisedResultCB(self, con, iq_obj):
+		log.debug('TimeRevisedResultCB')
+		time_info = ''
+		qp = iq_obj.getTag('time')
+		tzo = qp.getTag('tzo').getData()
+		if tzo == 'Z':
+			tzo = '0:0'
+		tzoh, tzom = tzo.split(':')
+		utc_time = qp.getTag('utc').getData()
+		ZERO = datetime.timedelta(0)
+		class UTC(datetime.tzinfo):
+			def utcoffset(self, dt):
+				return ZERO
+			def tzname(self, dt):
+				return "UTC"
+			def dst(self, dt):
+				return ZERO
+
+		class contact_tz(datetime.tzinfo):
+			def utcoffset(self, dt):
+				return datetime.timedelta(hours=int(tzoh), minutes=int(tzom))
+			def tzname(self, dt):
+				return "remote timezone"
+			def dst(self, dt):
+				return ZERO
+
+		t = datetime.datetime.strptime(utc_time, '%Y-%m-%dT%H:%M:%SZ')
+		t = t.replace(tzinfo=UTC())
+
+		time_info = t.astimezone(contact_tz()).strftime('%c')
+		id_ = iq_obj.getID()
+		if id_ in self.groupchat_jids:
+			who = self.groupchat_jids[id_]
+			del self.groupchat_jids[id_]
+		else:
+			who = helpers.get_full_jid_from_iq(iq_obj)
+		jid_stripped, resource = gajim.get_room_and_nick_from_fjid(who)
+		if id_ in self.entity_time_ids:
+			self.entity_time_ids.remove(id_)
+		self.dispatch('ENTITY_TIME', (jid_stripped, resource, time_info))
 
 	def _gMailNewMailCB(self, con, gm):
 		'''Called when we get notified of new mail messages in gmail account'''
@@ -1772,6 +1821,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		encrypted = False
 		xep_200_encrypted = msg.getTag('c', namespace=common.xmpp.NS_STANZA_CRYPTO)
 
+		session = None
 		if mtype != 'groupchat':
 			session = self.get_or_create_session(frm, thread_id)
 
@@ -1853,10 +1903,22 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 
 			keyID = gajim.config.get_per('accounts', self.name, 'keyid')
 			if keyID:
-				decmsg = self.gpg.decrypt(encmsg, keyID)
-				# \x00 chars are not allowed in C (so in GTK)
-				msgtxt = decmsg.replace('\x00', '')
-				encrypted = 'xep27'
+				def decrypt_thread(encmsg, keyID):
+					decmsg = self.gpg.decrypt(encmsg, keyID)
+					# \x00 chars are not allowed in C (so in GTK)
+					msgtxt = helpers.decode_string(decmsg.replace('\x00', ''))
+					encrypted = 'xep27'
+					return (msgtxt, encrypted)
+				gajim.thread_interface(decrypt_thread, [encmsg, keyID],
+					self._on_message_decrypted, [mtype, msg, session, frm, jid,
+					invite, tim])
+				return
+		self._on_message_decrypted((msgtxt, encrypted), mtype, msg, session, frm,
+			jid, invite, tim)
+
+	def _on_message_decrypted(self, output, mtype, msg, session, frm, jid,
+	invite, tim):
+		msgtxt, encrypted = output
 		if mtype == 'error':
 			self.dispatch_error_message(msg, msgtxt, session, frm, tim)
 		elif mtype == 'groupchat':
@@ -2339,9 +2401,9 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			return
 		self.connection.getRoster(self._on_roster_set)
 		self.discoverItems(gajim.config.get_per('accounts', self.name,
-			'hostname'), id_prefix='p')
+			'hostname'), id_prefix='Gajim_')
 		self.discoverInfo(gajim.config.get_per('accounts', self.name,
-			'hostname'), id_prefix='p')
+			'hostname'), id_prefix='Gajim_')
 		if gajim.config.get_per('accounts', self.name, 'use_ft_proxies'):
 			self.discover_ft_proxies()
 
@@ -2530,6 +2592,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			common.xmpp.NS_LAST)
 		con.RegisterHandler('iq', self._VersionResultCB, 'result',
 			common.xmpp.NS_VERSION)
+		con.RegisterHandler('iq', self._TimeRevisedResultCB, 'result',
+			common.xmpp.NS_TIME_REVISED)
 		con.RegisterHandler('iq', self._MucOwnerCB, 'result',
 			common.xmpp.NS_MUC_OWNER)
 		con.RegisterHandler('iq', self._MucAdminCB, 'result',
