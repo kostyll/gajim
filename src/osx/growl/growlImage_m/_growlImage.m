@@ -1,7 +1,6 @@
 /*
  * Copyright 2004 Mark Rowe <bdash@users.sourceforge.net>
  * Released under the BSD license.
- * src/osx/growl/_growlImage.m
  */
 
 #include "Python.h"

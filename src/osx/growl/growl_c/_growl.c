@@ -2,8 +2,6 @@
  * Copyright 2004-2005 The Growl Project.
  * Created by Jeremy Rossi <jeremy@jeremyrossi.com>
  * Released under the BSD license.
- * 
- * src/osx/growl/_growl.c
  */
 
 #include <Python.h>
