@@ -60,29 +60,7 @@ else
 fi
 AM_CONDITIONAL(BUILD_REMOTE_CONTROL, $have_remote)
 
-dnl ****
-dnl gtkspell
-dnl ****
-AC_ARG_ENABLE(gtkspell, 
-  [  --disable-gtkspell      do not build spell checking support [default auto]],
-  enable_gtkspell=$enableval, enable_gtkspell=auto)
-
-if test "x$enable_gtkspell" = "xauto";then
-	PKG_CHECK_EXISTS([gtkspell-2.0], [enable_gtkspell=yes], [enable_gtkspell=no])
-fi
-if test "x$enable_gtkspell" = "xyes";then
-	PKG_CHECK_MODULES([GTKSPELL], [gtkspell-2.0])
-	AC_SUBST(GTKSPELL_CFLAGS)
-	AC_SUBST(GTKSPELL_LIBS)
-	AC_SUBST(SPELLMODULE, spellmodule)
-	have_gtkspell=true
-else
-	AC_SUBST(SPELLMODULE,)
-	have_gtkspell=false
-fi
-
-
-AM_PATH_PYTHON([2.4])
+AM_PATH_PYTHON([2.5])
 if test "x$PYTHON" = "x:"; then
 	AC_MSG_ERROR([Python not found])
 fi
