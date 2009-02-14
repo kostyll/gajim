@@ -524,6 +524,38 @@ Show only in roster</property>
                               </packing>
                             </child>
                             <child>
+                              <widget class="GtkHBox" id="hbox5">
+                                <property name="visible">True</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <widget class="GtkLabel" id="label11">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">Show systray:</property>
+                                  </widget>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <widget class="GtkComboBox" id="systray_combobox">
+                                    <property name="visible">True</property>
+                                    <property name="items" translatable="yes">Never
+Only when pending events
+Always</property>
+                                    <signal name="changed" handler="on_systray_combobox_changed"/>
+                                  </widget>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </widget>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">5</property>
+                              </packing>
+                            </child>
+                            <child>
                               <widget class="GtkHBox" id="hbox2">
                                 <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                 <property name="no_show_all">True</property>
@@ -547,7 +579,7 @@ Show only in roster</property>
                                 </child>
                               </widget>
                               <packing>
-                                <property name="position">5</property>
+                                <property name="position">6</property>
                               </packing>
                             </child>
                           </widget>
@@ -582,7 +614,7 @@ Show only in roster</property>
                         <property name="border_width">6</property>
                         <property name="left_padding">12</property>
                         <child>
-                          <widget class="GtkVBox" id="vbox65">
+                          <widget class="GtkHBox" id="hbox4">
                             <property name="visible">True</property>
                             <property name="spacing">6</property>
                             <child>
@@ -600,73 +632,18 @@ Show only in roster</property>
                               </packing>
                             </child>
                             <child>
-                              <widget class="GtkScrolledWindow" id="sounds_scrolledwindow">
+                              <widget class="GtkButton" id="manage_sounds_button">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                                <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
-                                <property name="shadow_type">GTK_SHADOW_IN</property>
-                                <child>
-                                  <widget class="GtkTreeView" id="sounds_treeview">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <signal name="cursor_changed" handler="on_treeview_sounds_cursor_changed"/>
-                                  </widget>
-                                </child>
-                              </widget>
-                              <packing>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <widget class="GtkHBox" id="browse_sounds_hbox">
-                                <property name="visible">True</property>
-                                <property name="spacing">6</property>
-                                <child>
-                                  <widget class="GtkEntry" id="sounds_entry">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <signal name="changed" handler="on_sounds_entry_changed"/>
-                                  </widget>
-                                </child>
-                                <child>
-                                  <widget class="GtkButton" id="browse_for_sounds_button">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="label">...</property>
-                                    <property name="use_underline">True</property>
-                                    <property name="response_id">0</property>
-                                    <signal name="clicked" handler="on_browse_for_sounds_button_clicked"/>
-                                  </widget>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <widget class="GtkButton" id="play_button">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="response_id">0</property>
-                                    <signal name="clicked" handler="on_play_button_clicked"/>
-                                    <child>
-                                      <widget class="GtkImage" id="image1370">
-                                        <property name="visible">True</property>
-                                        <property name="stock">gtk-media-play</property>
-                                      </widget>
-                                    </child>
-                                  </widget>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">2</property>
-                                  </packing>
-                                </child>
+                                <property name="receives_default">True</property>
+                                <property name="label" translatable="yes">Ma_nage...</property>
+                                <property name="use_underline">True</property>
+                                <property name="response_id">0</property>
+                                <signal name="clicked" handler="on_manage_sounds_button_clicked"/>
                               </widget>
                               <packing>
                                 <property name="expand">False</property>
-                                <property name="position">2</property>
+                                <property name="position">1</property>
                               </packing>
                             </child>
                           </widget>
@@ -686,6 +663,7 @@ Show only in roster</property>
                     </child>
                   </widget>
                   <packing>
+                    <property name="expand">False</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
