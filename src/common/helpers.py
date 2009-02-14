@@ -638,12 +638,6 @@ def compute_caps_hash(identities, features, dataforms=[], hash_method='sha-1'):
 
 import gajim
 
-try:
-	from osx import nsapp
-except ImportError:
-	pass
-
-
 def convert_bytes(string):
 	suffix = ''
 	# IEC standard says KiB = 1024 bytes KB = 1000 bytes
@@ -777,8 +771,9 @@ def play_sound_file(path_to_soundfile):
 		return
 	if sys.platform == 'darwin':
 		try:
+			from osx import nsapp
 			nsapp.playFile(path_to_soundfile)
-		except NameError:
+		except ImportError:
 			pass
 	elif os.name == 'nt':
 		try:
