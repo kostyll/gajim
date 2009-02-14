@@ -272,6 +272,7 @@ from common import socks5
 from common import helpers
 from common import optparser
 from common import dataforms
+from common import passwords
 
 if verbose: gajim.verbose = True
 del verbose
@@ -966,9 +967,25 @@ class Interface:
 
 	def handle_event_subscribe(self, account, array):
 		#('SUBSCRIBE', account, (jid, text, user_nick)) user_nick is JEP-0172
-		dialogs.SubscriptionRequestWindow(array[0], array[1], account, array[2])
 		if self.remote_ctrl:
 			self.remote_ctrl.raise_signal('Subscribe', (account, array))
+
+		jid = array[0]
+		text = array[1]
+		nick = array[2]
+		if helpers.allow_popup_window(account) or not self.systray_enabled:
+			dialogs.SubscriptionRequestWindow(jid, text, account, nick)
+			return
+
+		self.add_event(account, jid, 'subscription_request', (text, nick))
+
+		if helpers.allow_showing_notification(account):
+			path = os.path.join(gajim.DATA_DIR, 'pixmaps', 'events',
+				'subscription_request.png')
+			path = gtkgui_helpers.get_path_to_generic_or_avatar(path)
+			event_type = _('Subscription request')
+			notify.popup(event_type, jid, account, 'subscription_request', path,
+				event_type, jid)
 
 	def handle_event_subscribed(self, account, array):
 		#('SUBSCRIBED', account, (jid, resource))
@@ -999,7 +1016,20 @@ class Interface:
 		if self.remote_ctrl:
 			self.remote_ctrl.raise_signal('Subscribed', (account, array))
 
+	def show_unsubscribed_dialog(self, account, contact):
+		def on_yes(is_checked, list_):
+			self.roster.on_req_usub(None, list_)
+		list_ = [(contact, account)]
+		dialogs.YesNoDialog(
+			_('Contact "%s" removed subscription from you') % contact.jid,
+			_('You will always see him or her as offline.\nDo you want to '
+				'remove him or her from your contact list?'),
+			on_response_yes=(on_yes, list_))
+			# FIXME: Per RFC 3921, we can "deny" ack as well, but the GUI does
+			# not show deny
+
 	def handle_event_unsubscribed(self, account, jid):
+		#('UNSUBSCRIBED', account, jid)
 		gajim.connections[account].ack_unsubscribed(jid)
 		if self.remote_ctrl:
 			self.remote_ctrl.raise_signal('Unsubscribed', (account, jid))
@@ -1007,14 +1037,19 @@ class Interface:
 		contact = gajim.contacts.get_first_contact_from_jid(account, jid)
 		if not contact:
 			return
-		def on_yes(is_checked, list_):
-			self.roster.on_req_usub(None, list_)
-		list_ = [(contact, account)]
-		dialogs.YesNoDialog(
-			_('Contact "%s" removed subscription from you') % jid,
-			_('You will always see him or her as offline.\nDo you want to remove him or her from your contact list?'),
-			on_response_yes=(on_yes, list_))
-		# FIXME: Per RFC 3921, we can "deny" ack as well, but the GUI does not show deny
+
+		if helpers.allow_popup_window(account) or not self.systray_enabled:
+			self.show_unsubscribed_dialog(account, contact)
+
+		self.add_event(account, jid, 'unsubscribed', contact)
+
+		if helpers.allow_showing_notification(account):
+			path = os.path.join(gajim.DATA_DIR, 'pixmaps', 'events',
+				'unsubscribed.png')
+			path = gtkgui_helpers.get_path_to_generic_or_avatar(path)
+			event_type = _('Unsubscribed')
+			notify.popup(event_type, jid, account, 'unsubscribed', path,
+				event_type, jid)
 
 	def handle_event_agent_info_error(self, account, agent):
 		#('AGENT_ERROR_INFO', account, (agent))
@@ -1494,6 +1529,28 @@ class Interface:
 			request = PassphraseRequest(keyid)
 			self.gpg_passphrase[keyid] = request
 		request.add_callback(account, callback)
+
+	def handle_event_password_required(self, account, array):
+		#('PASSWORD_REQUIRED', account, None)
+		text = _('Enter your password for account %s') % account
+		if passwords.USER_HAS_GNOMEKEYRING and \
+		not passwords.USER_USES_GNOMEKEYRING:
+			text += '\n' + _('Gnome Keyring is installed but not \
+				correctly started (environment variable probably not \
+				correctly set)')
+
+		def on_ok(passphrase, save):
+			if save:
+				gajim.config.set_per('accounts', account, 'savepass', True)
+				passwords.save_password(account, passphrase)
+			gajim.connections[account].set_password(passphrase)
+
+		def on_cancel():
+			self.roster.set_state(account, 'offline')
+			self.roster.update_status_combobox()
+
+		dialogs.PassphraseDialog(_('Password Required'), text, _('Save password'),
+			ok_handler=on_ok, cancel_handler=on_cancel)
 
 	def handle_event_roster_info(self, account, array):
 		#('ROSTER_INFO', account, (jid, name, sub, ask, groups))
@@ -2235,6 +2292,7 @@ class Interface:
 				self.handle_event_unique_room_id_unsupported,
 			'UNIQUE_ROOM_ID_SUPPORTED': self.handle_event_unique_room_id_supported,
 			'GPG_PASSWORD_REQUIRED': self.handle_event_gpg_password_required,
+			'PASSWORD_REQUIRED': self.handle_event_password_required,
 			'SSL_ERROR': self.handle_event_ssl_error,
 			'FINGERPRINT_ERROR': self.handle_event_fingerprint_error,
 			'PLAIN_CONNECTION': self.handle_event_plain_connection,
@@ -2263,8 +2321,8 @@ class Interface:
 		show_in_roster = notify.get_show_in_roster(event_type, account, jid)
 		show_in_systray = notify.get_show_in_systray(event_type, account, jid)
 		event = gajim.events.create_event(type_, event_args,
-			show_in_roster = show_in_roster,
-			show_in_systray = show_in_systray)
+			show_in_roster=show_in_roster,
+			show_in_systray=show_in_systray)
 		gajim.events.add_event(account, jid, event)
 
 		self.roster.show_title()
@@ -2394,6 +2452,18 @@ class Interface:
 			data = event.parameters
 			dialogs.InvitationReceivedDialog(account, data[0], jid, data[2],
 				data[1], data[3])
+			gajim.events.remove_events(account, jid, event)
+			self.roster.draw_contact(jid, account)
+		elif type_ == 'subscription_request':
+			event = gajim.events.get_first_event(account, jid, type_)
+			data = event.parameters
+			dialogs.SubscriptionRequestWindow(jid, data[0], account, data[1])
+			gajim.events.remove_events(account, jid, event)
+			self.roster.draw_contact(jid, account)
+		elif type_ == 'unsubscribed':
+			event = gajim.events.get_first_event(account, jid, type_)
+			contact = event.parameters
+			self.show_unsubscribed_dialog(account, contact)
 			gajim.events.remove_events(account, jid, event)
 			self.roster.draw_contact(jid, account)
 		if w:

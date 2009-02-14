@@ -54,7 +54,6 @@ import features_window
 
 from common import gajim
 from common import helpers
-from common import passwords
 from common.exceptions import GajimGeneralException
 from common import i18n
 from common import pep
@@ -1832,6 +1831,14 @@ class RosterWindow:
 				data[1])
 			gajim.events.remove_events(account, jid, event)
 			return True
+		elif event.type_ == 'subscription_request':
+			dialogs.SubscriptionRequestWindow(jid, data[0], account, data[1])
+			gajim.events.remove_events(account, jid, event)
+			return True
+		elif event.type_ == 'unsubscribed':
+			gajim.interface.show_unsubscribed_dialog(account, data)
+			gajim.events.remove_events(account, jid, event)
+			return True
 		return False
 
 ################################################################################
@@ -1901,15 +1908,18 @@ class RosterWindow:
 		dialogs.InformationDialog(_('Authorization has been removed'),
 			_('Now "%s" will always see you as offline.') %jid)
 
-	def set_connecting_state(self, account):
+	def set_state(self, account, state):
 		child_iterA = self._get_account_iter(account, self.model)
 		if child_iterA:
 			self.model[child_iterA][0] = \
-				gajim.interface.jabber_state_images['16']['connecting']
+				gajim.interface.jabber_state_images['16'][state]
 		if gajim.interface.systray_enabled:
-			gajim.interface.systray.change_status('connecting')
+			gajim.interface.systray.change_status(state)
 		if sys.platform == 'darwin':
 			gajim.interface.dock.change_status('connecting')
+
+	def set_connecting_state(self, account):
+		self.set_state(account, 'connecting')
 
 	def send_status(self, account, status, txt, auto=False, to=None):
 		child_iterA = self._get_account_iter(account, self.model)
