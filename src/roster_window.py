@@ -2047,11 +2047,6 @@ class RosterWindow:
 			if ctrl:
 				ctrl.update_status_display(name, uf_show, status)
 
-		# unset custom status
-		if account in gajim.interface.status_sent_to_users and \
-		contact.jid in gajim.interface.status_sent_to_users[account]:
-			del gajim.interface.status_sent_to_users[account][contact.jid]
-
 		# Delete pep if needed
 		keep_pep = any(c.show not in ('error', 'offline') for c in
 			contact_instances)
@@ -3765,6 +3760,7 @@ class RosterWindow:
 				'So those information will not be saved on next reconnection.'))
 
 		def merge_contacts(is_checked=None):
+			contacts = 0
 			if is_checked is not None: # dialog has been shown
 				if is_checked: # user does not want to be asked again
 					gajim.config.set('confirm_metacontacts', 'no')
@@ -3777,6 +3773,16 @@ class RosterWindow:
 				c_dest.jid)
 			if dest_family:
 				self._remove_metacontact_family(dest_family, account_dest)
+				source_family = gajim.contacts.get_metacontacts_family(account_source, c_source.jid)
+				if dest_family == source_family:
+					n = contacts = len(dest_family)
+					for tag in source_family:
+						if tag['jid'] == c_source.jid:
+							tag['order'] = contacts
+							continue
+						if 'order' in tag:
+							n -= 1
+							tag['order'] = n
 			else:
 				self._remove_entity(c_dest, account_dest)
 
@@ -3812,7 +3818,7 @@ class RosterWindow:
 
 				_contact.groups = c_dest.groups[:]
 				gajim.contacts.add_metacontact(account_dest, c_dest.jid,
-					_account, _contact.jid)
+					_account, _contact.jid, contacts)
 				gajim.connections[account_source].update_contact(_contact.jid,
 					_contact.name, _contact.groups)
 
