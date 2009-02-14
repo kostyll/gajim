@@ -1,6 +1,6 @@
 include ../extra.mk
 
-SUBDIRS = common ${TRAYMODULE} ${SPELLMODULE} osx
+SUBDIRS = common ${TRAYMODULE} osx
 
 SRCS = adhoc_commands.py		\
        advanced.py			\
@@ -43,16 +43,13 @@ SRCS = adhoc_commands.py		\
        systray.py			\
        tooltips.py			\
        vcard.py
-DISTCLEAN = gtkspell.so trayicon.so
+DISTCLEAN = trayicon.so
 
 include ../buildsys.mk
 
-all: ${OBJS} gtkspell.so trayicon.so
+all: ${OBJS} trayicon.so
 
 # Don't depend on the actual file, we can create the symlink anyway
-gtkspell.so:
-	rm -f gtkspell.so
-	ln -s spellmodule/gtkspell.so gtkspell.so
 trayicon.so:
 	rm -f trayicon.so
 	ln -s traymodule/trayicon.so trayicon.so
