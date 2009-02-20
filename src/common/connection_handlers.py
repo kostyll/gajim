@@ -675,9 +675,9 @@ class ConnectionDisco:
 	def _agent_registered_cb(self, con, resp, agent):
 		if resp.getType() == 'result':
 			self.dispatch('INFORMATION', (_('Registration succeeded'),
-				_('Resgitration with agent %s succeeded') % agent))
+				_('Registration with agent %s succeeded') % agent))
 		if resp.getType() == 'error':
-			self.dispatch('ERROR', (_('Registration failed'), _('Resgitration with'
+			self.dispatch('ERROR', (_('Registration failed'), _('Registration with'
 				' agent %(agent)s failed with error %(error)s: %(error_msg)s') % {
 				'agent': agent, 'error': resp.getError(),
 				'error_msg': resp.getErrorMsg()}))
@@ -1547,6 +1547,12 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			for group in item.getTags('group'):
 				groups.append(group.getData())
 			self.dispatch('ROSTER_INFO', (jid, name, sub, ask, groups))
+		if not self.connection or self.connected < 2:
+			raise common.xmpp.NodeProcessed
+		server = gajim.config.get_per('accounts', self.name, 'hostname')
+		reply = common.xmpp.Iq(typ='result', attrs={'id': iq_obj.getID()},
+			to=server, frm=iq_obj.getTo(), xmlns=None)
+		self.connection.send(reply)
 		raise common.xmpp.NodeProcessed
 
 	def _VersionCB(self, con, iq_obj):
@@ -1651,6 +1657,9 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		log.debug('TimeRevisedResultCB')
 		time_info = ''
 		qp = iq_obj.getTag('time')
+		if not qp:
+			# wrong answer
+			return
 		tzo = qp.getTag('tzo').getData()
 		if tzo == 'Z':
 			tzo = '0:0'
@@ -2397,6 +2406,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		raise common.xmpp.NodeProcessed
 
 	def _getRosterCB(self, con, iq_obj):
+		log.debug('getRosterCB')
 		if not self.connection:
 			return
 		self.connection.getRoster(self._on_roster_set)

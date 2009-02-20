@@ -154,6 +154,7 @@ class Connection(ConnectionHandlers):
 		self.blocked_list = []
 		self.blocked_contacts = []
 		self.blocked_groups = []
+		self.blocked_all = False
 		self.music_track_info = 0
 		self.pep_supported = False
 		self.mood = {}
@@ -178,6 +179,7 @@ class Connection(ConnectionHandlers):
 		# server {'icq': ['icq.server.com', 'icq2.server.com'], }
 		self.vcard_supported = True
 		self.private_storage_supported = True
+		self.streamError = ''
 	# END __init__
 
 	def put_event(self, ev):
@@ -515,7 +517,7 @@ class Connection(ConnectionHandlers):
 		self._connect_to_next_host()
 
 
-	def _connect_to_next_host(self, retry = False):
+	def _connect_to_next_host(self, retry=False):
 		log.debug('Connection to next host')
 		if len(self._hosts):
 			# No config option exist when creating a new account
@@ -618,15 +620,23 @@ class Connection(ConnectionHandlers):
 				msg = '%s over proxy %s:%s' % (msg, self._proxy['host'], self._proxy['port'])
 			log.info(msg)
 
-	def _connect_failure(self, con_type = None):
+	def _connect_failure(self, con_type=None):
 		if not con_type:
 			# we are not retrying, and not conecting
 			if not self.retrycount and self.connected != 0:
 				self.disconnect(on_purpose = True)
 				self.dispatch('STATUS', 'offline')
-				self.dispatch('CONNECTION_LOST',
-					(_('Could not connect to "%s"') % self._hostname,
-					_('Check your connection or try again later.')))
+				pritxt = _('Could not connect to "%s"') % self._hostname
+				sectxt = _('Check your connection or try again later.')
+				if self.streamError:
+					# show error dialog
+					key = common.xmpp.NS_XMPP_STREAMS + ' ' + self.streamError
+					if key in common.xmpp.ERRORS:
+						sectxt2 = _('Server replied: %s') % common.xmpp.ERRORS[key][2]
+						self.dispatch('ERROR', (pritxt, '%s\n%s' % (sectxt2, sectxt)))
+						return
+				# show popup
+				self.dispatch('CONNECTION_LOST', (pritxt, sectxt))
 
 	def on_proxy_failure(self, reason):
 		log.error('Connection to proxy failed: %s' % reason)
@@ -955,13 +965,18 @@ class Connection(ConnectionHandlers):
 			self.dispatch('SIGNED_IN', ())
 
 	def test_gpg_passphrase(self, password):
+		'''Returns 'ok', 'bad_pass' or 'expired' '''
 		if not self.gpg:
 			return False
 		self.gpg.passphrase = password
 		keyID = gajim.config.get_per('accounts', self.name, 'keyid')
 		signed = self.gpg.sign('test', keyID)
 		self.gpg.password = None
-		return signed != 'BAD_PASSPHRASE'
+		if signed == 'KEYEXPIRED':
+			return 'expired'
+		elif signed == 'BAD_PASSPHRASE':
+			return 'bad_pass'
+		return 'ok'
 
 	def get_signed_presence(self, msg, callback = None):
 		if gajim.config.get_per('accounts', self.name, 'gpg_sign_presence'):
@@ -1166,17 +1181,33 @@ class Connection(ConnectionHandlers):
 			elif keyID.endswith('MISMATCH'):
 				error = _('The contact\'s key (%s) does not match the key assigned in Gajim.' % keyID[:8])
 			else:
-				def encrypt_thread(msg, keyID):
+				def encrypt_thread(msg, keyID, always_trust=False):
 					# encrypt message. This function returns (msgenc, error)
-					return self.gpg.encrypt(msg, [keyID])
-				gajim.thread_interface(encrypt_thread, [msg, keyID],
-					self._on_message_encrypted, [type_, msg, msgtxt,
-						original_message, fjid, resource, jid, xhtml, subject,
-						chatstate, composing_xep, forward_from, delayed, session,
-						form_node, user_nick, keyID, callback, callback_args])
+					return self.gpg.encrypt(msg, [keyID], always_trust)
+				def _on_encrypted(output):
+					msgenc, error = output
+					if error == 'NOT_TRUSTED':
+						def _on_always_trust(answer):
+							if answer:
+								gajim.thread_interface(encrypt_thread, [msg, keyID,
+									True], _on_encrypted, [])
+							else:
+								self._on_message_encrypted(output, type_, msg, msgtxt,
+									original_message, fjid, resource, jid, xhtml,
+									subject, chatstate, composing_xep, forward_from,
+									delayed, session, form_node, user_nick, keyID,
+									callback, callback_args)
+						self.dispatch('GPG_ALWAYS_TRUST', _on_always_trust)
+					else:
+						self._on_message_encrypted(output, type_, msg, msgtxt,
+							original_message, fjid, resource, jid, xhtml, subject,
+							chatstate, composing_xep, forward_from, delayed, session,
+							form_node, user_nick, keyID, callback, callback_args)
+				gajim.thread_interface(encrypt_thread, [msg, keyID, False],
+					_on_encrypted, [])
 				return
 
-			self._on_message_encrypted(self, ('', error), type_, msg, msgtxt,
+			self._on_message_encrypted(('', error), type_, msg, msgtxt,
 				original_message, fjid, resource, jid, xhtml, subject, chatstate,
 				composing_xep, forward_from, delayed, session, form_node, user_nick,
 				keyID, callback, callback_args)

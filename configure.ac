@@ -152,8 +152,8 @@ AC_CONFIG_FILES([
 	data/gajim.desktop.in
 	data/defs.py
 	scripts/gajim
-	scripts/gajim-remote
-	scripts/gajim-history-manager
+	scripts/gajim-remote:scripts/gajim.in
+	scripts/gajim-history-manager:scripts/gajim.in
 	po/Makefile.in
 ])
 BUILDSYS_TOUCH_DEPS

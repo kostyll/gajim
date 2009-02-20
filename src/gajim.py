@@ -473,9 +473,18 @@ class PassphraseRequest:
 			self.complete(None)
 
 		def _ok(passphrase, checked, count):
-			if gajim.connections[account].test_gpg_passphrase(passphrase):
+			result = gajim.connections[account].test_gpg_passphrase(passphrase)
+			if result == 'ok':
 				# passphrase is good
 				self.complete(passphrase)
+				return
+			elif result == 'expired':
+				dialogs.ErrorDialog(_('GPG key expired'),
+					_('Your GPG key has expied, you will be connected to %s without '
+					'OpenPGP.') % account)
+				# Don't try to connect with GPG
+				gajim.connections[account].continue_connect_info[2] = False
+				self.complete(None)
 				return
 
 			if count < 3:
@@ -1530,6 +1539,21 @@ class Interface:
 			self.gpg_passphrase[keyid] = request
 		request.add_callback(account, callback)
 
+	def handle_event_gpg_always_trust(self, account, callback):
+		#('GPG_ALWAYS_TRUST', account, callback)
+		def on_yes(checked):
+			if checked:
+				gajim.connections[account].gpg.always_trust = True
+			callback(True)
+
+		def on_no():
+			callback(False)
+
+		dialogs.YesNoDialog(_('GPG key not trusted'), _('The GPG key used to '
+			'encrypt this chat is not trusted. Do you really want to encrypt this '
+			'message?'), checktext=_('Do _not ask me again'),
+			on_response_yes=on_yes, on_response_no=on_no)
+
 	def handle_event_password_required(self, account, array):
 		#('PASSWORD_REQUIRED', account, None)
 		text = _('Enter your password for account %s') % account
@@ -1576,7 +1600,7 @@ class Interface:
 			self.roster.add_contact(jid, account)
 		else:
 			# it is an existing contact that might has changed
-			re_draw = False
+			re_place = False
 			# If contact has changed (sub, ask or group) update roster
 			# Mind about observer status changes:
 			# 	According to xep 0162, a contact is not an observer anymore when
@@ -1584,8 +1608,7 @@ class Interface:
 			old_groups = contacts[0].groups
 			if contacts[0].sub != sub or contacts[0].ask != ask\
 			or old_groups != groups:
-				re_draw = True
-			if re_draw:
+				re_place = True
 				# c.get_shown_groups() has changed. Reflect that in roster_winodow
 				self.roster.remove_contact(jid, account, force=True)
 			for contact in contacts:
@@ -1593,11 +1616,13 @@ class Interface:
 				contact.sub = sub
 				contact.ask = ask
 				contact.groups = groups or []
-			if re_draw:
+			if re_place:
 				self.roster.add_contact(jid, account)
 				# Refilter and update old groups
 				for group in old_groups:
 					self.roster.draw_group(group, account)
+			else:
+				self.roster.draw_contact(jid, account)
 
 		if self.remote_ctrl:
 			self.remote_ctrl.raise_signal('RosterInfo', (account, array))
@@ -1930,7 +1955,7 @@ class Interface:
 			self.instances[account]['privacy_lists'].privacy_lists_received(data)
 
 	def handle_event_privacy_list_received(self, account, data):
-		# ('PRIVACY_LISTS_RECEIVED', account, (name, rules))
+		# ('PRIVACY_LIST_RECEIVED', account, (name, rules))
 		if account not in self.instances:
 			return
 		name = data[0]
@@ -1942,10 +1967,13 @@ class Interface:
 			gajim.connections[account].blocked_contacts = []
 			gajim.connections[account].blocked_groups = []
 			gajim.connections[account].blocked_list = []
+			gajim.connections[account].blocked_all = False
 			for rule in rules:
-				if rule['type'] == 'jid' and rule['action'] == 'deny':
+				if not 'type' in rule:
+					gajim.connections[account].blocked_all = True
+				elif rule['type'] == 'jid' and rule['action'] == 'deny':
 					gajim.connections[account].blocked_contacts.append(rule['value'])
-				if rule['type'] == 'group' and rule['action'] == 'deny':
+				elif rule['type'] == 'group' and rule['action'] == 'deny':
 					gajim.connections[account].blocked_groups.append(rule['value'])
 				gajim.connections[account].blocked_list.append(rule)
 				#elif rule['type'] == "group" and action == "deny":
@@ -2292,6 +2320,7 @@ class Interface:
 				self.handle_event_unique_room_id_unsupported,
 			'UNIQUE_ROOM_ID_SUPPORTED': self.handle_event_unique_room_id_supported,
 			'GPG_PASSWORD_REQUIRED': self.handle_event_gpg_password_required,
+			'GPG_ALWAYS_TRUST': self.handle_event_gpg_always_trust,
 			'PASSWORD_REQUIRED': self.handle_event_password_required,
 			'SSL_ERROR': self.handle_event_ssl_error,
 			'FINGERPRINT_ERROR': self.handle_event_fingerprint_error,

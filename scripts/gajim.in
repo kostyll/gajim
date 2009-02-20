@@ -21,8 +21,10 @@
 ## along with Gajim. If not, see <http://www.gnu.org/licenses/>.
 ##
 
+APP="$(basename $0)"
+
 if test $(id -u) -eq 0; then
-	echo "You must not launch Gajim as root, it is INSECURE"
+	echo "You must not launch $APP as root, it is INSECURE"
 	exit 1
 fi
 
@@ -32,4 +34,4 @@ PYTHON_EXEC="@PYTHON@"
 cd "$libdir/gajim"
 export PYTHONPATH="$PYTHONPATH:$libdir/gajim"
 export GAJIM_DATADIR="@DATADIR@/gajim"
-exec $PYTHON_EXEC gajim.pyc $@
+exec $PYTHON_EXEC $APP.pyc $@
