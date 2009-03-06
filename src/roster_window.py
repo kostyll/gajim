@@ -999,8 +999,8 @@ class RosterWindow:
 		and ('artist' in gajim.connections[account].tune \
 		or 'title' in gajim.connections[account].tune):
 			self.model[child_iter][C_TUNE_PIXBUF] = \
-				gtk.gdk.pixbuf_new_from_file(
-				'../data/emoticons/static/music.png')
+				gtk.gdk.pixbuf_new_from_file(os.path.join(gajim.DATA_DIR,
+				'emoticons', 'static', 'music.png'))
 		else:
 			self.model[child_iter][C_TUNE_PIXBUF] = None
 
@@ -1261,8 +1261,8 @@ class RosterWindow:
 		jid = jid.decode('utf-8')
 		contact = gajim.contacts.get_contact(account, jid)
 		if 'artist' in contact.tune or 'title' in contact.tune:
-			pixbuf = gtk.gdk.pixbuf_new_from_file(
-				'../data/emoticons/static/music.png')
+			pixbuf = gtk.gdk.pixbuf_new_from_file(os.path.join(gajim.DATA_DIR,
+				'emoticons', 'static', 'music.png'))
 		else:
 			pixbuf = None
 		for child_iter in iters:
