@@ -2477,7 +2477,7 @@ class GroupchatConfigWindow:
 				'2. user@domain (any resource matches).\n'
 				'3. domain/resource (only that resource matches).\n'
 				'4. domain (the domain itself matches, as does any user@domain,\n'
-				'domain/resource, or address containing a subdomain.')
+				'domain/resource, or address containing a subdomain).')
 
 		def on_ok(jid):
 			if not jid:
@@ -3032,7 +3032,7 @@ class AccountCreationWizardWindow:
 			# connection instance is saved in gajim.connections and we canceled the
 			# addition of the account
 			del gajim.connections[self.account]
-			if self.account in gajim.config.del_per('accounts'):
+			if self.account in gajim.config.get_per('accounts'):
 				gajim.config.del_per('accounts', self.account)
 		del gajim.interface.instances['account_creation_wizard']
 
@@ -3339,7 +3339,7 @@ class AccountCreationWizardWindow:
 		self.go_online_checkbutton.hide()
 		self.show_vcard_checkbutton.hide()
 		del gajim.connections[self.account]
-		if self.account in gajim.config.del_per('accounts'):
+		if self.account in gajim.config.get_per('accounts'):
 			gajim.config.del_per('accounts', self.account)
 		img = self.xml.get_widget('finish_image')
 		img.set_from_stock(gtk.STOCK_DIALOG_ERROR, gtk.ICON_SIZE_DIALOG)
@@ -3369,12 +3369,6 @@ class AccountCreationWizardWindow:
 		if go_online:
 			gajim.interface.roster.send_status(self.account, 'online', '')
 
-	def on_username_entry_changed(self, widget):
-		self.update_jid(widget)
-
-	def on_server_comboboxentry_changed(self, widget):
-		self.update_jid(widget)
-
 	def on_username_entry_key_press_event(self, widget, event):
 		# Check for pressed @ and jump to combobox if found
 		if event.keyval == gtk.keysyms.at:
@@ -3392,18 +3386,6 @@ class AccountCreationWizardWindow:
 			username_entry.grab_focus()
 			username_entry.set_position(-1)
 			return True
-
-	def update_jid(self,widget):
-		username_entry = self.xml.get_widget('username_entry')
-		name = username_entry.get_text().decode('utf-8')
-		combobox = self.xml.get_widget('server_comboboxentry')
-		server = combobox.get_active_text()
-		jid_label = self.xml.get_widget('jid_label')
-		if len(name) == 0 or len(server) == 0:
-			jid_label.set_label('')
-		else:
-			string = '<b>%s@%s</b>' % (name, server)
-			jid_label.set_label(string)
 
 	def get_config(self, login, server, savepass, password):
 		config = {}
