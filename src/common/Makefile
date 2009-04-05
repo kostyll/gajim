@@ -28,6 +28,7 @@ SRCS = GnuPG.py			\
        idle.py			\
        latex.py			\
        logger.py		\
+       logging_helpers.py	\
        optparser.py		\
        passwords.py		\
        pep.py			\

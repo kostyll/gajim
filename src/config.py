@@ -522,8 +522,11 @@ class PreferencesWindow:
 			self.window.hide()
 
 	def get_per_account_option(self, opt):
-		'''Return the value of the option opt if it's the same in all accoutns
+		'''Return the value of the option opt if it's the same in all accounts
 		else returns "mixed"'''
+		if len(gajim.connections) == 0:
+			# a non existant key return default value
+			return gajim.config.get_per('accounts', '__default__', opt)
 		val = None
 		for account in gajim.connections:
 			v = gajim.config.get_per('accounts', account, opt)
@@ -636,7 +639,7 @@ class PreferencesWindow:
 			if isinstance(ctrl, chat_control.ChatControlBase):
 				try:
 					spell_obj = gtkspell.get_from_text_view(ctrl.msg_textview)
-				except (TypeError, RuntimeError):
+				except (TypeError, RuntimeError, OSError):
 					spell_obj = None
 
 				if not spell_obj:
@@ -663,7 +666,7 @@ class PreferencesWindow:
 			tv = gtk.TextView()
 			try:
 				gtkspell.Spell(tv, lang)
-			except (TypeError, RuntimeError):
+			except (TypeError, RuntimeError, OSError):
 				dialogs.ErrorDialog(
 					_('Dictionary for lang %s not available') % lang,
 					_('You have to install %s dictionary to use spellchecking, or '
