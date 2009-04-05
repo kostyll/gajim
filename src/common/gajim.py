@@ -148,6 +148,15 @@ SHOW_LIST = ['offline', 'connecting', 'online', 'chat', 'away', 'xa', 'dnd',
 # zeroconf account name
 ZEROCONF_ACC_NAME = 'Local'
 
+HAVE_ZEROCONF = True
+try:
+	import avahi
+except ImportError:
+	try:
+		import pybonjour
+	except ImportError:
+		HAVE_ZEROCONF = False
+
 HAVE_PYCRYPTO = True
 try:
 	import Crypto
@@ -172,6 +181,12 @@ else:
 
 import latex
 HAVE_LATEX = latex.check_for_latex_support()
+
+HAVE_INDICATOR = True
+try:
+	import indicate
+except ImportError:
+	HAVE_INDICATOR = False
 
 gajim_identity = {'type': 'pc', 'category': 'client', 'name': 'Gajim'}
 gajim_common_features = [xmpp.NS_BYTESTREAM, xmpp.NS_SI, xmpp.NS_FILE,

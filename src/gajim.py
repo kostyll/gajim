@@ -417,7 +417,12 @@ class PassphraseRequest:
 		self.keyid = keyid
 		self.callbacks = []
 		self.dialog_created = False
+		self.dialog = None
 		self.completed = False
+
+	def interrupt(self):
+		self.dialog.window.destroy()
+		self.callbacks = []
 
 	def run_callback(self, account, callback):
 		gajim.connections[account].gpg_passphrase(self.passphrase)
@@ -474,7 +479,7 @@ class PassphraseRequest:
 				# user failed 3 times, continue without GPG
 				self.complete(None)
 
-		dialogs.PassphraseDialog(title, second, ok_handler=(_ok, 1),
+		self.dialog = dialogs.PassphraseDialog(title, second, ok_handler=(_ok, 1),
 			cancel_handler=_cancel)
 		self.dialog_created = True
 
@@ -616,6 +621,9 @@ class Interface:
 				# iteration error
 				self.instances[account]['online_dialog'][name].destroy()
 				del self.instances[account]['online_dialog'][name]
+			for request in self.gpg_passphrase.values():
+				if request:
+					request.interrupt()
 		if status == 'offline':
 			# sensitivity for this menuitem
 			if gajim.get_number_of_connected_accounts() == 0:
@@ -731,6 +739,9 @@ class Interface:
 					# jid
 					# Create self contact and add to roster
 					if resource == conn.server_resource:
+						return
+					# Ignore offline presence of unknown self resource
+					if new_show < 2:
 						return
 					contact1 = gajim.contacts.create_contact(jid=ji,
 						name=gajim.nicks[account], groups=['self_contact'],
@@ -3274,7 +3285,7 @@ class Interface:
 		gajim.proxy65_manager = proxy65_manager.Proxy65Manager(gajim.idlequeue)
 		gajim.default_session_type = ChatControlSession
 		self.register_handlers()
-		if gajim.config.get('enable_zeroconf'):
+		if gajim.config.get('enable_zeroconf') and gajim.HAVE_ZEROCONF:
 			gajim.connections[gajim.ZEROCONF_ACC_NAME] = \
 				connection_zeroconf.ConnectionZeroconf(gajim.ZEROCONF_ACC_NAME)
 		for account in gajim.config.get_per('accounts'):
@@ -3447,6 +3458,10 @@ class Interface:
 		# when using libasyncns we need to process resolver in regular intervals
 		if resolver.USE_LIBASYNCNS:
 			gobject.timeout_add(200, gajim.resolver.process)
+
+		# setup the indicator
+		if gajim.HAVE_INDICATOR:
+			notify.setup_indicator_server()
 
 		def remote_init():
 			if gajim.config.get('remote_control'):

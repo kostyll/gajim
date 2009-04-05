@@ -33,6 +33,7 @@ import time
 import dialogs
 import gobject
 import gtkgui_helpers
+import gtk
 
 from common import gajim
 from common import helpers
@@ -56,6 +57,21 @@ try:
 	osx.growler.init()
 except Exception:
 	USER_HAS_GROWL = False
+
+def setup_indicator_server(): 
+	server = indicate.indicate_server_ref_default() 
+	server.set_type('message.im') 
+	server.set_desktop_file('/usr/share/applications/gajim.desktop') 
+	server.connect('server-display', server_display) 
+	server.show() 
+
+def display(indicator, account, jid, msg_type): 
+	gajim.interface.handle_event(account, jid, msg_type) 
+	indicator.hide() 
+
+def server_display(server): 
+	win = gajim.interface.roster.window 
+	win.present()
 
 def get_show_in_roster(event, account, contact, session=None):
 	'''Return True if this event must be shown in roster, else False'''
@@ -335,6 +351,18 @@ def popup(event_type, jid, account, msg_type='', path_to_image=None,
 			os.path.join(gajim.DATA_DIR, 'pixmaps', 'events',
 				'chat_msg_recv.png')) # img to display
 
+	if gajim.HAVE_INDICATOR and event_type in (_('New Message'),
+	_('New Single Message'), _('New Private Message')):
+		indicator = indicate.IndicatorMessage()
+		indicator.set_property('subtype', 'im')
+		indicator.set_property('sender', jid)
+		indicator.set_property('body', text)
+		indicator.set_property_time('time', time.time())
+		pixbuf = gtk.gdk.pixbuf_new_from_file(path_to_image)
+		indicator.set_property_icon('icon', pixbuf)
+		indicator.connect('user-display', display, account, jid, msg_type)
+		indicator.show()
+
 	# Try Growl first, as we might have D-Bus and notification daemon running
 	# on OS X for some reason.
 	if USER_HAS_GROWL:
@@ -380,8 +408,9 @@ def popup(event_type, jid, account, msg_type='', path_to_image=None,
 		notification.set_data('account', account)
 		notification.set_data('msg_type', msg_type)
 		notification.set_property('icon-name', path_to_image)
-		notification.add_action('default', 'Default Action',
-			on_pynotify_notification_clicked)
+		if 'actions' in pynotify.get_server_caps():
+			notification.add_action('default', 'Default Action',
+				on_pynotify_notification_clicked)
 
 		try:
 			notification.show()
@@ -519,6 +548,7 @@ class DesktopNotification:
 		if self.kde_notifications:
 			self.attempt_notify()
 		else:
+			self.capabilities = self.notif.GetCapabilities()
 			self.get_version()
 
 	def attempt_notify(self):
@@ -547,6 +577,9 @@ class DesktopNotification:
 			return
 		version = self.version
 		if version[:2] == [0, 2]:
+			actions = {}
+			if 'actions' in self.capabilities:
+				actions = {'default': 0}
 			try:
 				self.notif.Notify(
 					dbus.String(_('Gajim')),
@@ -557,7 +590,7 @@ class DesktopNotification:
 					dbus.String(self.title),
 					dbus.String(self.text),
 					[dbus.String(self.path_to_image)],
-					{'default': 0},
+					actions,
 					[''],
 					True,
 					dbus.UInt32(timeout),
@@ -584,13 +617,16 @@ class DesktopNotification:
 					text = self.text
 				else:
 					text = ' '
+				actions = ()
+				if 'actions' in self.capabilities:
+					actions = (dbus.String('default'), dbus.String(self.event_type))
 				self.notif.Notify(
 					dbus.String(_('Gajim')),
 					dbus.UInt32(0), # this notification does not replace other
 					dbus.String(self.path_to_image),
 					dbus.String(self.title),
 					dbus.String(text),
-					( dbus.String('default'), dbus.String(self.event_type) ),
+					actions,
 					hints,
 					dbus.UInt32(timeout*1000),
 					reply_handler=self.attach_by_id,
