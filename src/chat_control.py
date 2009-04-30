@@ -57,8 +57,6 @@ try:
 except ImportError:
 	HAS_GTK_SPELL = False
 
-HAVE_MARKUP_TOOLTIPS = gtk.pygtk_version >= (2, 12, 0)
-
 # the next script, executed in the "po" directory,
 # generates the following list.
 ##!/bin/sh
@@ -181,6 +179,8 @@ class ChatControlBase(MessageControl):
 			self.banner_status_label = gtk.Label()
 		self.banner_status_label.set_selectable(True)
 		self.banner_status_label.set_alignment(0,0.5)
+		self.banner_status_label.connect('populate_popup',
+			self.on_banner_label_populate_popup)
 
 		banner_vbox = self.xml.get_widget('banner_vbox')
 		banner_vbox.pack_start(self.banner_status_label)
@@ -200,6 +200,8 @@ class ChatControlBase(MessageControl):
 
 		# Create textviews and connect signals
 		self.conv_textview = ConversationTextview(self.account)
+		id_ = self.conv_textview.connect('quote', self.on_quote)
+		self.handlers[id_] = self.conv_textview.tv
 		id_ = self.conv_textview.tv.connect('key_press_event',
 			self._conv_textview_key_press_event)
 		self.handlers[id_] = self.conv_textview.tv
@@ -317,6 +319,20 @@ class ChatControlBase(MessageControl):
 		except (gobject.GError, RuntimeError, TypeError, OSError):
 			dialogs.AspellDictError(lang)
 
+	def on_banner_label_populate_popup(self, label, menu):
+		'''We override the default context menu and add our own menutiems'''
+		item = gtk.SeparatorMenuItem()
+		menu.prepend(item)
+
+		menu2 = self.prepare_context_menu()
+		i = 0
+		for item in menu2:
+			menu2.remove(item)
+			menu.prepend(item)
+			menu.reorder_child(item, i)
+			i += 1
+		menu.show_all()
+
 	def on_msg_textview_populate_popup(self, textview, menu):
 		'''we override the default context menu and we prepend an option to switch
 		languages'''
@@ -355,6 +371,11 @@ class ChatControlBase(MessageControl):
 				self.handlers[id_] = item
 
 		menu.show_all()
+
+	def on_quote(self, widget, text):
+		text = '>' + text.replace('\n', '\n>') + '\n'
+		message_buffer = self.msg_textview.get_buffer()
+		message_buffer.insert_at_cursor(text)
 
 	# moved from ChatControl
 	def _on_banner_eventbox_button_press_event(self, widget, event):
@@ -437,8 +458,6 @@ class ChatControlBase(MessageControl):
 		self.connect_style_event(widget, opts[0], opts[1])
 
 	def _conv_textview_key_press_event(self, widget, event):
-		if gtk.gtk_version < (2, 12, 0):
-			return
 		if (event.state & gtk.gdk.CONTROL_MASK and event.keyval in (gtk.keysyms.c,
 		gtk.keysyms.Insert)) or (event.state & gtk.gdk.SHIFT_MASK and \
 		event.keyval in (gtk.keysyms.Page_Down, gtk.keysyms.Page_Up)):
@@ -836,6 +855,34 @@ class ChatControlBase(MessageControl):
 			gajim.interface.instances['logs'] = \
 				history_window.HistoryWindow(jid, self.account)
 
+	def _on_send_file(self, gc_contact=None):
+		'''gc_contact can be set when we are in a groupchat control'''
+		def _on_ok(c):
+			gajim.interface.instances['file_transfers'].show_file_send_request(
+				self.account, c)
+		if self.TYPE_ID == message_control.TYPE_PM:
+			gc_contact = self.gc_contact
+		if gc_contact:
+			# gc or pm
+			gc_control = gajim.interface.msg_win_mgr.get_gc_control(
+				gc_contact.room_jid, self.account)
+			self_contact = gajim.contacts.get_gc_contact(self.account,
+				gc_control.room_jid, gc_control.nick)
+			if gc_control.is_anonymous and gc_contact.affiliation not in ['admin',
+			'owner'] and self_contact.affiliation in ['admin', 'owner']:
+				contact = gajim.contacts.get_contact(self.account, gc_contact.jid)
+				if not contact or contact.sub not in ('both', 'to'):
+					prim_text = _('Really send file?')
+					sec_text = _('If you send a file to %s, he/she will know your '
+						'real Jabber ID.') % gc_contact.name
+					dialog = dialogs.NonModalConfirmationDialog(prim_text, sec_text,
+						on_response_ok = (_on_ok, gc_contact))
+					dialog.popup()
+					return
+			_on_ok(gc_contact)
+			return
+		_on_ok(self.contact)
+
 	def on_minimize_menuitem_toggled(self, widget):
 		'''When a grouchat is minimized, unparent the tab, put it in roster etc'''
 		old_value = False
@@ -1144,11 +1191,6 @@ class ChatControl(ChatControlBase):
 		self._activity_image = self.xml.get_widget('activity_image')
 		self._tune_image = self.xml.get_widget('tune_image')
 
-		if not HAVE_MARKUP_TOOLTIPS:
-			self._mood_tooltip = gtk.Tooltips()
-			self._activity_tooltip = gtk.Tooltips()
-			self._tune_tooltip = gtk.Tooltips()
-
 		self.update_mood()
 		self.update_activity()
 		self.update_tune()
@@ -1258,6 +1300,13 @@ class ChatControl(ChatControlBase):
 			self._send_file_button.set_sensitive(True)
 		else:
 			self._send_file_button.set_sensitive(False)
+			if not gajim.capscache.is_supported(self.contact, NS_FILE):
+				self._send_file_button.set_tooltip_text(_(
+					"This contact does not support file transfer."))
+			else:
+				self._send_file_button.set_tooltip_text(
+					_("You need to know the real JID of the contact to send him or "
+					"her a file."))
 
 		# Convert to GC
 		if gajim.capscache.is_supported(self.contact, NS_MUC):
@@ -1287,19 +1336,13 @@ class ChatControl(ChatControlBase):
 				self._mood_image.set_from_pixbuf(gtkgui_helpers.load_mood_icon(
 					'unknown').get_pixbuf())
 
-			if HAVE_MARKUP_TOOLTIPS:
-				mood = gobject.markup_escape_text(mood)
+			mood = gobject.markup_escape_text(mood)
 
-				tooltip = '<b>%s</b>' % mood
-				if text:
-					text = gobject.markup_escape_text(text)
-					tooltip += '\n' + text
-				self._mood_image.set_tooltip_markup(tooltip)
-			else:
-				tooltip = mood
-				if text:
-					tooltip += '\n' + text
-				self._mood_tooltip.set_tip(self._mood_image, tooltip)
+			tooltip = '<b>%s</b>' % mood
+			if text:
+				text = gobject.markup_escape_text(text)
+				tooltip += '\n' + text
+			self._mood_image.set_tooltip_markup(tooltip)
 			self._mood_image.show()
 		else:
 			self._mood_image.hide()
@@ -1337,21 +1380,13 @@ class ChatControl(ChatControlBase):
 
 			# Translate standard subactivities
 
-			if HAVE_MARKUP_TOOLTIPS:
-				tooltip = '<b>' + gobject.markup_escape_text(activity)
-				if subactivity:
-					tooltip += ': ' + gobject.markup_escape_text(subactivity)
-				tooltip += '</b>'
-				if text:
-					tooltip += '\n' + gobject.markup_escape_text(text)
-				self._activity_image.set_tooltip_markup(tooltip)
-			else:
-				tooltip = activity
-				if subactivity:
-					tooltip += ': ' + subactivity
-				if text:
-					tooltip += '\n' + text
-				self._activity_tooltip.set_tip(self._activity_image, tooltip)
+			tooltip = '<b>' + gobject.markup_escape_text(activity)
+			if subactivity:
+				tooltip += ': ' + gobject.markup_escape_text(subactivity)
+			tooltip += '</b>'
+			if text:
+				tooltip += '\n' + gobject.markup_escape_text(text)
+			self._activity_image.set_tooltip_markup(tooltip)
 
 			self._activity_image.show()
 		else:
@@ -1367,16 +1402,13 @@ class ChatControl(ChatControlBase):
 
 		if 'artist' in self.contact.tune:
 			artist = self.contact.tune['artist'].strip()
-			if HAVE_MARKUP_TOOLTIPS:
-				artist = gobject.markup_escape_text(artist)
+			artist = gobject.markup_escape_text(artist)
 		if 'title' in self.contact.tune:
 			title = self.contact.tune['title'].strip()
-			if HAVE_MARKUP_TOOLTIPS:
-				title = gobject.markup_escape_text(title)
+			title = gobject.markup_escape_text(title)
 		if 'source' in self.contact.tune:
 			source = self.contact.tune['source'].strip()
-			if HAVE_MARKUP_TOOLTIPS:
-				source = gobject.markup_escape_text(source)
+			source = gobject.markup_escape_text(source)
 
 		if artist or title:
 			if not artist:
@@ -1386,15 +1418,10 @@ class ChatControl(ChatControlBase):
 			if not source:
 				source = _('Unknown Source')
 
-			if HAVE_MARKUP_TOOLTIPS:
-				self._tune_image.set_tooltip_markup(
-					_('<b>"%(title)s"</b> by <i>%(artist)s</i>\n'
-					'from <i>%(source)s</i>') % {'title': title, 'artist': artist,
-					'source': source})
-			else:
-				self._tune_tooltip.set_tip(self._tune_image,
-					_('%(title)s by %(artist)s\nfrom %(source)s') % {'title': title,
-					'artist': artist, 'source': source})
+			self._tune_image.set_tooltip_markup(
+				_('<b>"%(title)s"</b> by <i>%(artist)s</i>\n'
+				'from <i>%(source)s</i>') % {'title': title, 'artist': artist,
+				'source': source})
 			self._tune_image.show()
 		else:
 			self._tune_image.hide()
@@ -2170,10 +2197,14 @@ class ChatControl(ChatControlBase):
 	convert_to_gc_menuitem, information_menuitem, history_menuitem):
 		# destroy accelerators
 		ag = gtk.accel_groups_from_object(self.parent_win.window)[0]
-		send_file_menuitem.remove_accelerator(ag, gtk.keysyms.f, gtk.gdk.CONTROL_MASK)
-		convert_to_gc_menuitem.remove_accelerator(ag, gtk.keysyms.g, gtk.gdk.CONTROL_MASK)
-		information_menuitem.remove_accelerator(ag, gtk.keysyms.i, gtk.gdk.CONTROL_MASK)
-		history_menuitem.remove_accelerator(ag, gtk.keysyms.h, gtk.gdk.CONTROL_MASK)
+		send_file_menuitem.remove_accelerator(ag, gtk.keysyms.f,
+			gtk.gdk.CONTROL_MASK)
+		convert_to_gc_menuitem.remove_accelerator(ag, gtk.keysyms.g,
+			gtk.gdk.CONTROL_MASK)
+		information_menuitem.remove_accelerator(ag, gtk.keysyms.i,
+			gtk.gdk.CONTROL_MASK)
+		history_menuitem.remove_accelerator(ag, gtk.keysyms.h,
+			gtk.gdk.CONTROL_MASK)
 		# destroy menu
 		menu.destroy()
 
@@ -2298,6 +2329,12 @@ class ChatControl(ChatControlBase):
 			del self.handlers[i]
 		self.conv_textview.del_handlers()
 		self.msg_textview.destroy()
+
+	def minimizable(self):
+		return False
+
+	def safe_shutdown(self):
+		return False
 
 	def allow_shutdown(self, method, on_yes, on_no, on_minimize):
 		if time.time() - gajim.last_message_time[self.account]\
@@ -2595,8 +2632,7 @@ class ChatControl(ChatControlBase):
 		# so this line adds that
 		window.set_events(gtk.gdk.POINTER_MOTION_MASK)
 		window.set_app_paintable(True)
-		if gtk.gtk_version >= (2, 10, 0) and gtk.pygtk_version >= (2, 10, 0):
-			window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP)
+		window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP)
 
 		window.realize()
 		window.window.set_back_pixmap(pixmap, False) # make it transparent
@@ -2635,12 +2671,7 @@ class ChatControl(ChatControlBase):
 		self.bigger_avatar_window.window.set_cursor(cursor)
 
 	def _on_send_file_menuitem_activate(self, widget):
-		if self.TYPE_ID == message_control.TYPE_PM:
-			c = self.gc_contact
-		else:
-			c = self.contact
-		gajim.interface.instances['file_transfers'].show_file_send_request(
-			self.account, c)
+		self._on_send_file()
 
 	def _on_add_to_roster_menuitem_activate(self, widget):
 		dialogs.AddNewContactWindow(self.account, self.contact.jid)

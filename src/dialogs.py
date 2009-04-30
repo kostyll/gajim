@@ -218,6 +218,7 @@ class PassphraseDialog:
 		cancelbutton.connect('clicked', self.on_cancelbutton_clicked)
 
 		self.xml.signal_autoconnect(self)
+		self.window.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
 		self.window.show_all()
 
 		self.check = bool(checkbuttontext)
@@ -283,6 +284,7 @@ class ChooseGPGKeyDialog:
 		self.keys_treeview.set_search_column(1)
 		self.fill_tree(secret_keys, selected)
 		self.window.connect('response', self.on_dialog_response)
+		self.window.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
 		self.window.show_all()
 
 	def sort_keys(self, model, iter1, iter2):
@@ -321,8 +323,11 @@ class ChangeActivityDialog:
 		'having_appointment', 'inactive', 'relaxing', 'talking', 'traveling',
 		'working']
 
-	def __init__(self, account):
-		self.account = account
+	def __init__(self, on_response, activity=None, subactivity=None, text=''):
+		self.on_response = on_response
+		self.activity = activity
+		self.subactivity = subactivity
+		self.text = text
 		self.xml = gtkgui_helpers.get_glade(
 			'change_activity_dialog.glade')
 		self.window = self.xml.get_widget('change_activity_dialog')
@@ -331,9 +336,6 @@ class ChangeActivityDialog:
 		self.checkbutton = self.xml.get_widget('enable_checkbutton')
 		self.notebook = self.xml.get_widget('notebook')
 		self.entry = self.xml.get_widget('description_entry')
-
-		self.activity = 'working'
-		self.subactivity = 'other'
 
 		rbtns = {}
 		group = None
@@ -392,32 +394,27 @@ class ChangeActivityDialog:
 				rbtns[act].add(hbox)
 				vbox.pack_start(rbtns[act], False, False, 0)
 
-		rbtns['working_other'].set_active(True)
 
-		con = gajim.connections[account]
+		if self.activity in pep.ACTIVITIES:
+			if not self.subactivity in pep.ACTIVITIES[self.activity]:
+				self.subactivity = 'other'
 
-		if 'activity' in con.activity \
-		and con.activity['activity'] in pep.ACTIVITIES:
-			if 'subactivity' in con.activity \
-			and con.activity['subactivity'] in pep.ACTIVITIES[con.activity['activity']]:
-				subactivity = con.activity['subactivity']
-			else:
-				subactivity = 'other'
-
-			rbtns[con.activity['activity'] + '_' + subactivity]. \
-				set_active(True)
+			rbtns[self.activity + '_' + self.subactivity].set_active(True)
 
 			self.checkbutton.set_active(True)
 			self.notebook.set_sensitive(True)
 			self.entry.set_sensitive(True)
 
 			self.notebook.set_current_page(
-				self.PAGELIST.index(con.activity['activity']))
+				self.PAGELIST.index(self.activity))
 
-		if 'text' in con.activity:
-			self.entry.set_text(con.activity['text'])
+			self.entry.set_text(text)
+
+		else:
+			self.checkbutton.set_active(False)
 
 		self.xml.signal_autoconnect(self)
+		self.window.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
 		self.window.show_all()
 
 	def on_enable_checkbutton_toggled(self, widget):
@@ -434,11 +431,10 @@ class ChangeActivityDialog:
 		Return activity and messsage (None if no activity selected)
 		'''
 		if self.checkbutton.get_active():
-			pep.user_send_activity(self.account, self.activity,
-				self.subactivity,
+			self.on_response(self.activity, self.subactivity,
 				self.entry.get_text().decode('utf-8'))
 		else:
-			pep.user_send_activity(self.account, '')
+			self.on_response(None, None, '')
 		self.window.destroy()
 
 	def on_cancel_button_clicked(self, widget):
@@ -447,10 +443,11 @@ class ChangeActivityDialog:
 class ChangeMoodDialog:
 	COLS = 11
 
-	def __init__(self, account):
-		self.account = account
+	def __init__(self, on_response, mood=None, text=''):
+		self.on_response = on_response
+		self.mood = mood
+		self.text = text
 		self.xml = gtkgui_helpers.get_glade('change_mood_dialog.glade')
-		self.mood = None
 
 		self.window = self.xml.get_widget('change_mood_dialog')
 		self.window.set_transient_for(gajim.interface.roster.window)
@@ -491,24 +488,19 @@ class ChangeMoodDialog:
 				x = 0
 				y += 1
 
-		con = gajim.connections[account]
-		if 'mood' in con.mood:
-			self.mood = con.mood['mood']
-			if self.mood in pep.MOODS:
-				self.mood_buttons[self.mood].set_active(True)
-				self.label.set_text(pep.MOODS[self.mood])
-			else:
-				self.label.set_text(self.mood)
-
-		if self.mood:
+		if self.mood in pep.MOODS:
+			self.mood_buttons[self.mood].set_active(True)
+			self.label.set_text(pep.MOODS[self.mood])
 			self.entry.set_sensitive(True)
+			if self.text:
+				self.entry.set_text(self.text)
 		else:
+			self.label.set_text(_('None'))
+			self.entry.set_text('')
 			self.entry.set_sensitive(False)
 
-		if 'text' in con.mood:
-			self.entry.set_text(con.mood['text'])
-
 		self.xml.signal_autoconnect(self)
+		self.window.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
 		self.window.show_all()
 
 	def on_mood_button_clicked(self, widget, data):
@@ -524,25 +516,25 @@ class ChangeMoodDialog:
 	def on_ok_button_clicked(self, widget):
 		'''Return mood and messsage (None if no mood selected)'''
 		message = self.entry.get_text().decode('utf-8')
-		if self.mood is None:
-			pep.user_send_mood(self.account, '')
-		else:
-			pep.user_send_mood(self.account, self.mood, message)
+		self.on_response(self.mood, message)
 		self.window.destroy()
 
 	def on_cancel_button_clicked(self, widget):
 		self.window.destroy()
 
 class ChangeStatusMessageDialog:
-	def __init__(self, on_response, show=None):
+	def __init__(self, on_response, show=None, pep_dict=None):
 		self.show = show
+		self.pep_dict = pep_dict
 		self.on_response = on_response
 		self.xml = gtkgui_helpers.get_glade('change_status_message_dialog.glade')
 		self.window = self.xml.get_widget('change_status_message_dialog')
 		self.window.set_transient_for(gajim.interface.roster.window)
+		msg = None
 		if show:
 			uf_show = helpers.get_uf_show(show)
 			self.title_text = _('%s Status Message') % uf_show
+			msg = gajim.config.get('last_status_msg_' + show)
 		else:
 			self.title_text = _('Status Message')
 		self.window.set_title(self.title_text)
@@ -551,24 +543,24 @@ class ChangeStatusMessageDialog:
 		self.message_buffer = message_textview.get_buffer()
 		self.message_buffer.connect('changed',
 			self.toggle_sensitiviy_of_save_as_preset)
-		msg = None
-		if show:
-			msg = gajim.config.get('last_status_msg_' + show)
 		if not msg:
 			msg = ''
 		msg = helpers.from_one_line(msg)
 		self.message_buffer.set_text(msg)
 
 		# have an empty string selectable, so user can clear msg
-		self.preset_messages_dict = {'': ''}
+		self.preset_messages_dict = {'': ['', '', '', '', '', '']}
 		for msg_name in gajim.config.get_per('statusmsg'):
-			msg_text = gajim.config.get_per('statusmsg', msg_name, 'message')
-			msg_text = helpers.from_one_line(msg_text)
-			self.preset_messages_dict[msg_name] = msg_text
+			opts = []
+			for opt in ['message', 'activity', 'subactivity', 'activity_text',
+			'mood', 'mood_text']:
+				opts.append(gajim.config.get_per('statusmsg', msg_name, opt))
+			opts[0] = helpers.from_one_line(opts[0])
+			self.preset_messages_dict[msg_name] = opts
 		sorted_keys_list = helpers.get_sorted_keys(self.preset_messages_dict)
 
-		self.countdown_time = gajim.config.get('change_status_window_timeout')
-		self.countdown_left = self.countdown_time
+		countdown_time = gajim.config.get('change_status_window_timeout')
+		self.countdown_left = countdown_time
 		self.countdown_enabled = True
 
 		self.message_liststore = gtk.ListStore(str) # msg_name
@@ -579,12 +571,62 @@ class ChangeStatusMessageDialog:
 		self.message_combobox.add_attribute(cellrenderertext, 'text', 0)
 		for msg_name in sorted_keys_list:
 			self.message_liststore.append((msg_name,))
+
+		if pep_dict:
+			self.draw_activity()
+			self.draw_mood()
+		else:
+			# remove acvtivity / mood lines
+			self.xml.get_widget('activity_label').set_no_show_all(True)
+			self.xml.get_widget('activity_button').set_no_show_all(True)
+			self.xml.get_widget('mood_label').set_no_show_all(True)
+			self.xml.get_widget('mood_button').set_no_show_all(True)
+			self.xml.get_widget('activity_label').hide()
+			self.xml.get_widget('activity_button').hide()
+			self.xml.get_widget('mood_label').hide()
+			self.xml.get_widget('mood_button').hide()
+
 		self.xml.signal_autoconnect(self)
-		if self.countdown_time > 0:
+		if countdown_time > 0:
 			self.countdown()
 			gobject.timeout_add(1000, self.countdown)
 		self.window.connect('response', self.on_dialog_response)
+		self.window.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
 		self.window.show_all()
+
+	def draw_activity(self):
+		'''Set activity button'''
+		img = self.xml.get_widget('activity_image')
+		label = self.xml.get_widget('activity_button_label')
+		if 'activity' in self.pep_dict and self.pep_dict['activity'] in \
+		pep.ACTIVITIES:
+			if 'subactivity' in self.pep_dict and self.pep_dict['subactivity'] in \
+			pep.ACTIVITIES[self.pep_dict['activity']]:
+				img.set_from_pixbuf(gtkgui_helpers.load_activity_icon(
+					self.pep_dict['activity'], self.pep_dict['subactivity']).\
+					get_pixbuf())
+			else:
+				img.set_from_pixbuf(gtkgui_helpers.load_activity_icon(
+					self.pep_dict['activity']).get_pixbuf())
+#			gtk.Tooltips().set_tip(item, pep.ACTIVITIES[category]['category'])
+			if self.pep_dict['activity_text']:
+				label.set_text(self.pep_dict['activity_text'])
+		else:
+			img.set_from_pixbuf(None)
+			label.set_text('')
+
+	def draw_mood(self):
+		'''Set mood button'''
+		img = self.xml.get_widget('mood_image')
+		label = self.xml.get_widget('mood_button_label')
+		if self.pep_dict['mood'] in pep.MOODS:
+			img.set_from_pixbuf(gtkgui_helpers.load_mood_icon(
+				self.pep_dict['mood']).get_pixbuf())
+			if self.pep_dict['mood_text']:
+				label.set_text(self.pep_dict['mood_text'])
+		else:
+			img.set_from_pixbuf(None)
+			label.set_text('')
 
 	def countdown(self):
 		if self.countdown_enabled:
@@ -613,7 +655,7 @@ class ChangeStatusMessageDialog:
 		else:
 			message = None # user pressed Cancel button or X wm button
 		self.window.destroy()
-		self.on_response(message)
+		self.on_response(message, self.pep_dict)
 
 	def on_message_combobox_changed(self, widget):
 		self.countdown_enabled = False
@@ -622,7 +664,14 @@ class ChangeStatusMessageDialog:
 		if active < 0:
 			return None
 		name = model[active][0].decode('utf-8')
-		self.message_buffer.set_text(self.preset_messages_dict[name])
+		self.message_buffer.set_text(self.preset_messages_dict[name][0])
+		self.pep_dict['activity'] = self.preset_messages_dict[name][1]
+		self.pep_dict['subactivity'] = self.preset_messages_dict[name][2]
+		self.pep_dict['activity_text'] = self.preset_messages_dict[name][3]
+		self.pep_dict['mood'] = self.preset_messages_dict[name][4]
+		self.pep_dict['mood_text'] = self.preset_messages_dict[name][5]
+		self.draw_activity()
+		self.draw_mood()
 
 	def on_change_status_message_dialog_key_press_event(self, widget, event):
 		self.countdown_enabled = False
@@ -651,24 +700,54 @@ class ChangeStatusMessageDialog:
 			if not msg_name: # msg_name was ''
 				msg_name = msg_text_1l.decode('utf-8')
 
+			def on_ok2():
+				self.preset_messages_dict[msg_name] = [msg_text, self.pep_dict.get(
+					'activity'), self.pep_dict.get('subactivity'), self.pep_dict.get(
+					'activity_text'), self.pep_dict.get('mood'), self.pep_dict.get(
+					'mood_text')]
+				gajim.config.set_per('statusmsg', msg_name, 'message', msg_text_1l)
+				gajim.config.set_per('statusmsg', msg_name, 'activity',
+					self.pep_dict.get('activity'))
+				gajim.config.set_per('statusmsg', msg_name, 'subactivity',
+					self.pep_dict.get('subactivity'))
+				gajim.config.set_per('statusmsg', msg_name, 'activity_text',
+					self.pep_dict.get('activity_text'))
+				gajim.config.set_per('statusmsg', msg_name, 'mood',
+					self.pep_dict.get('mood'))
+				gajim.config.set_per('statusmsg', msg_name, 'mood_text',
+					self.pep_dict.get('mood_text'))
 			if msg_name in self.preset_messages_dict:
-				def on_ok2():
-					self.preset_messages_dict[msg_name] = msg_text
-					gajim.config.set_per('statusmsg', msg_name, 'message',
-						msg_text_1l)
 				ConfirmationDialog(_('Overwrite Status Message?'),
 					_('This name is already used. Do you want to overwrite this '
 					'status message?'), on_response_ok=on_ok2)
 				return
-			self.preset_messages_dict[msg_name] = msg_text
-			iter_ = self.message_liststore.append((msg_name,))
 			gajim.config.add_per('statusmsg', msg_name)
+			on_ok2()
+			iter_ = self.message_liststore.append((msg_name,))
 			# select in combobox the one we just saved
 			self.message_combobox.set_active_iter(iter_)
-			gajim.config.set_per('statusmsg', msg_name, 'message', msg_text_1l)
 		InputDialog(_('Save as Preset Status Message'),
 			_('Please type a name for this status message'), is_modal=False,
 			ok_handler=on_ok)
+
+	def on_activity_button_clicked(self, widget):
+		self.countdown_enabled = False
+		def on_response(activity, subactivity, text):
+			self.pep_dict['activity'] = activity
+			self.pep_dict['subactivity'] = subactivity
+			self.pep_dict['activity_text'] = text
+			self.draw_activity()
+		ChangeActivityDialog(on_response, self.pep_dict['activity'],
+			self.pep_dict['subactivity'], self.pep_dict['activity_text'])
+
+	def on_mood_button_clicked(self, widget):
+		self.countdown_enabled = False
+		def on_response(mood, text):
+			self.pep_dict['mood'] = mood
+			self.pep_dict['mood_text'] = text
+			self.draw_mood()
+		ChangeMoodDialog(on_response, self.pep_dict['mood'],
+			self.pep_dict['mood_text'])
 
 class AddNewContactWindow:
 	'''Class for AddNewContactWindow'''
@@ -1620,7 +1699,8 @@ class SubscriptionRequestWindow:
 		'''accept the request'''
 		gajim.connections[self.account].send_authorization(self.jid)
 		self.window.destroy()
-		if self.jid not in gajim.contacts.get_jid_list(self.account):
+		contact = gajim.contacts.get_contact(self.account, self.jid)
+		if not contact or _('Not in Roster') in contact.groups:
 			AddNewContactWindow(self.account, self.jid, self.user_nick)
 
 	def on_contact_info_activate(self, widget):
@@ -2026,8 +2106,7 @@ class PopupNotificationWindow:
 
 		xml = gtkgui_helpers.get_glade('popup_notification_window.glade')
 		self.window = xml.get_widget('popup_notification_window')
-		if gtk.gtk_version >= (2, 10, 0) and gtk.pygtk_version >= (2, 10, 0):
-			self.window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP)
+		self.window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP)
 		close_button = xml.get_widget('close_button')
 		event_type_label = xml.get_widget('event_type_label')
 		event_description_label = xml.get_widget('event_description_label')
@@ -2426,9 +2505,14 @@ class XMLConsoleWindow:
 		self.tagIn = buffer_.create_tag('incoming')
 		color = gajim.config.get('inmsgcolor')
 		self.tagIn.set_property('foreground', color)
+		self.tagInComment = buffer_.create_tag('in_comment')
+		self.tagInComment.set_property('foreground', color)
+
 		self.tagOut = buffer_.create_tag('outgoing')
 		color = gajim.config.get('outmsgcolor')
 		self.tagOut.set_property('foreground', color)
+		self.tagOutComment = buffer_.create_tag('out_comment')
+		self.tagOutComment.set_property('foreground', color)
 
 		self.enabled = False
 
@@ -2481,6 +2565,13 @@ class XMLConsoleWindow:
 		visible_rect = self.stanzas_log_textview.get_visible_rect()
 		if end_rect.y <= (visible_rect.y + visible_rect.height):
 			at_the_end = True
+		end_iter = buffer.get_end_iter()
+		if kind == 'incoming':
+			buffer.insert_with_tags_by_name(end_iter, '<!-- In -->\n', 
+					'in_comment')
+		elif kind == 'outgoing':
+			buffer.insert_with_tags_by_name(end_iter, '<!-- Out -->\n', 
+					'out_comment')
 		end_iter = buffer.get_end_iter()
 		buffer.insert_with_tags_by_name(end_iter, stanza.replace('><', '>\n<') + \
 			'\n\n', kind)
@@ -2998,6 +3089,7 @@ class ProgressDialog:
 		self.progressbar = self.xml.get_widget('progressbar')
 		self.dialog.set_title(title_text)
 		self.dialog.set_default_size(450, 250)
+		self.window.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
 		self.dialog.show_all()
 		self.xml.signal_autoconnect(self)
 

@@ -276,49 +276,6 @@ class GroupchatControl(ChatControlBase):
 		self.number_of_colors = len(gajim.config.get('gc_nicknames_colors').\
 			split(':'))
 
-		# connect the menuitems to their respective functions
-		xm = gtkgui_helpers.get_glade('gc_control_popup_menu.glade')
-
-		self.bookmark_room_menuitem = xm.get_widget('bookmark_room_menuitem')
-		id_ = self.bookmark_room_menuitem.connect('activate',
-			self._on_bookmark_room_menuitem_activate)
-		self.handlers[id_] = self.bookmark_room_menuitem
-
-		self.change_nick_menuitem = xm.get_widget('change_nick_menuitem')
-		id_ = self.change_nick_menuitem.connect('activate',
-			self._on_change_nick_menuitem_activate)
-		self.handlers[id_] = self.change_nick_menuitem
-
-		self.configure_room_menuitem = xm.get_widget('configure_room_menuitem')
-		id_ = self.configure_room_menuitem.connect('activate',
-			self._on_configure_room_menuitem_activate)
-		self.handlers[id_] = self.configure_room_menuitem
-
-		self.destroy_room_menuitem = xm.get_widget('destroy_room_menuitem')
-		id_ = self.destroy_room_menuitem.connect('activate',
-			self._on_destroy_room_menuitem_activate)
-		self.handlers[id_] = self.destroy_room_menuitem
-
-		self.change_subject_menuitem = xm.get_widget('change_subject_menuitem')
-		id_ = self.change_subject_menuitem.connect('activate',
-			self._on_change_subject_menuitem_activate)
-		self.handlers[id_] = self.change_subject_menuitem
-
-		self.history_menuitem = xm.get_widget('history_menuitem')
-		id_ = self.history_menuitem.connect('activate',
-			self._on_history_menuitem_activate)
-		self.handlers[id_] = self.history_menuitem
-
-		self.minimize_menuitem = xm.get_widget('minimize_menuitem')
-		id_ = self.minimize_menuitem.connect('toggled',
-			self.on_minimize_menuitem_toggled)
-		self.handlers[id_] = self.minimize_menuitem
-
-		self.bookmark_separator = xm.get_widget('bookmark_separator')
-		self.separatormenuitem2 = xm.get_widget('separatormenuitem2')
-
-		self.gc_popup_menu = xm.get_widget('gc_control_popup_menu')
-
 		self.name_label = self.xml.get_widget('banner_name_label')
 		self.event_box = self.xml.get_widget('banner_eventbox')
 
@@ -645,62 +602,122 @@ class GroupchatControl(ChatControlBase):
 
 	def prepare_context_menu(self, hide_buttonbar_entries=False):
 		'''sets sensitivity state for configure_room'''
-		ag = gtk.accel_groups_from_object(self.parent_win.window)[0]
-		self.change_nick_menuitem.add_accelerator('activate', ag, gtk.keysyms.n,
-			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
-		self.change_subject_menuitem.add_accelerator('activate', ag,
-			gtk.keysyms.t, gtk.gdk.MOD1_MASK, gtk.ACCEL_VISIBLE)
-		self.bookmark_room_menuitem.add_accelerator('activate', ag, gtk.keysyms.b,
-			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
-		self.history_menuitem.add_accelerator('activate', ag, gtk.keysyms.h,
-			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
+		xml = gtkgui_helpers.get_glade('gc_control_popup_menu.glade')
+		menu = xml.get_widget('gc_control_popup_menu')
+
+		bookmark_room_menuitem = xml.get_widget('bookmark_room_menuitem')
+		change_nick_menuitem = xml.get_widget('change_nick_menuitem')
+		configure_room_menuitem = xml.get_widget('configure_room_menuitem')
+		destroy_room_menuitem = xml.get_widget('destroy_room_menuitem')
+		change_subject_menuitem = xml.get_widget('change_subject_menuitem')
+		history_menuitem = xml.get_widget('history_menuitem')
+		minimize_menuitem = xml.get_widget('minimize_menuitem')
+		bookmark_separator = xml.get_widget('bookmark_separator')
+		separatormenuitem2 = xml.get_widget('separatormenuitem2')
 
 		if hide_buttonbar_entries:
-			self.change_nick_menuitem.hide()
-			self.change_subject_menuitem.hide()
-			self.bookmark_room_menuitem.hide()
-			self.history_menuitem.hide()
-			self.bookmark_separator.hide()
-			self.separatormenuitem2.hide()
+			change_nick_menuitem.hide()
+			change_subject_menuitem.hide()
+			bookmark_room_menuitem.hide()
+			history_menuitem.hide()
+			bookmark_separator.hide()
+			separatormenuitem2.hide()
 		else:
-			self.change_nick_menuitem.show()
-			self.change_subject_menuitem.show()
-			self.bookmark_room_menuitem.show()
-			self.history_menuitem.show()
-			self.bookmark_separator.show()
-			self.separatormenuitem2.show()
+			change_nick_menuitem.show()
+			change_subject_menuitem.show()
+			bookmark_room_menuitem.show()
+			history_menuitem.show()
+			bookmark_separator.show()
+			separatormenuitem2.show()
 			for bm in gajim.connections[self.account].bookmarks:
 				if bm['jid'] == self.room_jid:
-					self.bookmark_room_menuitem.hide()
-					self.bookmark_separator.hide()
+					bookmark_room_menuitem.hide()
+					bookmark_separator.hide()
 					break
+
+		ag = gtk.accel_groups_from_object(self.parent_win.window)[0]
+		change_nick_menuitem.add_accelerator('activate', ag, gtk.keysyms.n,
+			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
+		change_subject_menuitem.add_accelerator('activate', ag,
+			gtk.keysyms.t, gtk.gdk.MOD1_MASK, gtk.ACCEL_VISIBLE)
+		bookmark_room_menuitem.add_accelerator('activate', ag, gtk.keysyms.b,
+			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
+		history_menuitem.add_accelerator('activate', ag, gtk.keysyms.h,
+			gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
 
 		if self.contact.jid in gajim.config.get_per('accounts', self.account,
 		'minimized_gc').split(' '):
-			self.minimize_menuitem.set_active(True)
+			minimize_menuitem.set_active(True)
 		if not gajim.connections[self.account].private_storage_supported:
-			self.bookmark_room_menuitem.set_sensitive(False)
+			bookmark_room_menuitem.set_sensitive(False)
 		if gajim.gc_connected[self.account][self.room_jid]:
 			c = gajim.contacts.get_gc_contact(self.account, self.room_jid,
 				self.nick)
 			if c.affiliation not in ('owner', 'admin'):
-				self.configure_room_menuitem.set_sensitive(False)
+				configure_room_menuitem.set_sensitive(False)
 			else:
-				self.configure_room_menuitem.set_sensitive(True)
+				configure_room_menuitem.set_sensitive(True)
 			if c.affiliation != 'owner':
-				self.destroy_room_menuitem.set_sensitive(False)
+				destroy_room_menuitem.set_sensitive(False)
 			else:
-				self.destroy_room_menuitem.set_sensitive(True)
-			self.change_subject_menuitem.set_sensitive(True)
-			self.change_nick_menuitem.set_sensitive(True)
+				destroy_room_menuitem.set_sensitive(True)
+			change_subject_menuitem.set_sensitive(True)
+			change_nick_menuitem.set_sensitive(True)
 		else:
 			# We are not connected to this groupchat, disable unusable menuitems
-			self.configure_room_menuitem.set_sensitive(False)
-			self.destroy_room_menuitem.set_sensitive(False)
-			self.change_subject_menuitem.set_sensitive(False)
-			self.change_nick_menuitem.set_sensitive(False)
+			configure_room_menuitem.set_sensitive(False)
+			destroy_room_menuitem.set_sensitive(False)
+			change_subject_menuitem.set_sensitive(False)
+			change_nick_menuitem.set_sensitive(False)
 
-		return self.gc_popup_menu
+		# connect the menuitems to their respective functions
+		id_ = bookmark_room_menuitem.connect('activate',
+			self._on_bookmark_room_menuitem_activate)
+		self.handlers[id_] = bookmark_room_menuitem
+
+		id_ = change_nick_menuitem.connect('activate',
+			self._on_change_nick_menuitem_activate)
+		self.handlers[id_] = change_nick_menuitem
+
+		id_ = configure_room_menuitem.connect('activate',
+			self._on_configure_room_menuitem_activate)
+		self.handlers[id_] = configure_room_menuitem
+
+		id_ = destroy_room_menuitem.connect('activate',
+			self._on_destroy_room_menuitem_activate)
+		self.handlers[id_] = destroy_room_menuitem
+
+		id_ = change_subject_menuitem.connect('activate',
+			self._on_change_subject_menuitem_activate)
+		self.handlers[id_] = change_subject_menuitem
+
+		id_ = history_menuitem.connect('activate',
+			self._on_history_menuitem_activate)
+		self.handlers[id_] = history_menuitem
+
+		id_ = minimize_menuitem.connect('toggled',
+			self.on_minimize_menuitem_toggled)
+		self.handlers[id_] = minimize_menuitem
+
+		menu.connect('selection-done', self.destroy_menu,
+         change_nick_menuitem, change_subject_menuitem,
+         bookmark_room_menuitem, history_menuitem)
+		return menu
+
+	def destroy_menu(self, menu, change_nick_menuitem, change_subject_menuitem,
+	bookmark_room_menuitem, history_menuitem):
+		# destroy accelerators
+		ag = gtk.accel_groups_from_object(self.parent_win.window)[0]
+		change_nick_menuitem.remove_accelerator(ag, gtk.keysyms.n,
+			gtk.gdk.CONTROL_MASK)
+		change_subject_menuitem.remove_accelerator(ag, gtk.keysyms.t,
+			gtk.gdk.MOD1_MASK)
+		bookmark_room_menuitem.remove_accelerator(ag, gtk.keysyms.b,
+			gtk.gdk.CONTROL_MASK)
+		history_menuitem.remove_accelerator(ag, gtk.keysyms.h,
+			gtk.gdk.CONTROL_MASK)
+		# destroy menu
+		menu.destroy()
 
 	def on_message(self, nick, msg, tim, has_timestamp=False, xhtml=None,
 	status_code=[]):
@@ -1004,21 +1021,7 @@ class GroupchatControl(ChatControlBase):
 
 	def on_send_file(self, widget, gc_contact):
 		'''sends a file to a contact in the room'''
-		def _on_send_files(gc_c):
-			gajim.interface.instances['file_transfers'].show_file_send_request(
-				self.account, gc_c)
-		self_contact = gajim.contacts.get_gc_contact(self.account, self.room_jid,
-			self.nick)
-		if self.is_anonymous and gc_contact.affiliation not in ['admin', 'owner']\
-		and self_contact.affiliation in ['admin', 'owner']:
-			prim_text = _('Really send file?')
-			sec_text = _('If you send a file to %s, he/she will know your real '
-				'Jabber ID.') % gc_contact.name
-			dialog = dialogs.NonModalConfirmationDialog(prim_text, sec_text,
-				on_response_ok = (_on_send_files, gc_contact))
-			dialog.popup()
-		else:
-			_on_send_files(gc_contact)
+		self._on_send_file(gc_contact)
 
 	def draw_contact(self, nick, selected=False, focus=False):
 		iter_ = self.get_contact_iter(nick)
@@ -1454,7 +1457,8 @@ class GroupchatControl(ChatControlBase):
 					dialogs.ErrorDialog(_('Invalid nickname'),
 					_('The nickname has not allowed characters.'))
 					return True
-				gajim.connections[self.account].join_gc(nick, self.room_jid, None)
+				gajim.connections[self.account].join_gc(nick, self.room_jid, None,
+					change_nick=True)
 				self.new_nick = nick
 				self.clear(self.msg_textview)
 			else:
@@ -1737,7 +1741,8 @@ class GroupchatControl(ChatControlBase):
 				dialogs.ErrorDialog(_('Invalid nickname'),
 				_('The nickname has not allowed characters.'))
 				return
-			gajim.connections[self.account].join_gc(nick, self.room_jid, None)
+			gajim.connections[self.account].join_gc(nick, self.room_jid, None,
+				change_nick=True)
 			if gajim.gc_connected[self.account][self.room_jid]:
 				# We are changing nick, we will change self.nick when we receive
 				# presence that inform that it works
@@ -1753,6 +1758,12 @@ class GroupchatControl(ChatControlBase):
 		self.change_nick_dialog = dialogs.InputDialog(title, prompt,
 			proposed_nick, is_modal=False, ok_handler=on_ok,
 			cancel_handler=on_cancel)
+
+	def minimizable(self):
+		if self.contact.jid in gajim.config.get_per('accounts', self.account,
+		'minimized_gc').split(' '):
+			return True
+		return False
 
 	def minimize(self, status='offline'):
 		# Minimize it
@@ -1810,9 +1821,20 @@ class GroupchatControl(ChatControlBase):
 		# Remove unread events from systray
 		gajim.events.remove_events(self.account, self.room_jid)
 
+	def safe_shutdown(self):
+		if self.minimizable():
+			return True
+		includes = gajim.config.get('confirm_close_muc_rooms').split(' ')
+		excludes = gajim.config.get('noconfirm_close_muc_rooms').split(' ')
+		# whether to ask for comfirmation before closing muc
+		if (gajim.config.get('confirm_close_muc') or self.room_jid in includes) \
+		and gajim.gc_connected[self.account][self.room_jid] and self.room_jid not\
+		in excludes:
+			return False
+		return True
+
 	def allow_shutdown(self, method, on_yes, on_no, on_minimize):
-		if self.contact.jid in gajim.config.get_per('accounts', self.account,
-		'minimized_gc').split(' '):
+		if self.minimizable():
 			on_minimize(self)
 			return
 		if method == self.parent_win.CLOSE_ESC:

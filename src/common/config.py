@@ -190,6 +190,7 @@ class Config:
 		'confirm_close_muc': [opt_bool, True, _('Ask before closing a group chat tab/window.')],
 		'confirm_close_muc_rooms': [opt_str, '', _('Always ask before closing group chat tab/window in this space separated list of group chat jids.')],
 		'noconfirm_close_muc_rooms': [opt_str, '', _('Never ask before closing group chat tab/window in this space separated list of group chat jids.')],
+		'confirm_close_multiple_tabs': [opt_bool, True, _('Ask before closing tabbed chat window if there are control that can loose data (chat, private chat, groupchat that will not be minimized)')],
 		'notify_on_file_complete': [opt_bool, True],
 		'file_transfers_port': [opt_int, 28011],
 		'ft_add_hosts_to_send': [opt_str, '', _('Comma separated list of hosts that we send, in addition of local interfaces, for File Transfer in case of address translation/port forwarding.')],
@@ -269,6 +270,7 @@ class Config:
 		'check_idle_every_foo_seconds': [opt_int, 2, _('Choose interval between 2 checks of idleness.')],
 		'latex_png_dpi': [opt_str, '108',_('Change the value to change the size of latex formulas displayed. The higher is larger.') ],
 		'uri_schemes': [opt_str, 'aaa aaas acap cap cid crid data dav dict dns fax file ftp go gopher h323 http https icap im imap info ipp iris iris.beep iris.xpc iris.xpcs iris.lwz ldap mid modem msrp msrps mtqp mupdate news nfs nntp opaquelocktoken pop pres rtsp service shttp sip sips snmp soap.beep soap.beeps tag tel telnet tftp thismessage tip tv urn vemmi xmlrpc.beep xmlrpc.beeps z39.50r z39.50s about cvs daap ed2k feed fish git iax2 irc ircs ldaps magnet mms rsync ssh svn sftp smb webcal', _('Valid uri schemes. Only schemes in this list will be accepted as "real" uri. (mailto and xmpp are handled separately)'), True],
+		'ask_offline_status_on_connection': [ opt_bool, False, _('Ask offline status message to all offline contacts when connection to an accoutn is established. WARNING: This causes a lot of requests to be sent!') ],
 	}
 
 	__options_per_key = {
@@ -348,6 +350,11 @@ class Config:
 		}, {}),
 		'statusmsg': ({
 			'message': [ opt_str, '' ],
+			'activity': [ opt_str, '' ],
+			'subactivity': [ opt_str, '' ],
+			'activity_text': [ opt_str, '' ],
+			'mood': [ opt_str, '' ],
+			'mood_text': [ opt_str, '' ],
 		}, {}),
 		'defaultstatusmsg': ({
 			'enabled': [ opt_bool, False ],
@@ -428,13 +435,13 @@ class Config:
 	}
 
 	statusmsg_default = {
-		_('Sleeping'): 'ZZZZzzzzzZZZZZ',
-		_('Back soon'): _('Back in some minutes.'),
-		_('Eating'): _("I'm eating, so leave me a message."),
-		_('Movie'): _("I'm watching a movie."),
-		_('Working'): _("I'm working."),
-		_('Phone'): _("I'm on the phone."),
-		_('Out'): _("I'm out enjoying life."),
+		_('Sleeping'): [ 'ZZZZzzzzzZZZZZ', 'inactive', 'sleeping', '', 'sleepy', '' ],
+		_('Back soon'): [ _('Back in some minutes.'), '', '', '', '', '' ],
+		_('Eating'): [ _("I'm eating, so leave me a message."), 'eating', 'other', '', '', '' ],
+		_('Movie'): [ _("I'm watching a movie."), 'relaxing', 'watching_a_movie', '', '', '' ],
+		_('Working'): [ _("I'm working."), 'working', 'other', '', '', '' ],
+		_('Phone'): [ _("I'm on the phone."), 'talking', 'on_the_phone', '', '', '' ],
+		_('Out'): [ _("I'm out enjoying life."), 'relaxing', 'going_out', '', '', '' ],
 	}
 
 	defaultstatusmsg_default = {

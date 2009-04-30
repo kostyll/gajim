@@ -38,6 +38,7 @@ import gtkgui_helpers
 
 from common import gajim
 from common import helpers
+from common import pep
 
 HAS_SYSTRAY_CAPABILITIES = True
 
@@ -287,12 +288,11 @@ class Systray:
 		sounds_mute_menuitem.set_active(not gajim.config.get('sounds_on'))
 
 		if os.name == 'nt':
-			if gtk.pygtk_version >= (2, 10, 0) and gtk.gtk_version >= (2, 10, 0):
-				if self.added_hide_menuitem is False:
-					self.systray_context_menu.prepend(gtk.SeparatorMenuItem())
-					item = gtk.MenuItem(_('Hide this menu'))
-					self.systray_context_menu.prepend(item)
-					self.added_hide_menuitem = True
+			if self.added_hide_menuitem is False:
+				self.systray_context_menu.prepend(gtk.SeparatorMenuItem())
+				item = gtk.MenuItem(_('Hide this menu'))
+				self.systray_context_menu.prepend(item)
+				self.added_hide_menuitem = True
 
 		self.systray_context_menu.show_all()
 		self.systray_context_menu.popup(None, None, None, 0,
@@ -326,13 +326,14 @@ class Systray:
 		win = gajim.interface.roster.window
 		if len(gajim.events.get_systray_events()) == 0:
 			# No pending events, so toggle visible/hidden for roster window
-			if win.get_property('visible') and (win.get_property(
+			if not win.iconify_initially and (win.get_property(
 			'has-toplevel-focus') or os.name == 'nt'):
 				# visible in ANY virtual desktop?
 
 				# we could be in another VD right now. eg vd2
 				# and we want to show it in vd2
 				if not gtkgui_helpers.possibly_move_window_in_current_desktop(win):
+					win.set_property('skip-taskbar-hint', False)
 					win.iconify() # else we hide it from VD that was visible in
 					win.set_property('skip-taskbar-hint', True)
 			else:
@@ -384,7 +385,7 @@ class Systray:
 		model = gajim.interface.roster.status_combobox.get_model()
 		active = gajim.interface.roster.status_combobox.get_active()
 		status = model[active][2].decode('utf-8')
-		def on_response(message):
+		def on_response(message, pep_dict):
 			if message is None: # None if user press Cancel
 				return
 			accounts = gajim.connections.keys()
@@ -394,6 +395,7 @@ class Systray:
 					continue
 				show = gajim.SHOW_LIST[gajim.connections[acct].connected]
 				gajim.interface.roster.send_status(acct, show, message)
+				gajim.interface.roster.send_pep(acct, pep_dict)
 		dlg = dialogs.ChangeStatusMessageDialog(on_response, status)
 		dlg.window.present()
 

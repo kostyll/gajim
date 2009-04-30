@@ -34,6 +34,7 @@ import time
 import common
 import gtkgui_helpers
 import message_control
+import dialogs
 from chat_control import ChatControlBase
 
 from common import gajim
@@ -146,14 +147,6 @@ class MessageWindow(object):
 			self.notebook.set_show_tabs(False)
 		self.notebook.set_show_border(gajim.config.get('tabs_border'))
 
-		# if GTK+ version < 2.10, use OUR way to reorder tabs (set up DnD)
-		if gtk.pygtk_version < (2, 10, 0) or gtk.gtk_version < (2, 10, 0):
-			self.hid = self.notebook.connect('drag_data_received',
-				self.on_tab_label_drag_data_received_cb)
-			self.handlers[self.hid] = self.notebook
-			self.notebook.drag_dest_set(gtk.DEST_DEFAULT_ALL, self.DND_TARGETS,
-				gtk.gdk.ACTION_MOVE)
-
 	def change_account_name(self, old_name, new_name):
 		if old_name in self._controls:
 			self._controls[new_name] = self._controls[old_name]
@@ -192,6 +185,32 @@ class MessageWindow(object):
 		if self.dont_warn_on_delete:
 			# Destroy the window
 			return False
+
+		# Number of controls that will be closed and for which we'll loose data:
+		# chat, pm, gc that won't go in roster
+		number_of_closed_control = 0
+		for ctrl in self.controls():
+			if not ctrl.safe_shutdown():
+				number_of_closed_control += 1
+
+		if number_of_closed_control > 1:
+			def on_yes1(checked):
+				if checked:
+					gajim.config.set('confirm_close_multiple_tabs', False)
+				self.dont_warn_on_delete = True
+				for ctrl in self.controls():
+					if ctrl.minimizable():
+						ctrl.minimize()
+				win.destroy()
+
+			if not gajim.config.get('confirm_close_multiple_tabs'):
+				# destroy window
+				return False
+			dialogs.YesNoDialog(
+				_('You are going to close several tabs'),
+            _('Do you really want to close them all?'),
+				checktext=_('Do _not ask me again'), on_response_yes=on_yes1)
+			return True
 
 		def on_yes(ctrl):
 			if self.on_delete_ok == 1:
@@ -261,11 +280,7 @@ class MessageWindow(object):
 		control.handlers[id_] = tab_label_box
 		self.notebook.append_page(control.widget, tab_label_box)
 
-		# If GTK+ version >= 2.10, use gtk native way to reorder tabs
-		if gtk.pygtk_version >= (2, 10, 0) and gtk.gtk_version >= (2, 10, 0):
-			self.notebook.set_tab_reorderable(control.widget, True)
-		else:
-			self.setup_tab_dnd(control.widget)
+		self.notebook.set_tab_reorderable(control.widget, True)
 
 		self.redraw_tab(control)
 		if self.parent_paned:
@@ -483,10 +498,6 @@ class MessageWindow(object):
 			if not fctrl and not bctrl and \
 			fjid in gajim.last_message_time[ctrl.account]:
 				del gajim.last_message_time[ctrl.account][fjid]
-
-			# Disconnect tab DnD only if GTK version < 2.10
-			if gtk.pygtk_version < (2, 10, 0) or gtk.gtk_version < (2, 10, 0):
-				self.disconnect_tab_dnd(ctrl.widget)
 
 			self.notebook.remove_page(self.notebook.page_num(ctrl.widget))
 
@@ -765,31 +776,6 @@ class MessageWindow(object):
 			control.msg_textview.emit('key_press_event', event)
 			control.msg_textview.grab_focus()
 
-	def setup_tab_dnd(self, child):
-		'''Set tab label as drag source and connect the drag_data_get signal'''
-		tab_label = self.notebook.get_tab_label(child)
-		tab_label.dnd_handler = tab_label.connect('drag_data_get',
-			self.on_tab_label_drag_data_get_cb)
-		self.handlers[tab_label.dnd_handler] = tab_label
-		tab_label.drag_source_set(gtk.gdk.BUTTON1_MASK, self.DND_TARGETS,
-			gtk.gdk.ACTION_MOVE)
-		tab_label.page_num = self.notebook.page_num(child)
-
-	def on_tab_label_drag_data_get_cb(self, widget, drag_context, selection,
-		info, time):
-		source_page_num = self.find_page_num_according_to_tab_label(widget)
-		# 8 is the data size for the string
-		selection.set(selection.target, 8, str(source_page_num))
-
-	def on_tab_label_drag_data_received_cb(self, widget, drag_context, x, y,
-		selection, type_, time):
-		'''Reorder the tabs according to the drop position'''
-		source_page_num = int(selection.data)
-		dest_page_num = self.get_tab_at_xy(x, y)[0]
-		source_child = self.notebook.get_nth_page(source_page_num)
-		if dest_page_num != source_page_num:
-			self.notebook.reorder_child(source_child, dest_page_num)
-
 	def get_tab_at_xy(self, x, y):
 		'''Thanks to Gaim
 		Return the tab under xy and
@@ -830,12 +816,6 @@ class MessageWindow(object):
 				page_num = i
 				break
 		return page_num
-
-	def disconnect_tab_dnd(self, child):
-		'''Clean up DnD signals, source and dest'''
-		tab_label = self.notebook.get_tab_label(child)
-		tab_label.drag_source_unset()
-		tab_label.disconnect(tab_label.dnd_handler)
 
 ################################################################################
 class MessageWindowMgr(gobject.GObject):

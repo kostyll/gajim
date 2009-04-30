@@ -171,12 +171,12 @@ else:
 		except Exception:
 			pass
 
-	if gtk.pygtk_version < (2, 8, 0):
-		pritext = _('Gajim needs PyGTK 2.8 or above')
-		sectext = _('Gajim needs PyGTK 2.8 or above to run. Quiting...')
-	elif gtk.gtk_version < (2, 8, 0):
-		pritext = _('Gajim needs GTK 2.8 or above')
-		sectext = _('Gajim needs GTK 2.8 or above to run. Quiting...')
+	if gtk.pygtk_version < (2, 12, 0):
+		pritext = _('Gajim needs PyGTK 2.12 or above')
+		sectext = _('Gajim needs PyGTK 2.12 or above to run. Quiting...')
+	elif gtk.gtk_version < (2, 12, 0):
+		pritext = _('Gajim needs GTK 2.12 or above')
+		sectext = _('Gajim needs GTK 2.12 or above to run. Quiting...')
 
 	try:
 		import gtk.glade # check if user has libglade (in pygtk and in gtk)
@@ -393,8 +393,8 @@ def on_exit():
 	# delete pid file on normal exit
 	if os.path.exists(pid_filename):
 		os.remove(pid_filename)
-	# Save config
-	gajim.interface.save_config()
+	# Shutdown GUI and save config
+	gajim.interface.roster.quit_gtkgui_interface()
 	if sys.platform == 'darwin':
 		try:
 			osx.shutdown()
@@ -484,19 +484,19 @@ class PassphraseRequest:
 		self.dialog_created = True
 
 
-class ThreadInterface: 
-		def __init__(self, func, func_args, callback, callback_args): 
-			'''Call a function in a thread 
-			
-			:param func: the function to call in the thread 
-			:param func_args: list or arguments for this function 
-			:param callback: callback to call once function is finished 
-			:param callback_args: list of arguments for this callback 
-			''' 
-			def thread_function(func, func_args, callback, callback_args): 
-				output = func(*func_args) 
-				gobject.idle_add(callback, output, *callback_args) 
-			Thread(target=thread_function, args=(func, func_args, callback, 
+class ThreadInterface:
+		def __init__(self, func, func_args, callback, callback_args):
+			'''Call a function in a thread
+
+			:param func: the function to call in the thread
+			:param func_args: list or arguments for this function
+			:param callback: callback to call once function is finished
+			:param callback_args: list of arguments for this callback
+			'''
+			def thread_function(func, func_args, callback, callback_args):
+				output = func(*func_args)
+				gobject.idle_add(callback, output, *callback_args)
+			Thread(target=thread_function, args=(func, func_args, callback,
 				callback_args)).start()
 
 class Interface:
@@ -1204,13 +1204,14 @@ class Interface:
 			win = self.instances[account]['infos'][array[0]]
 		elif array[0] + '/' + array[1] in self.instances[account]['infos']:
 			win = self.instances[account]['infos'][array[0] + '/' + array[1]]
+		c = gajim.contacts.get_contact(account, array[0], array[1])
+		if c: # c can be none if it's a gc contact
+			c.last_status_time = time.localtime(time.time() - tim)
+			if array[3]:
+				c.status = array[3]
+				self.roster.draw_contact(c.jid, account) # draw offline status
 		if win:
-			c = gajim.contacts.get_contact(account, array[0], array[1])
-			if c: # c can be none if it's a gc contact
-				c.last_status_time = time.localtime(time.time() - tim)
-				if array[3]:
-					c.status = array[3]
-				win.set_last_status_time()
+			win.set_last_status_time()
 		if self.remote_ctrl:
 			self.remote_ctrl.raise_signal('LastStatusTime', (account, array))
 
@@ -1875,6 +1876,11 @@ class Interface:
 			win = self.instances[account]['profile']
 			win.vcard_not_published()
 
+	def ask_offline_status(self, account):
+		for contact in gajim.contacts.iter_contacts(account):
+			gajim.connections[account].request_last_status_time(contact.jid,
+				contact.resource)
+
 	def handle_event_signed_in(self, account, empty):
 		'''SIGNED_IN event is emitted when we sign in, so handle it'''
 		# block signed in notifications for 30 seconds
@@ -1883,6 +1889,10 @@ class Interface:
 		self.roster.draw_account(account)
 		state = self.sleeper.getState()
 		connected = gajim.connections[account].connected
+		if gajim.config.get('ask_offline_status_on_connection'):
+			# Ask offline status in 1 minute so w'are sure we got all online
+			# presences
+			gobject.timeout_add_seconds(60, self.ask_offline_status, account)
 		if state != common.sleepy.STATE_UNKNOWN and connected in (2, 3):
 			# we go online or free for chat, so we activate auto status
 			gajim.sleeper_state[account] = 'online'
@@ -2354,8 +2364,15 @@ class Interface:
 			else:
 				self.roster.draw_contact(jid, account)
 
-		# Select the contact in roster, it's visible because it has events.
-		self.roster.select_contact(jid, account)
+		# Select the big brother contact in roster, it's visible because it has
+		# events.
+		family = gajim.contacts.get_metacontacts_family(account, jid)
+		if family:
+			nearby_family, bb_jid, bb_account = \
+				self.roster._get_nearby_family_and_big_brother(family, account)
+		else:
+			bb_jid, bb_account = jid, account
+		self.roster.select_contact(bb_jid, bb_account)
 
 	def handle_event(self, account, fjid, type_):
 		w = None
@@ -3004,13 +3021,18 @@ class Interface:
 					shows[show] = [a]
 				else:
 					shows[show].append(a)
-		def on_message(message):
+		def on_message(message, pep_dict):
 			if message is None:
 				return
 			for a in shows[show]:
 				self.roster.send_status(a, show, message)
+				self.roster.send_pep(a, pep_dict)
 		for show in shows:
-			message = self.roster.get_status_message(show, on_message)
+			if len(shows[show]) == 1:
+				pep_dict = helpers.get_pep_dict(shows[show][0])
+			else:
+				pep_dict = helpers.get_global_pep()
+			message = self.roster.get_status_message(show, pep_dict, on_message)
 		return False
 
 	def show_systray(self):
@@ -3249,10 +3271,17 @@ class Interface:
 			pass
 		# add default status messages if there is not in the config file
 		if len(gajim.config.get_per('statusmsg')) == 0:
-			for msg in gajim.config.statusmsg_default:
+			default = gajim.config.statusmsg_default
+			for msg in default:
 				gajim.config.add_per('statusmsg', msg)
-				gajim.config.set_per('statusmsg', msg, 'message',
-					gajim.config.statusmsg_default[msg])
+				gajim.config.set_per('statusmsg', msg, 'message', default[msg][0])
+				gajim.config.set_per('statusmsg', msg, 'activity', default[msg][1])
+				gajim.config.set_per('statusmsg', msg, 'subactivity',
+					default[msg][2])
+				gajim.config.set_per('statusmsg', msg, 'activity_text',
+					default[msg][3])
+				gajim.config.set_per('statusmsg', msg, 'mood', default[msg][4])
+				gajim.config.set_per('statusmsg', msg, 'mood_text', default[msg][5])
 		#add default themes if there is not in the config file
 		theme = gajim.config.get('roster_theme')
 		if not theme in gajim.config.get_per('themes'):
@@ -3295,8 +3324,7 @@ class Interface:
 		# gtk hooks
 		gtk.about_dialog_set_email_hook(self.on_launch_browser_mailer, 'mail')
 		gtk.about_dialog_set_url_hook(self.on_launch_browser_mailer, 'url')
-		if gtk.pygtk_version >= (2, 10, 0) and gtk.gtk_version >= (2, 10, 0):
-			gtk.link_button_set_uri_hook(self.on_launch_browser_mailer, 'url')
+		gtk.link_button_set_uri_hook(self.on_launch_browser_mailer, 'url')
 
 		self.instances = {}
 
@@ -3385,9 +3413,7 @@ class Interface:
 		self.systray_enabled = False
 		self.systray_capabilities = False
 
-		if ((os.name == 'nt' or sys.platform == 'darwin') and
-			(gtk.pygtk_version >= (2, 10, 0)) and
-			(gtk.gtk_version >= (2, 10, 0))):
+		if (os.name == 'nt') or (sys.platform == 'darwin'):
 			import statusicon
 			self.systray = statusicon.StatusIcon()
 			self.systray_capabilities = True
@@ -3518,6 +3544,7 @@ if __name__ == '__main__':
 	Interface()
 
 	try:
+		gtk.gdk.threads_init()
 		gtk.main()
 	except KeyboardInterrupt:
 		print >> sys.stderr, 'KeyboardInterrupt'

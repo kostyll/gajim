@@ -112,13 +112,13 @@ class ConnectionBytestream:
 		for file_props in self.files_props.values():
 			if self.is_transfer_stopped(file_props):
 				continue
-			receiver_jid = unicode(file_props['receiver']).split('/')[0]
-			if contact.jid == receiver_jid:
+			receiver_jid = unicode(file_props['receiver'])
+			if contact.get_full_jid() == receiver_jid:
 				file_props['error'] = -5
 				self.remove_transfer(file_props)
 				self.dispatch('FILE_REQUEST_ERROR', (contact.jid, file_props, ''))
-			sender_jid = unicode(file_props['sender']).split('/')[0]
-			if contact.jid == sender_jid:
+			sender_jid = unicode(file_props['sender'])
+			if contact.get_full_jid() == sender_jid:
 				file_props['error'] = -3
 				self.remove_transfer(file_props)
 
@@ -885,6 +885,8 @@ class ConnectionDisco:
 								gajim.interface.roster.music_track_changed(listener,
 										track, self.name)
 						break
+			if features.__contains__(common.xmpp.NS_PUBSUB):
+				self.pubsub_supported = True
 			if features.__contains__(common.xmpp.NS_BYTESTREAM):
 				our_jid = helpers.parse_jid(gajim.get_jid_from_account(self.name) +\
 					'/' + self.server_resource)
@@ -1549,9 +1551,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			self.dispatch('ROSTER_INFO', (jid, name, sub, ask, groups))
 		if not self.connection or self.connected < 2:
 			raise common.xmpp.NodeProcessed
-		server = gajim.config.get_per('accounts', self.name, 'hostname')
 		reply = common.xmpp.Iq(typ='result', attrs={'id': iq_obj.getID()},
-			to=server, frm=iq_obj.getTo(), xmlns=None)
+			to=iq_obj.getFrom(), frm=iq_obj.getTo(), xmlns=None)
 		self.connection.send(reply)
 		raise common.xmpp.NodeProcessed
 
@@ -2074,7 +2075,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		try:
 			who = helpers.get_full_jid_from_iq(prs)
 		except Exception:
-			if prs.getTag('error').getTag('jid-malformed'):
+			if prs.getTag('error') and prs.getTag('error').getTag('jid-malformed'):
 				# wrong jid, we probably tried to change our nick in a room to a non
 				# valid one
 				who = str(prs.getFrom())

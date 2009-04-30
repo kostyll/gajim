@@ -156,6 +156,7 @@ class Connection(ConnectionHandlers):
 		self.blocked_groups = []
 		self.blocked_all = False
 		self.music_track_info = 0
+		self.pubsub_supported = False
 		self.pep_supported = False
 		self.mood = {}
 		self.tune = {}
@@ -1661,7 +1662,7 @@ class Connection(ConnectionHandlers):
 				resp.getTag('unique').getData()))
 		self.connection.SendAndCallForResponse(iq, _on_response)
 
-	def join_gc(self, nick, room_jid, password):
+	def join_gc(self, nick, room_jid, password, change_nick=False):
 		# FIXME: This room JID needs to be normalized; see #1364
 		if not self.connection:
 			return
@@ -1674,7 +1675,8 @@ class Connection(ConnectionHandlers):
 		if gajim.config.get('send_sha_in_gc_presence'):
 			p = self.add_sha(p)
 		self.add_lang(p)
-		t = p.setTag(common.xmpp.NS_MUC + ' x')
+		if not change_nick:
+			t = p.setTag(common.xmpp.NS_MUC + ' x')
 		if password:
 			t.setTagData('password', password)
 		self.connection.send(p)

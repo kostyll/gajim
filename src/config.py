@@ -381,22 +381,27 @@ class PreferencesWindow:
 
 		# Default Status messages
 		self.default_msg_tree = self.xml.get_widget('default_msg_treeview')
+		col2 = self.default_msg_tree.rc_get_style().bg[gtk.STATE_ACTIVE]
 		# (status, translated_status, message, enabled)
 		model = gtk.ListStore(str, str, str, bool)
 		self.default_msg_tree.set_model(model)
 		col = gtk.TreeViewColumn(_('Status'))
+		col.set_resizable(True)
 		self.default_msg_tree.append_column(col)
 		renderer = gtk.CellRendererText()
 		col.pack_start(renderer, False)
 		col.set_attributes(renderer, text = 1)
 		col = gtk.TreeViewColumn(_('Default Message'))
+		col.set_resizable(True)
 		self.default_msg_tree.append_column(col)
 		renderer = gtk.CellRendererText()
 		col.pack_start(renderer, True)
 		col.set_attributes(renderer, text = 2)
 		renderer.connect('edited', self.on_default_msg_cell_edited)
 		renderer.set_property('editable', True)
+		renderer.set_property('cell-background', col2)
 		col = gtk.TreeViewColumn(_('Enabled'))
+		col.set_resizable(True)
 		self.default_msg_tree.append_column(col)
 		renderer = gtk.CellRendererToggle()
 		col.pack_start(renderer, False)
@@ -3110,18 +3115,6 @@ class AccountCreationWizardWindow:
 			except helpers.InvalidFormat, s:
 				pritext = _('Invalid Jabber ID')
 				dialogs.ErrorDialog(pritext, str(s))
-				return
-
-			already_in_jids = []
-			for account in gajim.connections:
-				j = gajim.config.get_per('accounts', account, 'name')
-				j += '@' + gajim.config.get_per('accounts', account, 'hostname')
-				already_in_jids.append(j)
-
-			if jid in already_in_jids:
-				pritext = _('Duplicate Jabber ID')
-				sectext = _('This account is already configured in Gajim.')
-				dialogs.ErrorDialog(pritext, sectext)
 				return
 
 			self.account = server
