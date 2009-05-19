@@ -1026,6 +1026,8 @@ class PreferencesWindow:
 		model.clear()
 		preset_status = []
 		for msg_name in gajim.config.get_per('statusmsg'):
+			if msg_name.startswith('_last_'):
+				continue
 			preset_status.append(msg_name)
 		preset_status.sort()
 		for msg_name in preset_status:
@@ -1718,6 +1720,8 @@ class AccountsWindow:
 			remove(account)
 
 	def on_rename_button_clicked(self, widget):
+		if not self.current_account:
+			return
 		enable = gajim.config.get('enable_zeroconf')
 		if (self.current_account != gajim.ZEROCONF_ACC_NAME or enable) and \
 		gajim.connections[self.current_account].connected != 0:
@@ -3647,6 +3651,7 @@ class ManageSoundsWindow:
 				return
 			directory = os.path.dirname(path_to_snd_file)
 			gajim.config.set('last_sounds_dir', directory)
+			path_to_snd_file = helpers.strip_soundfile_path(path_to_snd_file)
 			self.xml.get_widget('sounds_entry').set_text(path_to_snd_file)
 
 			model[iter_][2] = path_to_snd_file # set new path to sounds_model
@@ -3654,12 +3659,8 @@ class ManageSoundsWindow:
 
 		def on_cancel(widget):
 			self.dialog.destroy()
-			model, iter_ = self.sound_tree.get_selection().get_selected()
-			model[iter_][2] = ''
-			model[iter_][0] = False
 
 		path_to_snd_file = model[iter_][2].decode('utf-8')
-		path_to_snd_file = os.path.join(os.getcwd(), path_to_snd_file)
 		self.dialog = dialogs.SoundChooserDialog(path_to_snd_file, on_ok,
 			on_cancel)
 

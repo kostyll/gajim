@@ -1927,40 +1927,6 @@ class RosterWindow:
 			if gajim.connections[account].connected < 2:
 				self.set_connecting_state(account)
 
-				if not gajim.connections[account].password:
-					text = _('Enter your password for account %s') % account
-					if passwords.USER_HAS_GNOMEKEYRING and \
-					not passwords.USER_USES_GNOMEKEYRING:
-						text += '\n' + _('Gnome Keyring is installed but not \
-							correctly started (environment variable probably not \
-							correctly set)')
-					def on_ok(passphrase, save):
-						gajim.connections[account].password = passphrase
-						if save:
-							gajim.config.set_per('accounts', account, 'savepass', True)
-							passwords.save_password(account, passphrase)
-						keyid = gajim.config.get_per('accounts', account, 'keyid')
-						if keyid and not gajim.connections[account].gpg:
-							dialogs.WarningDialog(_('GPG is not usable'),
-								_('You will be connected to %s without OpenPGP.') % \
-								account)
-						self.send_status_continue(account, status, txt, auto, to)
-
-					def on_cancel():
-						if child_iterA:
-							self.model[child_iterA][0] = \
-								gajim.interface.jabber_state_images['16']['offline']
-						if gajim.interface.systray_enabled:
-							gajim.interface.systray.change_status('offline')
-						if sys.platform == 'darwin':
-							gajim.interface.dock.change_status('offline')
-						self.update_status_combobox()
-
-					dialogs.PassphraseDialog(_('Password Required'), text,
-						_('Save password'), ok_handler=on_ok,
-						cancel_handler=on_cancel)
-					return
-
 				keyid = gajim.config.get_per('accounts', account, 'keyid')
 				if keyid and not gajim.connections[account].gpg:
 					dialogs.WarningDialog(_('GPG is not usable'),
@@ -2127,25 +2093,28 @@ class RosterWindow:
 		if sys.platform == 'darwin':
 			self.make_menu(force=True)
 
-	def get_status_message(self, show, pep_dict, on_response, always_ask=False):
+	def get_status_message(self, show, on_response, show_pep=True,
+	always_ask=False):
 		''' get the status message by:
 		1/ looking in default status message
 		2/ asking to user if needed depending on ask_on(ff)line_status and
 			always_ask
-		pep_dict can be None to hide pep things from status message or a dict
+		show_pep can be False to hide pep things from status message or True
 		'''
+		empty_pep = {'activity': '', 'subactivity': '', 'activity_text': '',
+			'mood': '', 'mood_text': ''}
 		if show in gajim.config.get_per('defaultstatusmsg'):
 			if gajim.config.get_per('defaultstatusmsg', show, 'enabled'):
 				on_response(gajim.config.get_per('defaultstatusmsg', show,
-					'message'), pep_dict)
+					'message'), empty_pep)
 				return
 		if not always_ask and ((show == 'online' and not gajim.config.get(
 		'ask_online_status')) or (show in ('offline', 'invisible') and not \
 		gajim.config.get('ask_offline_status'))):
-			on_response('', pep_dict)
+			on_response('', empty_pep)
 			return
 
-		dlg = dialogs.ChangeStatusMessageDialog(on_response, show, pep_dict)
+		dlg = dialogs.ChangeStatusMessageDialog(on_response, show, show_pep)
 		dlg.window.present() # show it on current workspace
 
 	def change_status(self, widget, account, status):
@@ -2156,8 +2125,7 @@ class RosterWindow:
 					return
 				self.send_status(account, status, message)
 				self.send_pep(account, pep_dict)
-			pep_dict = helpers.get_pep_dict(account)
-			self.get_status_message(status, pep_dict, on_response)
+			self.get_status_message(status, on_response)
 
 		if status == 'invisible' and self.connected_rooms(account):
 			dialogs.ConfirmationDialog(
@@ -2243,9 +2211,7 @@ class RosterWindow:
 			self.on_quit_request()
 		return True # do NOT destroy the window
 
-	def quit_gtkgui_interface(self):
-		'''When we quit the gtk interface :
-		tell that to the core and exit gtk'''
+	def prepare_quit(self):
 		msgwin_width_adjust = 0
 
 		# in case show_roster_on_start is False and roster is never shown
@@ -2276,6 +2242,10 @@ class RosterWindow:
 			self.close_all(account)
 		if gajim.interface.systray_enabled:
 			gajim.interface.hide_systray()
+
+	def quit_gtkgui_interface(self):
+		'''When we quit the gtk interface : exit gtk'''
+		self.prepare_quit()
 		gtk.main_quit()
 
 	def on_quit_request(self, widget=None):
@@ -2337,7 +2307,7 @@ class RosterWindow:
 			on_continue2(message, pep_dict)
 
 		if get_msg:
-			self.get_status_message('offline', None, on_continue)
+			self.get_status_message('offline', on_continue, show_pep=False)
 		else:
 			on_continue('', None)
 
@@ -2629,7 +2599,7 @@ class RosterWindow:
 					connection.set_default_list('block')
 				connection.get_privacy_list('block')
 
-		self.get_status_message('offline', None, on_continue)
+		self.get_status_message('offline', on_continue, show_pep=False)
 
 	def on_unblock(self, widget, list_, group=None):
 		''' When clicked on the 'unblock' button in context menu. '''
@@ -2982,13 +2952,12 @@ class RosterWindow:
 
 	def on_change_status_message_activate(self, widget, account):
 		show = gajim.SHOW_LIST[gajim.connections[account].connected]
-		pep_dict = helpers.get_pep_dict(account)
 		def on_response(message, pep_dict):
 			if message is None: # None is if user pressed Cancel
 				return
 			self.send_status(account, show, message)
 			self.send_pep(account, pep_dict)
-		dialogs.ChangeStatusMessageDialog(on_response, show, pep_dict)
+		dialogs.ChangeStatusMessageDialog(on_response, show)
 
 	def on_add_to_roster(self, widget, contact, account):
 		dialogs.AddNewContactWindow(account, contact.jid, contact.name)
@@ -3093,7 +3062,6 @@ class RosterWindow:
 				show = helpers.get_global_show()
 				if show == 'offline':
 					return True
-				pep_dict = helpers.get_global_pep()
 				def on_response(message, pep_dict):
 					if message is None:
 						return True
@@ -3105,7 +3073,7 @@ class RosterWindow:
 							connected]
 						self.send_status(acct, current_show, message)
 						self.send_pep(acct, pep_dict)
-				dialogs.ChangeStatusMessageDialog(on_response, show, pep_dict)
+				dialogs.ChangeStatusMessageDialog(on_response, show)
 			return True
 
 		elif event.button == 1: # Left click
@@ -3240,7 +3208,8 @@ class RosterWindow:
 					jid += '/' + contact.resource
 				self.send_status(account, show, message, to=jid)
 
-		self.get_status_message(show, None, on_response, always_ask=True)
+		self.get_status_message(show, on_response, show_pep=False,
+			always_ask=True)
 
 	def on_status_combobox_changed(self, widget):
 		'''When we change our status via the combobox'''
@@ -3264,7 +3233,6 @@ class RosterWindow:
 			# 'Change status message' selected:
 			# do not change show, just show change status dialog
 			status = model[self.previous_status_combobox_active][2].decode('utf-8')
-			pep_dict = helpers.get_global_pep()
 			def on_response(message, pep_dict):
 				if message is not None: # None if user pressed Cancel
 					for account in accounts:
@@ -3326,7 +3294,7 @@ class RosterWindow:
 						break
 			if bug_user:
 				def on_ok():
-					self.get_status_message(status, None, on_continue)
+					self.get_status_message(status, on_continue, show_pep=False)
 
 				def on_cancel():
 					self.update_status_combobox()

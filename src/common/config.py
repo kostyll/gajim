@@ -92,13 +92,6 @@ class Config:
 		'autoxa_message': [ opt_str, _('$S (Not available as a result of being idle more than $T min)'), _('$S will be replaced by current status message, $T by autoxa time.') ],
 		'ask_online_status': [ opt_bool, False ],
 		'ask_offline_status': [ opt_bool, False ],
-		'last_status_msg_online': [ opt_str, '' ],
-		'last_status_msg_chat': [ opt_str, '' ],
-		'last_status_msg_away': [ opt_str, '' ],
-		'last_status_msg_xa': [ opt_str, '' ],
-		'last_status_msg_dnd': [ opt_str, '' ],
-		'last_status_msg_invisible': [ opt_str, '' ],
-		'last_status_msg_offline': [ opt_str, '' ],
 		'trayicon': [opt_str, 'always', _("When to show systray icon. Can be 'never', 'on_event', 'always'."), True],
 		'iconset': [ opt_str, DEFAULT_ICONSET, '', True ],
 		'mood_iconset': [ opt_str, DEFAULT_MOOD_ICONSET, '', True ],
@@ -312,11 +305,13 @@ class Config:
 			'no_log_for': [ opt_str, '' ],
 			'minimized_gc': [ opt_str, '' ],
 			'attached_gpg_keys': [ opt_str, '' ],
-			'keep_alives_enabled': [ opt_bool, True],
+			'keep_alives_enabled': [ opt_bool, True, _('Whitespace sent after inactivity')],
+			'ping_alives_enabled': [ opt_bool, True, _('XMPP ping sent after inactivity')],
 			# send keepalive every N seconds of inactivity
 			'keep_alive_every_foo_secs': [ opt_int, 55 ],
-			'time_for_keep_alive_answer': [ opt_int, 30, _('How many seconds to wait for the answer of keepalive packet before we try to reconnect.') ],
-			# try for 2 minutes before giving up (aka. timeout after those seconds)
+			'ping_alive_every_foo_secs': [ opt_int, 120 ],
+			'time_for_ping_alive_answer': [ opt_int, 60, _('How many seconds to wait for the answer of ping alive packet before we try to reconnect.') ],
+			# try for 1 minutes before giving up (aka. timeout after those seconds)
 			'try_connecting_for_foo_secs': [ opt_int, 60 ],
 			'http_auth': [opt_str, 'ask'], # yes, no, ask
 			'dont_ack_subscription': [opt_bool, False, _('Jabberd2 workaround')],
@@ -442,6 +437,13 @@ class Config:
 		_('Working'): [ _("I'm working."), 'working', 'other', '', '', '' ],
 		_('Phone'): [ _("I'm on the phone."), 'talking', 'on_the_phone', '', '', '' ],
 		_('Out'): [ _("I'm out enjoying life."), 'relaxing', 'going_out', '', '', '' ],
+		'_last_online': ['', '', '', '', '', ''],
+		'_last_chat': ['', '', '', '', '', ''],
+		'_last_away': ['', '', '', '', '', ''],
+		'_last_xa': ['', '', '', '', '', ''],
+		'_last_dnd': ['', '', '', '', '', ''],
+		'_last_invisible': ['', '', '', '', '', ''],
+		'_last_offline': ['', '', '', '', '', ''],
 	}
 
 	defaultstatusmsg_default = {
@@ -455,15 +457,15 @@ class Config:
 	}
 
 	soundevents_default = {
-		'first_message_received': [ True, '../data/sounds/message1.wav' ],
-		'next_message_received_focused': [ True, '../data/sounds/message2.wav' ],
-		'next_message_received_unfocused': [ True, '../data/sounds/message2.wav' ],
-		'contact_connected': [ True, '../data/sounds/connected.wav' ],
-		'contact_disconnected': [ True, '../data/sounds/disconnected.wav' ],
-		'message_sent': [ True, '../data/sounds/sent.wav' ],
-		'muc_message_highlight': [ True, '../data/sounds/gc_message1.wav', _('Sound to play when a group chat message contains one of the words in muc_highlight_words, or when a group chat message contains your nickname.')],
-		'muc_message_received': [ False, '../data/sounds/gc_message2.wav', _('Sound to play when any MUC message arrives.') ],
-		'gmail_received': [ False, '../data/sounds/message1.wav' ],
+		'first_message_received': [ True, 'message1.wav' ],
+		'next_message_received_focused': [ True, 'message2.wav' ],
+		'next_message_received_unfocused': [ True, 'message2.wav' ],
+		'contact_connected': [ True, 'connected.wav' ],
+		'contact_disconnected': [ True, 'disconnected.wav' ],
+		'message_sent': [ True, 'sent.wav' ],
+		'muc_message_highlight': [ True, 'gc_message1.wav', _('Sound to play when a group chat message contains one of the words in muc_highlight_words, or when a group chat message contains your nickname.')],
+		'muc_message_received': [ False, 'gc_message2.wav', _('Sound to play when any MUC message arrives.') ],
+		'gmail_received': [ False, 'message1.wav' ],
 	}
 
 	themes_default = {

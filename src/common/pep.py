@@ -152,7 +152,7 @@ ACTIVITIES = {
 	'having_appointment': {'category':	_('Having an Appointment')},
 	'inactive': {'category':				_('Inactive'),
 		'day_off':								_('Day Off'),
-		'hanging_out':							_('Hanging Out'),
+		'hanging_out':							_('Hanging out'),
 		'hiding':								_('Hiding'),
 		'on_vacation':							_('On Vacation'),
 		'praying':								_('Praying'),
