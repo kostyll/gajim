@@ -1912,7 +1912,7 @@ class RosterWindow:
 		if gajim.interface.systray_enabled:
 			gajim.interface.systray.change_status(state)
 		if sys.platform == 'darwin':
-			gajim.interface.dock.change_status('connecting')
+			gajim.interface.dock.change_status(state)
 
 	def set_connecting_state(self, account):
 		self.set_state(account, 'connecting')
