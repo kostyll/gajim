@@ -829,6 +829,8 @@ class ConnectionDisco:
 
 	def _DiscoverInfoCB(self, con, iq_obj):
 		log.debug('DiscoverInfoCB')
+		if not self.connection or self.connected < 2:
+			return
 		# According to XEP-0030:
 		# For identity: category, type is mandatory, name is optional.
 		# For feature: var is mandatory
@@ -2072,6 +2074,9 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		if ptype and not ptype in rfc_types:
 			ptype = None
 		log.debug('PresenceCB: %s' % ptype)
+		if not self.connection or self.connected < 2:
+			log.debug('account is no more connected')
+			return
 		try:
 			who = helpers.get_full_jid_from_iq(prs)
 		except Exception:
