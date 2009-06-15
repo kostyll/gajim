@@ -3247,7 +3247,7 @@ class RosterWindow:
 				self.status_combobox.set_active(
 					self.previous_status_combobox_active)
 				self.combobox_callback_active = True
-			dialogs.ChangeStatusMessageDialog(on_response, status, pep_dict)
+			dialogs.ChangeStatusMessageDialog(on_response, status)
 			return
 		# we are about to change show, so save this new show so in case
 		# after user chooses "Change status message" menuitem
@@ -3307,8 +3307,7 @@ class RosterWindow:
 					on_response_cancel=on_cancel)
 				return
 
-		pep_dict = helpers.get_global_pep()
-		self.get_status_message(status, pep_dict, on_continue)
+		self.get_status_message(status, on_continue)
 
 	def on_preferences_menuitem_activate(self, widget):
 		if 'preferences' in gajim.interface.instances:
