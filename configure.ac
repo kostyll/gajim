@@ -122,8 +122,8 @@ AS_AC_EXPAND(LIBDIR, "${libdir}")
 AS_AC_EXPAND(DOCDIR, "${docdir}")
 AS_AC_EXPAND(LOCALEDIR, "${localedir}")
 
-AC_SUBST(VERSION)
 AC_SUBST(PACKAGE, gajim)
+AC_SUBST(VERSION, 0.12.1.5)
 
 AC_CONFIG_FILES([ 
 	buildsys.mk
