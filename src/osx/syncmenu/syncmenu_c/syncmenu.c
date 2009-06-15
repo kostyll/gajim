@@ -53,7 +53,7 @@ static GtkWidget *
 find_menu_label (GtkWidget *widget)
 {
   GtkWidget *label = NULL;
-  
+
   if (GTK_IS_LABEL (widget))
     return widget;
 
@@ -70,7 +70,7 @@ find_menu_label (GtkWidget *widget)
 	  if (label)
 	    break;
 	}
-      
+
       g_list_free (children);
     }
 
@@ -159,7 +159,7 @@ typedef struct
 
 static GQuark carbon_menu_item_quark = 0;
 
-static CarbonMenuItem * 
+static CarbonMenuItem *
 carbon_menu_item_new (void)
 {
   return g_slice_new0 (CarbonMenuItem);
@@ -488,15 +488,15 @@ gboolean menuitem_activate_wrapper(gpointer data)
 }
 
 static OSStatus
-menu_event_handler_func (EventHandlerCallRef  event_handler_call_ref, 
-			 EventRef             event_ref, 
+menu_event_handler_func (EventHandlerCallRef  event_handler_call_ref,
+			 EventRef             event_ref,
 			 void                *data)
 {
   UInt32  event_class = GetEventClass (event_ref);
   UInt32  event_kind = GetEventKind (event_ref);
   MenuRef menu_ref;
 
-  switch (event_class) 
+  switch (event_class)
     {
     case kEventClassCommand:
       /* This is called when activating (is that the right GTK+ term?)
@@ -509,24 +509,24 @@ menu_event_handler_func (EventHandlerCallRef  event_handler_call_ref,
 
 	  //g_print ("Menu: kEventClassCommand/kEventCommandProcess\n");
 
-	  err = GetEventParameter (event_ref, kEventParamDirectObject, 
-				   typeHICommand, 0, 
+	  err = GetEventParameter (event_ref, kEventParamDirectObject,
+				   typeHICommand, 0,
 				   sizeof (command), 0, &command);
 
 	  if (err == noErr)
 	    {
 	      GtkWidget *widget = NULL;
-              
+
 	      if (command.commandID == kHICommandQuit)
 		{
 		  gtk_main_quit (); /* Just testing... */
 		  return noErr;
 		}
-	      
+
 	      /* Get any GtkWidget associated with the item. */
-	      err = GetMenuItemProperty (command.menu.menuRef, 
-					 command.menu.menuItemIndex, 
-					 GTK_QUARTZ_MENU_CREATOR, 
+	      err = GetMenuItemProperty (command.menu.menuRef,
+					 command.menu.menuItemIndex,
+					 GTK_QUARTZ_MENU_CREATOR,
 					 GTK_QUARTZ_ITEM_WIDGET,
 					 sizeof (widget), 0, &widget);
 	      if (err == noErr && widget)
@@ -539,13 +539,13 @@ menu_event_handler_func (EventHandlerCallRef  event_handler_call_ref,
 	}
       break;
 
-    case kEventClassMenu: 
-      GetEventParameter (event_ref, 
-			 kEventParamDirectObject, 
-			 typeMenuRef, 
-			 NULL, 
-			 sizeof (menu_ref), 
-			 NULL, 
+    case kEventClassMenu:
+      GetEventParameter (event_ref,
+			 kEventParamDirectObject,
+			 typeMenuRef,
+			 NULL,
+			 sizeof (menu_ref),
+			 NULL,
 			 &menu_ref);
 
       switch (event_kind)
@@ -559,11 +559,11 @@ menu_event_handler_func (EventHandlerCallRef  event_handler_call_ref,
 
 	case kEventMenuOpening:
 	  /* Is it possible to dynamically build the menu here? We
-	   * can at least set visibility/sensitivity. 
+	   * can at least set visibility/sensitivity.
 	   */
 	  //g_print ("kEventClassMenu/kEventMenuOpening\n");
 	  break;
-	    
+
 	case kEventMenuClosed:
 	  //g_print ("kEventClassMenu/kEventMenuClosed\n");
 	  break;
@@ -573,7 +573,7 @@ menu_event_handler_func (EventHandlerCallRef  event_handler_call_ref,
 	}
 
       break;
-	
+
     default:
       break;
     }
@@ -599,7 +599,7 @@ setup_menu_event_handler (void)
   InstallEventHandler (GetApplicationEventTarget (), menu_event_handler_upp,
 		       GetEventTypeCount (menu_events), menu_events, 0,
 		       &menu_event_handler_ref);
-  
+
 #if 0
   /* FIXME: Remove the handler with: */
   RemoveEventHandler(menu_event_handler_ref);
@@ -660,7 +660,7 @@ sync_menu_shell (GtkMenuShell *menu_shell,
             AppendMenuItemTextWithCFString(carbon_menu, cfstr, attributes, 0,
                                            NULL);
         else if (!toplevel && (carbon_index > carbon_item_count))
-            InsertMenuItemTextWithCFString (carbon_menu, cfstr, 
+            InsertMenuItemTextWithCFString (carbon_menu, cfstr,
                                             carbon_index, attributes, 0);
         else
             SetMenuItemTextWithCFString(carbon_menu, carbon_index, cfstr);
@@ -689,7 +689,7 @@ sync_menu_shell (GtkMenuShell *menu_shell,
             carbon_menu_item_update_active (carbon_item, menu_item);
 
         carbon_menu_item_update_accel_closure (carbon_item, menu_item);
-        
+
         if (gtk_menu_item_get_submenu (GTK_MENU_ITEM (menu_item)))
             carbon_menu_item_update_submenu (carbon_item, menu_item);
 
@@ -723,6 +723,6 @@ sync_menu_takeover_menu (GtkMenuShell *menu_shell)
       carbon_menubar = AcquireRootMenu();
       setup_menu_event_handler ();
   }
-  
+
   sync_menu_shell (menu_shell, carbon_menubar, TRUE);
 }

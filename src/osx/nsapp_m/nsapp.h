@@ -8,7 +8,7 @@
 - (BOOL) initNetNotify;
 - (void) orderFrontStandardAboutPanel: (id)sender;
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender;
-- (BOOL) application:(NSApplication *)theApplication 
+- (BOOL) application:(NSApplication *)theApplication
              openFile:(NSString *)filename;
 - (void) application:(NSApplication *)sender openFiles:(NSArray *)filenames;
 - (BOOL) applicationOpenUntitledFile:(NSApplication *)theApplication;

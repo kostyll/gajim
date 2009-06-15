@@ -62,7 +62,7 @@ class Dock:
 			state = 'event'
 		else:
 			state = self.status
-		
+
 		try:
 			NSApp.setApplicationIconImage_(DOCK_IMAGES[state])
 		except NameError:
@@ -70,11 +70,11 @@ class Dock:
 
 	def change_status(self, global_status):
 		''' set tray image to 'global_status' '''
-		# change image and status, only if it is different 
+		# change image and status, only if it is different
 		if global_status is not None and self.status != global_status:
 			self.status = global_status
 		self.set_img()
-	
+
 	def bounce(self):
 		try:
 			NSApp.requestUserAttention_(NSInformationalRequest)

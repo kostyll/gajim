@@ -31,7 +31,7 @@ test_setup_menu (void)
   GtkWidget *menubar;
   GtkWidget *menu;
   GtkWidget *item;
-  
+
   menubar = gtk_menu_bar_new ();
 
   item = gtk_menu_item_new_with_label ("File");
@@ -87,12 +87,12 @@ main (int argc, char **argv)
   gtk_container_add (GTK_CONTAINER (window), vbox);
 
   menubar = test_setup_menu ();
-  gtk_box_pack_start (GTK_BOX (vbox), 
+  gtk_box_pack_start (GTK_BOX (vbox),
                       menubar,
                       FALSE, TRUE, 0);
-  
-  gtk_box_pack_start (GTK_BOX (vbox), 
-                      gtk_label_new ("Some window content here"), 
+
+  gtk_box_pack_start (GTK_BOX (vbox),
+                      gtk_label_new ("Some window content here"),
                       TRUE, TRUE, 0);
 
   gtk_widget_show_all (window);

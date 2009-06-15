@@ -329,7 +329,7 @@ def notify(event, jid, account, parameters, advanced_notif_num=None):
 			helpers.play_sound_file(snd_file)
 		if snd_event:
 			helpers.play_sound(snd_event)
-	
+
 	if do_bounce:
 		if sys.platform == 'darwin':
 			gajim.interface.dock.bounce()

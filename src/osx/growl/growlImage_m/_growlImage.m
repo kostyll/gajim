@@ -26,11 +26,11 @@ newImageObject(NSImage *img)
         PyErr_SetString(PyExc_TypeError, "Invalid image.");
         return NULL;
     }
-        
+
     self = PyObject_New(ImageObject, &ImageObject_Type);
     if (! self)
         return NULL;
-    
+
     self->theImage = [img retain];
     return self;
 }
@@ -46,7 +46,7 @@ ImageObject_getAttr(PyObject *self, PyObject *attr)
 {
     char *theAttr = PyString_AsString(attr);
     NSAutoreleasePool *pool = nil;
-    
+
     if (strcmp(theAttr, "rawImageData") == 0)
     {
         pool = [[NSAutoreleasePool alloc] init];
@@ -68,17 +68,17 @@ ImageObject_imageFromPath(PyTypeObject *cls, PyObject *args)
     NSString *fileName = nil;
     NSImage *theImage = nil;
     NSAutoreleasePool *pool = nil;
-    
+
     if (! PyArg_ParseTuple(args, "et:imageFromPath",
                            Py_FileSystemDefaultEncoding, &fileName_))
         return NULL;
-        
+
     pool = [[NSAutoreleasePool alloc] init];
-    
+
     fileName = [NSString stringWithUTF8String:fileName_];
     theImage = [[[NSImage alloc] initWithContentsOfFile:fileName] autorelease];
     self = newImageObject(theImage);
-    
+
     [pool release];
     return (PyObject *) self;
 }
@@ -91,18 +91,18 @@ ImageObject_imageWithData(PyTypeObject *cls, PyObject *args)
     int imageDataSize = 0;
     NSImage *theImage = nil;
     NSAutoreleasePool *pool = nil;
-    
+
     if (! PyArg_ParseTuple(args, "s#:imageWithData",
                            &imageData, &imageDataSize))
         return NULL;
-        
+
     pool = [[NSAutoreleasePool alloc] init];
-    
+
 
     theImage = [[[NSImage alloc] initWithData:[NSData dataWithBytes:imageData
                                                              length:imageDataSize]] autorelease];
     self = newImageObject(theImage);
-    
+
     [pool release];
     return (PyObject *) self;
 }
@@ -115,17 +115,17 @@ ImageObject_imageWithIconForFile(PyTypeObject *cls, PyObject *args)
     NSString *fileName = nil;
     NSImage *theImage = nil;
     NSAutoreleasePool *pool = nil;
-    
+
     if (! PyArg_ParseTuple(args, "et:imageWithIconForFile",
                            Py_FileSystemDefaultEncoding, &fileName_))
         return NULL;
-        
+
     pool = [[NSAutoreleasePool alloc] init];
-    
+
     fileName = [NSString stringWithUTF8String:fileName_];
     theImage = [[NSWorkspace sharedWorkspace] iconForFile:fileName];
     self = newImageObject(theImage);
-    
+
     [pool release];
     return (PyObject *) self;
 }
@@ -137,16 +137,16 @@ ImageObject_imageWithIconForFileType(PyTypeObject *cls, PyObject *args)
     char *fileType = NULL;
     NSImage *theImage = nil;
     NSAutoreleasePool *pool = nil;
-    
+
     if (! PyArg_ParseTuple(args, "s:imageWithIconForFileType",
                            &fileType))
         return NULL;
-        
+
     pool = [[NSAutoreleasePool alloc] init];
-    
+
     theImage = [[NSWorkspace sharedWorkspace] iconForFileType:[NSString stringWithUTF8String:fileType]];
     self = newImageObject(theImage);
-    
+
     [pool release];
     return (PyObject *) self;
 }
@@ -156,14 +156,14 @@ ImageObject_imageWithIconForCurrentApplication(PyTypeObject *cls, PyObject *args
 {
     ImageObject *self;
     NSAutoreleasePool *pool = nil;
-    
+
     if (! PyArg_ParseTuple(args, ":imageWithIconForCurrentApplication"))
         return NULL;
-        
+
     pool = [[NSAutoreleasePool alloc] init];
-    
+
     self = newImageObject([NSApp applicationIconImage]);
-    
+
     [pool release];
     return (PyObject *) self;
 }
@@ -177,13 +177,13 @@ ImageObject_imageWithIconForApplication(PyTypeObject *cls, PyObject *args)
     NSString *appPath = nil;
     NSImage *theImage = nil;
     NSAutoreleasePool *pool = nil;
-    
+
     if (! PyArg_ParseTuple(args, "et:imageWithIconForApplication",
                            Py_FileSystemDefaultEncoding, &appName_))
         return NULL;
-        
+
     pool = [[NSAutoreleasePool alloc] init];
-    
+
     appName = [NSString stringWithUTF8String:appName_];
     appPath = [[NSWorkspace sharedWorkspace] fullPathForApplication:appName];
     if (! appPath)
@@ -264,11 +264,11 @@ PyMODINIT_FUNC
 init_growlImage(void)
 {
     PyObject *m;
-    
+
     if (PyType_Ready(&ImageObject_Type) < 0)
         return;
-    
+
     m = Py_InitModule("_growlImage", _growlImage_methods);
-    
+
     PyModule_AddObject(m, "Image", (PyObject *)&ImageObject_Type);
 }

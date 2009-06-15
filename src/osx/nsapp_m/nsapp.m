@@ -36,7 +36,7 @@ static int netNotifyToken = -1;
         PyObject_CallObject(netChangedCB, NULL);
     }
 
-	[[notif object] readInBackgroundAndNotify];		
+	[[notif object] readInBackgroundAndNotify];
 }
 
 - (BOOL) initNetNotify
@@ -51,11 +51,11 @@ static int netNotifyToken = -1;
     }
 
     netNotifyFH = [[NSFileHandle alloc] initWithFileDescriptor: fd];
-    [[NSNotificationCenter defaultCenter] addObserver: [self class] 
-           selector: @selector(netNotifyCB:) 
-           name: NSFileHandleReadCompletionNotification 
+    [[NSNotificationCenter defaultCenter] addObserver: [self class]
+           selector: @selector(netNotifyCB:)
+           name: NSFileHandleReadCompletionNotification
            object: netNotifyFH];
-    [netNotifyFH readInBackgroundAndNotify];	
+    [netNotifyFH readInBackgroundAndNotify];
 
     return TRUE;
 }
@@ -100,7 +100,7 @@ gobject.idle_add(doQuit)\n\
     return NSTerminateNow;
 }
 
-- (BOOL) application:(NSApplication *)theApplication 
+- (BOOL) application:(NSApplication *)theApplication
             openFile:(NSString *)filename
 {
     NSLog(@"openFile");
