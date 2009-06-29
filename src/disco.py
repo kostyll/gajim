@@ -109,6 +109,8 @@ def _gen_agent_type_info():
 		('_jid', 'yahoo'):			(False, 'yahoo.png'),
 		('gateway', 'mrim'):			(False, 'mrim.png'),
 		('_jid', 'mrim'):				(False, 'mrim.png'),
+		('gateway', 'facebook'):	(False, 'facebook.png'),
+		('_jid', 'facebook'):		(False, 'facebook.png'),
 	}
 
 # Category type to "human-readable" description string, and sort priority
@@ -1553,6 +1555,7 @@ class MucBrowser(AgentBrowser):
 	def __init__(self, *args, **kwargs):
 		AgentBrowser.__init__(self, *args, **kwargs)
 		self.join_button = None
+		self.bookmark_button = None
 
 	def _create_treemodel(self):
 		# JID, node, name, users_int, users_str, description, fetched
@@ -1618,15 +1621,53 @@ class MucBrowser(AgentBrowser):
 		AgentBrowser._clean_treemodel(self)
 
 	def _add_actions(self):
+		self.bookmark_button = gtk.Button(label=_('_Bookmark'), use_underline=True)
+		self.bookmark_button.connect('clicked', self.on_bookmark_button_clicked)
+		self.window.action_buttonbox.add(self.bookmark_button)
+		self.bookmark_button.show_all()
 		self.join_button = gtk.Button(label=_('_Join'), use_underline=True)
 		self.join_button.connect('clicked', self.on_join_button_clicked)
 		self.window.action_buttonbox.add(self.join_button)
 		self.join_button.show_all()
 
 	def _clean_actions(self):
+		if self.bookmark_button:
+			self.bookmark_button.destroy()
+			self.bookmark_button = None
 		if self.join_button:
 			self.join_button.destroy()
 			self.join_button = None
+
+	def on_bookmark_button_clicked(self, *args):
+		model, iter = self.window.services_treeview.get_selection().get_selected()
+		if not iter:
+			return
+		name = gajim.config.get_per('accounts', self.account, 'name')
+		room_jid = model[iter][0].decode('utf-8')
+		bm = {
+			'name': room_jid.split('@')[0],
+			'jid': room_jid,
+			'autojoin': '0',
+			'minimize': '0',
+			'password': '',
+			'nick': name
+		}
+
+		for bookmark in gajim.connections[self.account].bookmarks:
+			if bookmark['jid'] == bm['jid']:
+				dialogs.ErrorDialog(
+					_('Bookmark already set'),
+					_('Group Chat "%s" is already in your bookmarks.') % bm['jid'])
+				return
+
+		gajim.connections[self.account].bookmarks.append(bm)
+		gajim.connections[self.account].store_bookmarks()
+
+		gajim.interface.roster.set_actions_menu_needs_rebuild()
+
+		dialogs.InformationDialog(
+				_('Bookmark has been added successfully'),
+				_('You can manage your bookmarks via Actions menu in your roster.'))
 
 	def on_join_button_clicked(self, *args):
 		'''When we want to join a conference:
@@ -1646,8 +1687,10 @@ class MucBrowser(AgentBrowser):
 		self.window.destroy(chain = True)
 
 	def update_actions(self):
+		sens = self.window.services_treeview.get_selection().count_selected_rows()
+		if self.bookmark_button:
+			self.bookmark_button.set_sensitive(sens > 0)
 		if self.join_button:
-			sens = self.window.services_treeview.get_selection().count_selected_rows()
 			self.join_button.set_sensitive(sens > 0)
 
 	def default_action(self):

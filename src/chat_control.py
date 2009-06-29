@@ -1781,8 +1781,7 @@ class ChatControl(ChatControlBase):
 		else:
 			self.print_conversation(_('No help info for /%s') % command, 'info')
 
-	def send_message(self, message, keyID = '', chatstate = None,
-	xhtml = None):
+	def send_message(self, message, keyID='', chatstate=None, xhtml=None):
 		'''Send a message to contact'''
 		if message in ('', None, '\n') or self._process_command(message):
 			return None
@@ -1846,9 +1845,8 @@ class ChatControl(ChatControlBase):
 			else:
 				xep0184_id = None
 
-			self.print_conversation(message, self.contact.jid,
-				encrypted = encrypted, xep0184_id = xep0184_id,
-				xhtml = xhtml)
+			self.print_conversation(message, self.contact.jid, encrypted=encrypted,
+				xep0184_id=xep0184_id, xhtml=xhtml)
 
 		ChatControlBase.send_message(self, message, keyID, type_='chat',
 			chatstate=chatstate_to_send, composing_xep=composing_xep,
@@ -2373,6 +2371,12 @@ class ChatControl(ChatControlBase):
 			self.send_chatstate('active', self.contact)
 		else:
 			self.send_chatstate('inactive', self.contact)
+		# Hide bigger avatar window
+		if self.bigger_avatar_window:
+			self.bigger_avatar_window.destroy()
+			self.bigger_avatar_window = None
+			# Re-show the small avatar
+			self.show_avatar()
 
 	def show_avatar(self, resource = None):
 		if not gajim.config.get('show_avatar_in_chat'):

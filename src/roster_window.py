@@ -743,9 +743,11 @@ class RosterWindow:
 			# Remove contact before redrawing, otherwise the old
 			# numbers will still be show
 			gajim.contacts.remove_jid(account, jid, remove_meta=True)
-			if iters and family:
+			rest_of_family = [data for data in family
+				if account != data['account'] or jid != data['jid']]
+			if iters and rest_of_family:
 				# reshow the rest of the family
-				brothers = self._add_metacontact_family(family, account)
+				brothers = self._add_metacontact_family(rest_of_family, account)
 				for c, acc in brothers:
 					self.draw_completely(c.jid, acc)
 
@@ -2204,11 +2206,19 @@ class RosterWindow:
 	def on_roster_window_delete_event(self, widget, event):
 		'''Main window X button was clicked'''
 		if gajim.interface.systray_enabled and not gajim.config.get(
-		'quit_on_roster_x_button'):
+		'quit_on_roster_x_button') and gajim.config.get('trayicon') != 'on_event':
 			self.tooltip.hide_tooltip()
 			self.window.hide()
-		else:
+		elif gajim.config.get('quit_on_roster_x_button'):
 			self.on_quit_request()
+		else:
+			def on_ok(checked):
+				if checked:
+					gajim.config.set('quit_on_roster_x_button', True)
+				self.on_quit_request()
+			dialogs.ConfirmationDialogCheck(_('Really quit Gajim?'),
+				_('Are you sure you want to quit Gajim?'),
+				_('Always close Gajim'), on_response_ok=on_ok)
 		return True # do NOT destroy the window
 
 	def prepare_quit(self):
