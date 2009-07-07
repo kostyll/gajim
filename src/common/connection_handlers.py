@@ -497,7 +497,7 @@ class ConnectionBytestream:
 						gajim.socks5queue.activate_proxy(host['idx'])
 						break
 			raise common.xmpp.NodeProcessed
-		jid = streamhost.getAttr('jid')
+		jid = helpers.parse_jid(streamhost.getAttr('jid'))
 		if 'streamhost-used' in file_props and \
 			file_props['streamhost-used'] is True:
 			raise common.xmpp.NodeProcessed
@@ -1150,7 +1150,7 @@ class ConnectionVcard:
 				storage = query.getTag('storage')
 				metas = storage.getTags('meta')
 				for meta in metas:
-					jid = meta.getAttr('jid')
+					jid = helpers.parse_jid(meta.getAttr('jid'))
 					tag = meta.getAttr('tag')
 					data = {'jid': jid}
 					order = meta.getAttr('order')
@@ -1519,7 +1519,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					if not print_status:
 						print_status = conf.getTagData('show_status')
 					bm = {'name': conf.getAttr('name'),
-							'jid': conf.getAttr('jid'),
+							'jid': helpers.parse_jid(conf.getAttr('jid')),
 							'autojoin': autojoin_val,
 							'minimize': minimize_val,
 							'password': conf.getTagData('password'),
@@ -1539,7 +1539,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				# http://www.xmpp.org/extensions/xep-0145.html
 				notes = storage.getTags('note')
 				for note in notes:
-					jid = note.getAttr('jid')
+					jid = helpers.parse_jid(note.getAttr('jid'))
 					annotation = note.getData()
 					self.annotations[jid] = annotation
 
@@ -1778,16 +1778,17 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 	def _rosterItemExchangeCB(self, con, msg):
 		''' XEP-0144 Roster Item Echange '''
 		exchange_items_list = {}
-		jid_from = msg.getAttr('from')
+		jid_from = helpers.get_full_jid_from_iq(msg)
 		items_list = msg.getTag('x').getChildren()
 		action = items_list[0].getAttr('action')
 		if action == None:
 			action = 'add'
-		for item in msg.getTag('x').getChildren():
-			jid = item.getAttr('jid')
+		for item in msg.getTag('x',
+		namespace=common.xmpp.NS_ROSTERX).getChildren():
+			jid = helpers.parse_jid(item.getAttr('jid'))
 			name = item.getAttr('name')
 			groups=[]
-			for group in item.getChildren():
+			for group in item.getTags('group'):
 				groups.append(group.getData())
 			exchange_items_list[jid] = []
 			exchange_items_list[jid].append(name)
@@ -1799,16 +1800,19 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		'''Called when we receive a message'''
 		log.debug('MessageCB')
 
+		mtype = msg.getType()
 		# check if the message is pubsub#event
 		if msg.getTag('event') is not None:
+			if mtype == 'groupchat':
+				return
 			if msg.getTag('error') is None:
 				self._pubsubEventCB(con, msg)
 			return
 		
 		# check if the message is a roster item exchange (XEP-0144)
-		#if msg.getTag('x') and msg.getTag('x').namespace == common.xmpp.NS_ROSTERX:
-			#self._rosterItemExchangeCB(con, msg)
-			#return
+		if msg.getTag('x', namespace=common.xmpp.NS_ROSTERX):
+			self._rosterItemExchangeCB(con, msg)
+			return
 
 		# check if the message is a XEP-0070 confirmation request
 		if msg.getTag('confirm', namespace=common.xmpp.NS_HTTP_AUTH):
@@ -1828,7 +1832,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		if addressTag and jid == gajim.get_jid_from_account(self.name):
 			address = addressTag.getTag('address', attrs={'type': 'ofrom'})
 			if address:
-				frm = address.getAttr('jid')
+				frm = helpers.parse_jid(address.getAttr('jid'))
 				jid = gajim.get_jid_without_resource(frm)
 
 		# invitations
@@ -1846,7 +1850,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		xtags = msg.getTags('x')
 		for xtag in xtags:
 			if xtag.getNamespace() == common.xmpp.NS_CONFERENCE and not invite:
-				room_jid = xtag.getAttr('jid')
+				room_jid = helpers.parse_jid(xtag.getAttr('jid'))
 				is_continued = False
 				if xtag.getTag('continue'):
 					is_continued = True
@@ -1854,7 +1858,6 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					is_continued))
 				return
 
-		mtype = msg.getType()
 		thread_id = msg.getThread()
 
 		if not mtype:
@@ -2047,7 +2050,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 
 	def dispatch_invite_message(self, invite, frm):
 		item = invite.getTag('invite')
-		jid_from = item.getAttr('from')
+		jid_from = helpers.parse_jid(item.getAttr('from'))
 		reason = item.getTagData('reason')
 		item = invite.getTag('password')
 		password = invite.getTagData('password')
@@ -2251,7 +2254,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					r = destroy.getTagData('reason')
 					if r:
 						reason += ' (%s)' % r
-					jid = destroy.getAttr('jid')
+					jid = helpers.parse_jid(destroy.getAttr('jid'))
 					if jid:
 						reason += '\n' + _('You can join this room instead: %s') % jid
 					statusCode = ['destroyed']
@@ -2398,7 +2401,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		users_dict = {}
 		for item in items:
 			if item.has_attr('jid') and item.has_attr('affiliation'):
-				jid = item.getAttr('jid')
+				jid = helpers.parse_jid(item.getAttr('jid'))
 				affiliation = item.getAttr('affiliation')
 				users_dict[jid] = {'affiliation': affiliation}
 				if item.has_attr('nick'):
