@@ -176,6 +176,7 @@ class P2PClient(IdleObject):
 			self.stanzaqueue.append((stanza, is_message))
 
 		if is_message:
+			thread_id = stanza.getThread()
 			id_ = stanza.getID()
 			if not id_:
 				id_ = self.Dispatcher.getAnID()
@@ -696,6 +697,7 @@ class ClientZeroconf:
 			if conn.add_stanza(stanza, is_message):
 				if on_ok:
 					on_ok(id_)
+				return
 
 		if item['address'] in self.ip_to_hash:
 			hash_ = self.ip_to_hash[item['address']]
@@ -707,6 +709,7 @@ class ClientZeroconf:
 				if conn.add_stanza(stanza, is_message):
 					if on_ok:
 						on_ok(id_)
+					return
 
 		# otherwise open new connection
 		if not stanza.getID():

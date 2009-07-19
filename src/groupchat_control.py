@@ -181,7 +181,6 @@ class GroupchatControl(ChatControlBase):
 
 		self.is_continued=is_continued
 		self.is_anonymous = True
-		self.change_nick_dialog = None
 
 		self.actions_button = self.xml.get_widget('muc_window_actions_button')
 		id_ = self.actions_button.connect('clicked',
@@ -1167,8 +1166,9 @@ class GroupchatControl(ChatControlBase):
 							'reason': reason }
 					self.print_conversation(s, 'info', tim=tim)
 				elif '303' in statusCode: # Someone changed his or her nick
-					if new_nick == self.new_nick: # We changed our nick
-						self.nick = self.new_nick
+					if new_nick == self.new_nick or nick == self.nick:
+						# We changed our nick
+						self.nick = new_nick
 						self.new_nick = ''
 						s = _('You are now known as %s') % new_nick
 					else:
@@ -1583,39 +1583,71 @@ class GroupchatControl(ChatControlBase):
 			return True
 		elif command == 'ban':
 			if len(message_array):
-				message_array = message_array[0].split()
-				nick = message_array.pop(0)
 				room_nicks = gajim.contacts.get_nick_list(self.account,
 					self.room_jid)
-				reason = ' '.join(message_array)
-				if nick in room_nicks:
+				nb_match = 0
+				nick_ban = ''
+				for nick in room_nicks:
+					if message_array[0].startswith(nick):
+						nb_match += 1
+						nick_ban = nick
+						test_reason = message_array[0][len(nick) + 1:]
+						if len(test_reason) == 0:
+							reason = 'None'
+						else:
+							reason = test_reason
+				if nb_match == 1:
 					gc_contact = gajim.contacts.get_gc_contact(self.account,
-						self.room_jid, nick)
+							self.room_jid, nick_ban)
 					nick = gc_contact.jid
-				if nick.find('@') >= 0:
+				elif nb_match > 1:
+					self.print_conversation(_('There is an ambiguity: %d nicks '
+						'match.\n Please use graphical interface ') % nb_match,
+						'info')
+					self.clear(self.msg_textview)
+				elif message_array[0].split()[0].find('@') > 0:
+					message_splited = message_array[0].split(' ', 1)
+					jid = message_splited[0]
+					if len(message_splited) == 2:
+						reason = message_splited[1]
+					else:
+						reason = 'None'
 					gajim.connections[self.account].gc_set_affiliation(self.room_jid,
-						nick, 'outcast', reason)
+						message_array[0].split()[0], 'outcast', reason)
 					self.clear(self.msg_textview)
 				else:
-					self.print_conversation(_('Nickname not found: %s') % nick,
-						'info')
+					self.print_conversation(_('Nickname not found'), 'info')
 			else:
 				self.get_command_help(command)
 			return True
 		elif command == 'kick':
 			if len(message_array):
-				message_array = message_array[0].split()
-				nick = message_array.pop(0)
+				nick_kick = ''
 				room_nicks = gajim.contacts.get_nick_list(self.account,
 					self.room_jid)
-				reason = ' '.join(message_array)
-				if nick in room_nicks:
-					gajim.connections[self.account].gc_set_role(self.room_jid, nick,
-						'none', reason)
+				nb_match = 0
+				for nick in room_nicks:
+					if message_array[0].startswith(nick):
+						nb_match += 1
+						nick_kick = nick
+						test_reason = message_array[0][len(nick) + 1:]
+						if len(test_reason) == 0:
+							reason = 'None'
+						else:
+							reason = test_reason
+				if nb_match == 1:
+					gajim.connections[self.account].gc_set_role(self.room_jid,
+						nick_kick, 'none', reason)
+					self.clear(self.msg_textview)
+				elif nb_match > 1:
+					self.print_conversation(_('There is an ambiguity: %d nicks '
+						'match.\n Please use graphical interface') % nb_match ,
+						'info' )
 					self.clear(self.msg_textview)
 				else:
-					self.print_conversation(_('Nickname not found: %s') % nick,
-						'info')
+					# We can't do the difference between nick and reason
+					# So we don't say the nick
+					self.print_conversation(_('Nickname not found') , 'info')
 			else:
 				self.get_command_help(command)
 			return True
@@ -1694,8 +1726,7 @@ class GroupchatControl(ChatControlBase):
 			s = _('Usage: /%s <nickname|JID> [reason], bans the JID from the group'
 				' chat. The nickname of an occupant may be substituted, but not if '
 				'it contains "@". If the JID is currently in the group chat, '
-				'he/she/it will also be kicked. Does NOT support spaces in '
-				'nickname.') % command
+				'he/she/it will also be kicked.') % command
 			self.print_conversation(s, 'info')
 		elif command == 'chat' or command == 'query':
 			self.print_conversation(_('Usage: /%s <nickname>, opens a private chat'
@@ -1720,8 +1751,7 @@ class GroupchatControl(ChatControlBase):
 		elif command == 'kick':
 			self.print_conversation(_('Usage: /%s <nickname> [reason], removes '
 				'the occupant specified by nickname from the group chat and '
-				'optionally displays a reason. Does NOT support spaces in '
-				'nickname.') % command, 'info')
+				'optionally displays a reason.') % command, 'info')
 		elif command == 'me':
 			self.print_conversation(_('Usage: /%(command)s <action>, sends action '
 				'to the current group chat. Use third person. (e.g. /%(command)s '
@@ -1761,39 +1791,6 @@ class GroupchatControl(ChatControlBase):
 			return gc_contact.role
 		else:
 			return 'visitor'
-
-	def show_change_nick_input_dialog(self, title, prompt):
-		'''asks user for new nick and on ok it sets it on room'''
-		if self.change_nick_dialog:
-			# A dialog is already opened
-			return
-		def on_ok(widget):
-			nick = self.change_nick_dialog.input_entry.get_text().decode('utf-8')
-			self.change_nick_dialog = None
-			try:
-				nick = helpers.parse_resource(nick)
-			except Exception:
-				# invalid char
-				dialogs.ErrorDialog(_('Invalid nickname'),
-				_('The nickname has not allowed characters.'))
-				return
-			gajim.connections[self.account].join_gc(nick, self.room_jid, None,
-				change_nick=True)
-			if gajim.gc_connected[self.account][self.room_jid]:
-				# We are changing nick, we will change self.nick when we receive
-				# presence that inform that it works
-				self.new_nick = nick
-			else:
-				# We are connecting, we will not get a changed nick presence so
-				# change it NOW. We don't already have a nick so it's harmless
-				self.nick = nick
-		def on_cancel():
-			self.change_nick_dialog = None
-			self.new_nick = ''
-		proposed_nick = self.nick + gajim.config.get('gc_proposed_nick_char')
-		self.change_nick_dialog = dialogs.InputDialog(title, prompt,
-			proposed_nick, is_modal=False, ok_handler=on_ok,
-			cancel_handler=on_cancel)
 
 	def minimizable(self):
 		if self.contact.jid in gajim.config.get_per('accounts', self.account,

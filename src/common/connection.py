@@ -622,7 +622,7 @@ class Connection(ConnectionHandlers):
 		if self._proxy:
 			msg = '>>>>>> '
 			if self._proxy['type']=='bosh':
-				msg = '%s over BOSH %s:%s' % (msg, self._proxy['bosh_uri'], self._proxy['bosh_port'])
+				msg = '%s over BOSH %s' % (msg, self._proxy['bosh_uri'])
 			if self._proxy['type'] in ['http','socks5'] or self._proxy['bosh_useproxy']:
 				msg = '%s over proxy %s:%s' % (msg, self._proxy['host'], self._proxy['port'])
 			log.info(msg)
@@ -669,8 +669,8 @@ class Connection(ConnectionHandlers):
 		'warn_when_plaintext_connection'):
 			self.dispatch('PLAIN_CONNECTION', (con,))
 			return True
-		if _con_type in ('tls', 'ssl') and not hasattr(con.Connection,
-		'_sslContext') and gajim.config.get_per('accounts', self.name,
+		if _con_type in ('tls', 'ssl') and con.Connection.ssl_lib != 'PYOPENSSL' \
+		and gajim.config.get_per('accounts', self.name,
 		'warn_when_insecure_ssl_connection') and \
 		not self.connection_auto_accepted:
 			# Pyopenssl is not used
@@ -1969,6 +1969,11 @@ class Connection(ConnectionHandlers):
 			self.dispatch('SEARCH_RESULT', (jid, df, False))
 
 		self.connection.SendAndCallForResponse(iq, _on_response)
+
+	def load_roster_from_db(self):
+		roster = gajim.logger.get_roster(gajim.get_jid_from_account(self.name))
+		self.dispatch('ROSTER', roster)
+
 
 # END Connection
 

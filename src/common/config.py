@@ -253,6 +253,7 @@ class Config:
 		'confirm_metacontacts': [ opt_str, '', _('Should we show the confirm metacontacts creation dialog or not? Empty string means we never show the dialog.')],
 		'enable_negative_priority': [ opt_bool, False, _('If True, you will be able to set a negative priority to your account in account modification window. BE CAREFUL, when you are logged in with a negative priority, you will NOT receive any message from your server.')],
 		'use_gnomekeyring': [opt_bool, True, _('If True, Gajim will use Gnome Keyring (if available) to store account passwords.')],
+		'use_kwalletcli': [opt_bool, True, _('If True, Gajim will use KDE Wallet (if kwalletcli is available) to store account passwords.')],
 		'show_contacts_number': [opt_bool, True, _('If True, Gajim will show number of online and total contacts in account and group rows.')],
 		'treat_incoming_messages': [ opt_str, '', _('Can be empty, \'chat\' or \'normal\'. If not empty, treat all incoming messages as if they were of this type')],
 		'scroll_roster_to_last_message': [opt_bool, True, _('If True, Gajim will scroll and select the contact who sent you the last message, if chat window is not already opened.')],
@@ -342,6 +343,7 @@ class Config:
 			'ignore_unknown_contacts': [ opt_bool, False ],
 			'send_os_info': [ opt_bool, True ],
 			'log_encrypted_sessions': [opt_bool, True, _('When negotiating an encrypted session, should Gajim assume you want your messages to be logged?')],
+			'roster_version': [opt_str, ''],
 		}, {}),
 		'statusmsg': ({
 			'message': [ opt_str, '' ],
@@ -367,7 +369,6 @@ class Config:
 			'user': [ opt_str, '' ],
 			'pass': [ opt_str, '' ],
 			'bosh_uri': [ opt_str, '' ],
-			'bosh_port': [ opt_int, 80 ],
 			'bosh_useproxy': [ opt_bool, False ],
 			'bosh_wait': [ opt_int, 30 ],
 			'bosh_hold': [ opt_int, 2 ],

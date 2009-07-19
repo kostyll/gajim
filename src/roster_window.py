@@ -570,24 +570,44 @@ class RosterWindow:
 		brothers = []
 		nearby_family, big_brother_jid, big_brother_account = \
 			self._get_nearby_family_and_big_brother(family, account)
+		big_brother_contact = gajim.contacts.get_contact(big_brother_account,
+			big_brother_jid)
 		child_iters = self._get_contact_iter(big_brother_jid, big_brother_account,
-			model = self.model)
-		parent_iter = self.model.iter_parent(child_iters[0])
-		parent_type = self.model[parent_iter][C_TYPE]
+			model=self.model)
+		if child_iters:
+			parent_iter = self.model.iter_parent(child_iters[0])
+			parent_type = self.model[parent_iter][C_TYPE]
 
-		# Check if the current BigBrother has even been before.
-		if parent_type == 'contact':
-			for data in nearby_family:
-				# recalibrate after remove to keep highlight
-				if data['jid'] in gajim.to_be_removed[data['account']]:
-					return
+			# Check if the current BigBrother has even been before.
+			if parent_type == 'contact':
+				for data in nearby_family:
+					# recalibrate after remove to keep highlight
+					if data['jid'] in gajim.to_be_removed[data['account']]:
+						return
 
-			self._remove_metacontact_family(family, account)
-			brothers = self._add_metacontact_family(family, account)
+				self._remove_metacontact_family(family, account)
+				brothers = self._add_metacontact_family(family, account)
 
-			for c, acc in brothers:
-				self.draw_completely(c.jid, acc)
+				for c, acc in brothers:
+					self.draw_completely(c.jid, acc)
 
+		# Check is small brothers are under the big brother
+		for child in nearby_family:
+			_jid = child['jid']
+			_account = child['account']
+			if _account == big_brother_account and _jid == big_brother_jid:
+				continue
+			child_iters = self._get_contact_iter(_jid, _account, model=self.model)
+			if not child_iters:
+				continue
+			parent_iter = self.model.iter_parent(child_iters[0])
+			parent_type = self.model[parent_iter][C_TYPE]
+			if parent_type != 'contact':
+				_contact = gajim.contacts.get_contact(_account, _jid)
+				self._remove_entity(_contact, _account)
+				self._add_entity(_contact, _account, groups=None,
+					big_brother_contact=big_brother_contact,
+					big_brother_account=big_brother_account)
 
 	def _get_nearby_family_and_big_brother(self, family, account):
 		'''Return the nearby family and its Big Brother
@@ -635,6 +655,11 @@ class RosterWindow:
 
 		return contact
 
+
+	def redraw_metacontacts(self, account):
+		for tag in gajim.contacts.get_metacontacts_tags(account):
+			family = gajim.contacts.get_metacontacts_family_from_tag(account, tag)
+			self._recalibrate_metacontact_family(family, account)
 
 	def add_contact(self, jid, account):
 		'''Add contact to roster and draw him.
@@ -1923,6 +1948,9 @@ class RosterWindow:
 		child_iterA = self._get_account_iter(account, self.model)
 		if status != 'offline':
 			if to is None:
+				if status == gajim.connections[account].get_status() and \
+				txt == gajim.connections[account].status:
+					return
 				gajim.config.set_per('accounts', account, 'last_status', status)
 				gajim.config.set_per('accounts', account, 'last_status_msg',
 					helpers.to_one_line(txt))

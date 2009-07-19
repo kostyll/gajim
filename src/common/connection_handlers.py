@@ -65,6 +65,7 @@ VCARD_PUBLISHED = 'vcard_published'
 VCARD_ARRIVED = 'vcard_arrived'
 AGENT_REMOVED = 'agent_removed'
 METACONTACTS_ARRIVED = 'metacontacts_arrived'
+ROSTER_ARRIVED = 'roster_arrived'
 PRIVACY_ARRIVED = 'privacy_arrived'
 PEP_CONFIG = 'pep_config'
 HAS_IDLE = True
@@ -226,12 +227,18 @@ class ConnectionBytestream:
 			ostreamhost.setAttr('host', ft_host)
 			ostreamhost.setAttr('jid', sender)
 		try:
-			thehost = self.peerhost[0]
-			streamhost = common.xmpp.Node(tag = 'streamhost') # My IP
-			query.addChild(node = streamhost)
-			streamhost.setAttr('port', unicode(port))
-			streamhost.setAttr('host', thehost)
-			streamhost.setAttr('jid', sender)
+			# The ip we're connected to server with
+			my_ips = [self.peerhost[0]]
+			# all IPs from local DNS
+			for addr in socket.getaddrinfo(socket.gethostname(), None):
+				if not addr[4][0] in my_ips:
+					my_ips.append(addr[4][0])
+			for ip in my_ips:
+				streamhost = common.xmpp.Node(tag = 'streamhost')
+				query.addChild(node = streamhost)
+				streamhost.setAttr('port', unicode(port))
+				streamhost.setAttr('host', ip)
+				streamhost.setAttr('jid', sender)
 		except socket.gaierror:
 			self.dispatch('ERROR', (_('Wrong host'),
 				_('Invalid local address? :-O')))
@@ -758,7 +765,7 @@ class ConnectionDisco:
 			if 'jid' not in attr:
 				continue
 			try:
-				helpers.parse_jid(attr['jid'])
+				attr['jid'] = helpers.parse_jid(attr['jid'])
 			except common.helpers.InvalidFormat:
 				# jid is not conform
 				continue
@@ -1150,7 +1157,10 @@ class ConnectionVcard:
 				storage = query.getTag('storage')
 				metas = storage.getTags('meta')
 				for meta in metas:
-					jid = helpers.parse_jid(meta.getAttr('jid'))
+					try:
+						jid = helpers.parse_jid(meta.getAttr('jid'))
+					except common.helpers.InvalidFormat:
+						continue
 					tag = meta.getAttr('tag')
 					data = {'jid': jid}
 					order = meta.getAttr('order')
@@ -1169,7 +1179,18 @@ class ConnectionVcard:
 				if iq_obj.getErrorCode() not in ('403', '406', '404'):
 					self.private_storage_supported = False
 			# We can now continue connection by requesting the roster
-			self.connection.initRoster()
+			version = gajim.config.get_per('accounts', self.name,
+				'roster_version')
+			iq_id = self.connection.initRoster(version=version)
+			self.awaiting_answers[iq_id] = (ROSTER_ARRIVED, )
+		elif self.awaiting_answers[id_][0] == ROSTER_ARRIVED:
+			if iq_obj.getType() == 'result':
+				if not iq_obj.getTag('query'):
+					account_jid = gajim.get_jid_from_account(self.name)
+					roster_data = gajim.logger.get_roster(account_jid)
+					roster = self.connection.getRoster(force=True)
+					roster.setRaw(roster_data)
+				self._getRoster()
 		elif self.awaiting_answers[id_][0] == PRIVACY_ARRIVED:
 			if iq_obj.getType() != 'error':
 				self.privacy_rules_supported = True
@@ -1518,13 +1539,17 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					print_status = conf.getTagData('print_status')
 					if not print_status:
 						print_status = conf.getTagData('show_status')
-					bm = {'name': conf.getAttr('name'),
+					try:
+						bm = {'name': conf.getAttr('name'),
 							'jid': helpers.parse_jid(conf.getAttr('jid')),
 							'autojoin': autojoin_val,
 							'minimize': minimize_val,
 							'password': conf.getTagData('password'),
 							'nick': conf.getTagData('nick'),
 							'print_status': print_status}
+					except common.helpers.InvalidFormat:
+						log.warn('Invalid JID: %s, ignoring it' % conf.getAttr('jid'))
+						continue
 
 					self.bookmarks.append(bm)
 				self.dispatch('BOOKMARKS', self.bookmarks)
@@ -1539,14 +1564,23 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				# http://www.xmpp.org/extensions/xep-0145.html
 				notes = storage.getTags('note')
 				for note in notes:
-					jid = helpers.parse_jid(note.getAttr('jid'))
+					try:
+						jid = helpers.parse_jid(note.getAttr('jid'))
+					except common.helpers.InvalidFormat:
+						log.warn('Invalid JID: %s, ignoring it' % note.getAttr('jid'))
+						continue
 					annotation = note.getData()
 					self.annotations[jid] = annotation
 
 	def _rosterSetCB(self, con, iq_obj):
 		log.debug('rosterSetCB')
+		version = iq_obj.getTagAttr('query', 'ver')
 		for item in iq_obj.getTag('query').getChildren():
-			jid = helpers.parse_jid(item.getAttr('jid'))
+			try:
+				jid = helpers.parse_jid(item.getAttr('jid'))
+			except common.helpers.InvalidFormat:
+				log.warn('Invalid JID: %s, ignoring it' % item.getAttr('jid'))
+				continue
 			name = item.getAttr('name')
 			sub = item.getAttr('subscription')
 			ask = item.getAttr('ask')
@@ -1554,6 +1588,12 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			for group in item.getTags('group'):
 				groups.append(group.getData())
 			self.dispatch('ROSTER_INFO', (jid, name, sub, ask, groups))
+			account_jid = gajim.get_jid_from_account(self.name)
+			gajim.logger.add_or_update_contact(account_jid, jid, name, sub, ask,
+				groups)
+			if version:
+				gajim.config.set_per('accounts', self.name, 'roster_version',
+					version)
 		if not self.connection or self.connected < 2:
 			raise common.xmpp.NodeProcessed
 		reply = common.xmpp.Iq(typ='result', attrs={'id': iq_obj.getID()},
@@ -1785,7 +1825,11 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			action = 'add'
 		for item in msg.getTag('x',
 		namespace=common.xmpp.NS_ROSTERX).getChildren():
-			jid = helpers.parse_jid(item.getAttr('jid'))
+			try:
+				jid = helpers.parse_jid(item.getAttr('jid'))
+			except common.helpers.InvalidFormat:
+				log.warn('Invalid JID: %s, ignoring it' % item.getAttr('jid'))
+				continue
 			name = item.getAttr('name')
 			groups=[]
 			for group in item.getTags('group'):
@@ -1832,7 +1876,11 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		if addressTag and jid == gajim.get_jid_from_account(self.name):
 			address = addressTag.getTag('address', attrs={'type': 'ofrom'})
 			if address:
-				frm = helpers.parse_jid(address.getAttr('jid'))
+				try:
+					frm = helpers.parse_jid(address.getAttr('jid'))
+				except common.helpers.InvalidFormat:
+					log.warn('Invalid JID: %s, ignoring it' % address.getAttr('jid'))
+					return
 				jid = gajim.get_jid_without_resource(frm)
 
 		# invitations
@@ -1850,7 +1898,11 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		xtags = msg.getTags('x')
 		for xtag in xtags:
 			if xtag.getNamespace() == common.xmpp.NS_CONFERENCE and not invite:
-				room_jid = helpers.parse_jid(xtag.getAttr('jid'))
+				try:
+					room_jid = helpers.parse_jid(xtag.getAttr('jid'))
+				except common.helpers.InvalidFormat:
+					log.warn('Invalid JID: %s, ignoring it' % xtag.getAttr('jid'))
+					continue
 				is_continued = False
 				if xtag.getTag('continue'):
 					is_continued = True
@@ -2050,7 +2102,11 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 
 	def dispatch_invite_message(self, invite, frm):
 		item = invite.getTag('invite')
-		jid_from = helpers.parse_jid(item.getAttr('from'))
+		try:
+			jid_from = helpers.parse_jid(item.getAttr('from'))
+		except common.helpers.InvalidFormat:
+			log.warn('Invalid JID: %s, ignoring it' % item.getAttr('from'))
+			return
 		reason = item.getTagData('reason')
 		item = invite.getTag('password')
 		password = invite.getTagData('password')
@@ -2254,7 +2310,10 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					r = destroy.getTagData('reason')
 					if r:
 						reason += ' (%s)' % r
-					jid = helpers.parse_jid(destroy.getAttr('jid'))
+					try:
+						jid = helpers.parse_jid(destroy.getAttr('jid'))
+					except common.helpers.InvalidFormat:
+						pass
 					if jid:
 						reason += '\n' + _('You can join this room instead: %s') % jid
 					statusCode = ['destroyed']
@@ -2330,8 +2389,9 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				# print in the window the error
 				self.dispatch('ERROR_ANSWER', ('', jid_stripped,
 					errmsg, errcode))
-			self.dispatch('NOTIFY', (jid_stripped, 'error', errmsg, resource, prio,
-				keyID, timestamp, None))
+			if errcode != '409': # conflict # See #5120
+				self.dispatch('NOTIFY', (jid_stripped, 'error', errmsg, resource,
+					prio, keyID, timestamp, None))
 
 		if ptype == 'unavailable' and jid_stripped in self.sessions:
 			# automatically terminate sessions that they haven't sent a thread ID
@@ -2401,7 +2461,11 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		users_dict = {}
 		for item in items:
 			if item.has_attr('jid') and item.has_attr('affiliation'):
-				jid = helpers.parse_jid(item.getAttr('jid'))
+				try:
+					jid = helpers.parse_jid(item.getAttr('jid'))
+				except common.helpers.InvalidFormat:
+					log.warn('Invalid JID: %s, ignoring it' % item.getAttr('jid'))
+					return
 				affiliation = item.getAttr('affiliation')
 				users_dict[jid] = {'affiliation': affiliation}
 				if item.has_attr('nick'):
@@ -2446,7 +2510,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		self.connection.send(result)
 		raise common.xmpp.NodeProcessed
 
-	def _getRosterCB(self, con, iq_obj):
+	def _getRoster(self):
 		log.debug('getRosterCB')
 		if not self.connection:
 			return
@@ -2469,6 +2533,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				gajim.proxy65_manager.resolve(proxy, self.connection, our_jid)
 
 	def _on_roster_set(self, roster):
+		roster_version = roster.version
+		received_from_server = roster.received_from_server
 		raw_roster = roster.getRaw()
 		roster = {}
 		our_jid = helpers.parse_jid(gajim.get_jid_from_account(self.name))
@@ -2507,7 +2573,16 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 						# we can't determine which iconset to use
 						self.discoverInfo(jid)
 
-		self.dispatch('ROSTER', roster)
+		gajim.logger.replace_roster(self.name, roster_version, roster)
+		if received_from_server:
+			for contact in gajim.contacts.iter_contacts(self.name):
+				if not contact.is_groupchat() and contact.jid not in roster:
+					self.dispatch('ROSTER_INFO', (self.name,
+						(contact.jid, None, None, None, ())))
+			for jid in roster:
+				self.dispatch('ROSTER_INFO', (jid, roster[jid]['name'],
+					roster[jid]['subscription'], roster[jid]['ask'],
+					roster[jid]['groups']))
 
 	def _send_first_presence(self, signed = ''):
 		show = self.continue_connect_info[0]
@@ -2651,8 +2726,6 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			common.xmpp.NS_MUC_OWNER)
 		con.RegisterHandler('iq', self._MucAdminCB, 'result',
 			common.xmpp.NS_MUC_ADMIN)
-		con.RegisterHandler('iq', self._getRosterCB, 'result',
-			common.xmpp.NS_ROSTER)
 		con.RegisterHandler('iq', self._PrivateCB, 'result',
 			common.xmpp.NS_PRIVATE)
 		con.RegisterHandler('iq', self._HttpAuthCB, 'get',
