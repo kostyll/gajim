@@ -145,7 +145,9 @@ try:
 except Warning, msg:
 	if str(msg) == 'could not open display':
 		print >> sys.stderr, _('Gajim needs X server to run. Quiting...')
-		sys.exit()
+	else:
+		print >> sys.stderr, _('importing PyGTK failed: %s') % str(msg)
+	sys.exit()
 warnings.resetwarnings()
 
 if os.name == 'nt':
@@ -1793,7 +1795,10 @@ class Interface:
 				if gajim.config.get('notify_on_file_complete'):
 					ft.show_completed(jid, file_props)
 			elif file_props['error'] == -1:
-				ft.show_stopped(jid, file_props)
+				ft.show_stopped(jid, file_props,
+					error_msg=_('Remote contact stopped transfer'))
+			elif file_props['error'] == -6:
+				ft.show_stopped(jid, file_props, error_msg=_('Error opening file'))
 			return
 
 		msg_type = ''
@@ -1802,7 +1807,7 @@ class Interface:
 		'notify_on_file_complete'):
 			msg_type = 'file-completed'
 			event_type = _('File Transfer Completed')
-		elif file_props['error'] == -1:
+		elif file_props['error'] in (-1, -6):
 			msg_type = 'file-stopped'
 			event_type = _('File Transfer Stopped')
 
@@ -2738,7 +2743,7 @@ class Interface:
 					if emot_file.endswith('.gif'):
 						pix = gtk.gdk.PixbufAnimation(emot_file)
 					else:
-						pix = gtk.gdk.pixbuf_new_from_file(emot_file)
+						pix = gtk.gdk.pixbuf_new_from_file_at_size(emot_file, 16, 16)
 					self.emoticons_images.append((emot, pix))
 				self.emoticons[emot.upper()] = emot_file
 		del emoticons
@@ -2907,7 +2912,7 @@ class Interface:
 
 		return chat_control
 
-	def new_chat_from_jid(self, account, fjid):
+	def new_chat_from_jid(self, account, fjid, message=None):
 		jid, resource = gajim.get_room_and_nick_from_fjid(fjid)
 		contact = gajim.contacts.get_contact(account, jid, resource)
 		added_to_roster = False
@@ -2924,11 +2929,15 @@ class Interface:
 			if len(gajim.events.get_events(account, fjid)):
 				ctrl.read_queue()
 
+		if message:
+			buffer = ctrl.msg_textview.get_buffer()
+			buffer.set_text(message)
 		mw = ctrl.parent_win
 		mw.set_active_tab(ctrl)
 		# For JEP-0172
 		if added_to_roster:
 			ctrl.user_nick = gajim.nicks[account]
+		gobject.idle_add(lambda: mw.window.grab_focus())
 
 	def on_open_chat_window(self, widget, contact, account, resource=None,
 	session=None):

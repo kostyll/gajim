@@ -231,7 +231,7 @@ class ConnectionBytestream:
 			my_ips = [self.peerhost[0]]
 			# all IPs from local DNS
 			for addr in socket.getaddrinfo(socket.gethostname(), None):
-				if not addr[4][0] in my_ips:
+				if not addr[4][0] in my_ips and not addr[4][0].startswith('127'):
 					my_ips.append(addr[4][0])
 			for ip in my_ips:
 				streamhost = common.xmpp.Node(tag = 'streamhost')
@@ -899,6 +899,8 @@ class ConnectionDisco:
 						break
 			if features.__contains__(common.xmpp.NS_PUBSUB):
 				self.pubsub_supported = True
+				if features.__contains__(common.xmpp.NS_PUBSUB_PUBLISH_OPTIONS):
+					self.pubsub_publish_options_supported = True
 			if features.__contains__(common.xmpp.NS_BYTESTREAM):
 				our_jid = helpers.parse_jid(gajim.get_jid_from_account(self.name) +\
 					'/' + self.server_resource)
@@ -912,6 +914,9 @@ class ConnectionDisco:
 					self.available_transports[transport_type].append(jid)
 				else:
 					self.available_transports[transport_type] = [jid]
+			if not self.privacy_rules_requested:
+				self.privacy_rules_requested = True
+				self._request_privacy()
 
 		self.dispatch('AGENT_INFO_INFO', (jid, node, identities,
 			features, data))
@@ -1526,34 +1531,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		if storage:
 			ns = storage.getNamespace()
 			if ns == 'storage:bookmarks':
-				# Bookmarked URLs and Conferences
-				# http://www.xmpp.org/extensions/xep-0048.html
-				confs = storage.getTags('conference')
-				for conf in confs:
-					autojoin_val = conf.getAttr('autojoin')
-					if autojoin_val is None: # not there (it's optional)
-						autojoin_val = False
-					minimize_val = conf.getAttr('minimize')
-					if minimize_val is None: # not there (it's optional)
-						minimize_val = False
-					print_status = conf.getTagData('print_status')
-					if not print_status:
-						print_status = conf.getTagData('show_status')
-					try:
-						bm = {'name': conf.getAttr('name'),
-							'jid': helpers.parse_jid(conf.getAttr('jid')),
-							'autojoin': autojoin_val,
-							'minimize': minimize_val,
-							'password': conf.getTagData('password'),
-							'nick': conf.getTagData('nick'),
-							'print_status': print_status}
-					except common.helpers.InvalidFormat:
-						log.warn('Invalid JID: %s, ignoring it' % conf.getAttr('jid'))
-						continue
-
-					self.bookmarks.append(bm)
-				self.dispatch('BOOKMARKS', self.bookmarks)
-
+				self._parse_bookmarks(storage, 'xml')
 			elif ns == 'gajim:prefs':
 				# Preferences data
 				# http://www.xmpp.org/extensions/xep-0049.html
@@ -1571,6 +1549,47 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 						continue
 					annotation = note.getData()
 					self.annotations[jid] = annotation
+
+	def _parse_bookmarks(self, storage, storage_type):
+		'''storage_type can be 'pubsub' or 'xml' to tell from where we got
+		bookmarks'''
+		# Bookmarked URLs and Conferences
+		# http://www.xmpp.org/extensions/xep-0048.html
+		resend_to_pubsub = False
+		confs = storage.getTags('conference')
+		for conf in confs:
+			autojoin_val = conf.getAttr('autojoin')
+			if autojoin_val is None: # not there (it's optional)
+				autojoin_val = False
+			minimize_val = conf.getAttr('minimize')
+			if minimize_val is None: # not there (it's optional)
+				minimize_val = False
+			print_status = conf.getTagData('print_status')
+			if not print_status:
+				print_status = conf.getTagData('show_status')
+			try:
+				bm = {'name': conf.getAttr('name'),
+					'jid': helpers.parse_jid(conf.getAttr('jid')),
+					'autojoin': autojoin_val,
+					'minimize': minimize_val,
+					'password': conf.getTagData('password'),
+					'nick': conf.getTagData('nick'),
+					'print_status': print_status}
+			except common.helpers.InvalidFormat:
+				log.warn('Invalid JID: %s, ignoring it' % conf.getAttr('jid'))
+				continue
+
+			if bm not in self.bookmarks:
+				self.bookmarks.append(bm)
+				if storage_type == 'xml':
+					# We got a bookmark that was not in pubsub
+					resend_to_pubsub = True
+		self.dispatch('BOOKMARKS', self.bookmarks)
+		if storage_type == 'pubsub':
+			# We gor bookmarks from pubsub, now get those from xml to merge them
+			self.get_bookmarks(storage_type='xml')
+		if self.pubsub_supported and resend_to_pubsub:
+			self.store_bookmarks('pubsub')
 
 	def _rosterSetCB(self, con, iq_obj):
 		log.debug('rosterSetCB')
@@ -1814,7 +1833,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				self.dispatch('GMAIL_NOTIFY', (jid, newmsgs, gmail_messages_list))
 			raise common.xmpp.NodeProcessed
 
-		
+
 	def _rosterItemExchangeCB(self, con, msg):
 		''' XEP-0144 Roster Item Echange '''
 		exchange_items_list = {}
@@ -1854,7 +1873,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			if msg.getTag('error') is None:
 				self._pubsubEventCB(con, msg)
 			return
-		
+
 		# check if the message is a roster item exchange (XEP-0144)
 		if msg.getTag('x', namespace=common.xmpp.NS_ROSTERX):
 			self._rosterItemExchangeCB(con, msg)
@@ -2312,12 +2331,13 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					r = destroy.getTagData('reason')
 					if r:
 						reason += ' (%s)' % r
-					try:
-						jid = helpers.parse_jid(destroy.getAttr('jid'))
-					except common.helpers.InvalidFormat:
-						pass
-					if jid:
-						reason += '\n' + _('You can join this room instead: %s') % jid
+					if destroy.getAttr('jid'):
+						try:
+							jid = helpers.parse_jid(destroy.getAttr('jid'))
+							reason += '\n' + _('You can join this room instead: %s') \
+								% jid
+						except common.helpers.InvalidFormat:
+							pass
 					statusCode = ['destroyed']
 				else:
 					reason = prs.getReason()
@@ -2518,8 +2538,6 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			return
 		self.connection.getRoster(self._on_roster_set)
 		self.discoverItems(gajim.config.get_per('accounts', self.name,
-			'hostname'), id_prefix='Gajim_')
-		self.discoverInfo(gajim.config.get_per('accounts', self.name,
 			'hostname'), id_prefix='Gajim_')
 		if gajim.config.get_per('accounts', self.name, 'use_ft_proxies'):
 			self.discover_ft_proxies()
@@ -2749,6 +2767,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		con.RegisterHandler('iq', self._PrivacySetCB, 'set',
 			common.xmpp.NS_PRIVACY)
 		con.RegisterHandler('iq', self._PubSubCB, 'result')
+		con.RegisterHandler('iq', self._PubSubErrorCB, 'error')
 		con.RegisterHandler('iq', self._ErrorCB, 'error')
 		con.RegisterHandler('iq', self._IqCB)
 		con.RegisterHandler('iq', self._StanzaArrivedCB)

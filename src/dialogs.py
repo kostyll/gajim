@@ -965,7 +965,7 @@ _('Please fill in the data of the contact you want to add in account %s') %accou
 
 	def on_add_button_clicked(self, widget):
 		'''When Subscribe button is clicked'''
-		jid = self.uid_entry.get_text().decode('utf-8')
+		jid = self.uid_entry.get_text().decode('utf-8').strip()
 		if not jid:
 			return
 
@@ -1743,7 +1743,7 @@ class ChangeNickDialog(InputDialogCheck):
 		self.gc_control.new_nick = ''
 		self.check_next()
 
-	def add_room(self, account, room_jid, pompt):
+	def add_room(self, account, room_jid, prompt):
 		if (account, room_jid, prompt) not in self.room_queue:
 			self.room_queue.append((account, room_jid, prompt))
 

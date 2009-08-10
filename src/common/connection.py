@@ -157,12 +157,15 @@ class Connection(ConnectionHandlers):
 		else:
 			self.pingalives = 0
 		self.privacy_rules_supported = False
+		# Used to ask privacy only once at connection
+		self.privacy_rules_requested = False
 		self.blocked_list = []
 		self.blocked_contacts = []
 		self.blocked_groups = []
 		self.blocked_all = False
 		self.music_track_info = 0
 		self.pubsub_supported = False
+		self.pubsub_publish_options_supported = False
 		self.pep_supported = False
 		self.mood = {}
 		self.tune = {}
@@ -207,7 +210,7 @@ class Connection(ConnectionHandlers):
 			self.connected = 1
 			self.dispatch('STATUS', 'connecting')
 			self.retrycount += 1
-			self.on_connect_auth = self._init_roster
+			self.on_connect_auth = self._discover_server_at_connection
 			self.connect_and_init(self.old_show, self.status, self.USE_GPG)
 		else:
 			# reconnect succeeded
@@ -697,7 +700,10 @@ class Connection(ConnectionHandlers):
 			self._current_host['host'], self._current_host['port'], con_type))
 
 		self.last_connection_type = con_type
-		name = gajim.config.get_per('accounts', self.name, 'name')
+		if gajim.config.get_per('accounts', self.name, 'anonymous_auth'):
+			name = None
+		else:
+			name = gajim.config.get_per('accounts', self.name, 'name')
 		hostname = gajim.config.get_per('accounts', self.name, 'hostname')
 		self.connection = con
 		try:
@@ -772,6 +778,9 @@ class Connection(ConnectionHandlers):
 				return
 		if hasattr(con, 'Resource'):
 			self.server_resource = con.Resource
+		if gajim.config.get_per('accounts', self.name, 'anonymous_auth'):
+			# Get jid given by server
+			gajim.config.set_per('accounts', self.name, 'name', con.User)
 		if auth:
 			self.last_io = gajim.idlequeue.current_time()
 			self.connected = 2
@@ -1022,16 +1031,21 @@ class Connection(ConnectionHandlers):
 
 	def connect_and_init(self, show, msg, sign_msg):
 		self.continue_connect_info = [show, msg, sign_msg]
-		self.on_connect_auth = self._init_roster
+		self.on_connect_auth = self._discover_server_at_connection
 		self.connect_and_auth()
 
-	def _init_roster(self, con):
+	def _discover_server_at_connection(self, con):
 		self.connection = con
 		if not self.connection:
 			return
 		self.connection.set_send_timeout(self.keepalives, self.send_keepalive)
 		self.connection.set_send_timeout2(self.pingalives, self.sendPing)
 		self.connection.onreceive(None)
+		self.discoverInfo(gajim.config.get_per('accounts', self.name, 'hostname'),
+			id_prefix='Gajim_')
+		self.privacy_rules_requested = False
+
+	def _request_privacy(self):
 		iq = common.xmpp.Iq('get', common.xmpp.NS_PRIVACY, xmlns = '')
 		id_ = self.connection.getAnID()
 		iq.setID(id_)
@@ -1584,39 +1598,63 @@ class Connection(ConnectionHandlers):
 		iq2.addChild(name='gajim', namespace='gajim:prefs')
 		self.connection.send(iq)
 
-	def get_bookmarks(self):
-		'''Get Bookmarks from storage as described in XEP 0048'''
-		self.bookmarks = [] #avoid multiple bookmarks when re-connecting
+	def get_bookmarks(self, storage_type=None):
+		'''Get Bookmarks from storage or PubSub if supported as described in
+		XEP 0048
+		storage_type can be set to xml to force request to xml storage'''
 		if not self.connection:
 			return
-		iq = common.xmpp.Iq(typ='get')
-		iq2 = iq.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
-		iq2.addChild(name='storage', namespace='storage:bookmarks')
-		self.connection.send(iq)
+		if self.pubsub_supported and storage_type != 'xml':
+			self.send_pb_retrieve('', 'storage:bookmarks')
+		else:
+			iq = common.xmpp.Iq(typ='get')
+			iq2 = iq.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
+			iq2.addChild(name='storage', namespace='storage:bookmarks')
+			self.connection.send(iq)
 
-	def store_bookmarks(self):
-		''' Send bookmarks to the storage namespace '''
+	def store_bookmarks(self, storage_type=None):
+		''' Send bookmarks to the storage namespace or PubSub if supported
+		storage_type can be set to 'pubsub' or 'xml' so store in only one method
+		else it will be stored on both'''
 		if not self.connection:
 			return
-		iq = common.xmpp.Iq(typ='set')
-		iq2 = iq.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
-		iq3 = iq2.addChild(name='storage', namespace='storage:bookmarks')
+		iq = common.xmpp.Node(tag='storage', attrs={'xmlns': 'storage:bookmarks'})
 		for bm in self.bookmarks:
-			iq4 = iq3.addChild(name = "conference")
-			iq4.setAttr('jid', bm['jid'])
-			iq4.setAttr('autojoin', bm['autojoin'])
-			iq4.setAttr('minimize', bm['minimize'])
-			iq4.setAttr('name', bm['name'])
+			iq2 = iq.addChild(name = "conference")
+			iq2.setAttr('jid', bm['jid'])
+			iq2.setAttr('autojoin', bm['autojoin'])
+			iq2.setAttr('minimize', bm['minimize'])
+			iq2.setAttr('name', bm['name'])
 			# Only add optional elements if not empty
 			# Note: need to handle both None and '' as empty
 			#   thus shouldn't use "is not None"
 			if bm.get('nick', None):
-				iq4.setTagData('nick', bm['nick'])
+				iq2.setTagData('nick', bm['nick'])
 			if bm.get('password', None):
-				iq4.setTagData('password', bm['password'])
+				iq2.setTagData('password', bm['password'])
 			if bm.get('print_status', None):
-				iq4.setTagData('print_status', bm['print_status'])
-		self.connection.send(iq)
+				iq2.setTagData('print_status', bm['print_status'])
+
+		if self.pubsub_supported and storage_type != 'xml':
+			if self.pubsub_publish_options_supported:
+				options = common.xmpp.Node(common.xmpp.NS_DATA + ' x',
+					attrs={'type': 'submit'})
+				f = options.addChild('field', attrs={'var': 'FORM_TYPE',
+					'type': 'hidden'})
+				f.setTagData('value', common.xmpp.NS_PUBSUB_PUBLISH_OPTIONS)
+				f = options.addChild('field', attrs={'var': 'pubsub#persist_items'})
+				f.setTagData('value', 'true')
+				f = options.addChild('field', attrs={'var': 'pubsub#access_model'})
+				f.setTagData('value', 'whitelist')
+			else:
+				options = None
+			self.send_pb_publish('', 'storage:bookmarks', iq, 'current',
+				options=options)
+		if storage_type != 'pubsub':
+			iqA = common.xmpp.Iq(typ='set')
+			iqB = iqA.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
+			iqB.addChild(node=iq)
+			self.connection.send(iqA)
 
 	def get_annotations(self):
 		'''Get Annonations from storage as described in XEP 0048, and XEP 0145'''
@@ -1842,6 +1880,8 @@ class Connection(ConnectionHandlers):
 		self.connection.send(iq)
 
 	def send_gc_config(self, room_jid, form):
+		if not self.connection:
+			return
 		iq = common.xmpp.Iq(typ = 'set', to = room_jid, queryNS =\
 			common.xmpp.NS_MUC_OWNER)
 		query = iq.getTag('query')
