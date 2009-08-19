@@ -23,9 +23,19 @@
 ## along with Gajim. If not, see <http://www.gnu.org/licenses/>.
 ##
 
+import os
+
 docdir = '../'
-datadir = '../'
-localedir = '../po'
+
+if 'GAJIM_DATADIR' in os.environ:
+	datadir = os.environ['GAJIM_DATADIR']
+else:
+	datadir = '../'
+
+if 'GAJIM_LOCALEDIR' in os.environ:
+	localedir = os.environ['GAJIM_LOCALEDIR']
+else:
+	localedir = '../po'
 
 version = '0.12.3.1-dev'
 
