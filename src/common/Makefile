@@ -26,6 +26,7 @@ SRCS = GnuPG.py			\
        helpers.py		\
        i18n.py			\
        idle.py			\
+       kwalletbinding.py	\
        latex.py			\
        logger.py		\
        logging_helpers.py	\
