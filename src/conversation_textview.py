@@ -179,6 +179,9 @@ class ConversationTextview(gobject.GObject):
 		gobject.GObject.__init__(self)
 		self.used_in_history_window = used_in_history_window
 
+		self.fc = FuzzyClock()
+
+
 		# no need to inherit TextView, use it as atrribute is safer
 		self.tv = HtmlTextView()
 		self.tv.html_hyperlink_handler = self.html_hyperlink_handler
@@ -827,8 +830,7 @@ class ConversationTextview(gobject.GObject):
 			gajim.interface.instances[self.account]['join_gc'].window.present()
 		else:
 			try:
-				gajim.interface.instances[self.account]['join_gc'] = \
-				dialogs.JoinGroupchatWindow(self.account, room_jid)
+				dialogs.JoinGroupchatWindow(account=None, room_jid=room_jid)
 			except GajimGeneralException:
 				pass
 
@@ -952,10 +954,20 @@ class ConversationTextview(gobject.GObject):
 		print_conversation_line()'''
 
 		buffer_ = self.tv.get_buffer()
+		
+		insert_tags_func = buffer_.insert_with_tags_by_name
+		# detect_and_print_special_text() is also used by 
+		# HtmlHandler.handle_specials() and there tags is gtk.TextTag objects,
+		# not strings
+		if len(other_tags) > 0 and isinstance(other_tags[0], gtk.TextTag):
+			insert_tags_func = buffer_.insert_with_tags
 
-		start = 0
-		end = 0
 		index = 0
+
+		# Too many special elements (emoticons, LaTeX formulas, etc)
+		# may cause Gajim to freeze (see #5129).
+		# We impose an arbitrary limit of 100 specials per message.
+		specials_limit = 100
 
 		# basic: links + mail + formatting is always checked (we like that)
 		if gajim.config.get('emoticons_theme'): # search for emoticons & urls
@@ -965,18 +977,24 @@ class ConversationTextview(gobject.GObject):
 		for match in iterator:
 			start, end = match.span()
 			special_text = otext[start:end]
-			if start != 0:
+			if start > index:
 				text_before_special_text = otext[index:start]
 				end_iter = buffer_.get_end_iter()
 				# we insert normal text
-				buffer_.insert_with_tags_by_name(end_iter,
-					text_before_special_text, *other_tags)
+				insert_tags_func(end_iter, text_before_special_text, *other_tags)
 			index = end # update index
 
 			# now print it
 			self.print_special_text(special_text, other_tags)
+			specials_limit -= 1
+			if specials_limit <= 0:
+				break
 
-		return index # the position after *last* special text
+		# add the rest of text located in the index and after
+		end_iter = buffer_.get_end_iter()
+		insert_tags_func(end_iter, otext[index:], *other_tags)
+		
+		return buffer_.get_end_iter()
 
 	def print_special_text(self, special_text, other_tags):
 		'''is called by detect_and_print_special_text and prints
@@ -1129,9 +1147,12 @@ class ConversationTextview(gobject.GObject):
 			buffer_.delete(i1, i2)
 			buffer_.delete_mark(m1)
 		end_iter = buffer_.get_end_iter()
-		at_the_end = False
-		if self.at_the_end():
-			at_the_end = True
+		end_offset = end_iter.get_offset()
+		at_the_end = self.at_the_end()
+		move_selection = False
+		if buffer_.get_has_selection() and buffer_.get_selection_bounds()[1].\
+		get_offset() == end_offset:
+			move_selection = True
 
 		# Create one mark and add it to queue once if it's the first line
 		# else twice (one for end bound, one for start bound)
@@ -1139,6 +1160,10 @@ class ConversationTextview(gobject.GObject):
 		if buffer_.get_char_count() > 0:
 			if not simple:
 				buffer_.insert_with_tags_by_name(end_iter, '\n', 'eol')
+				if move_selection:
+					sel_start, sel_end = buffer_.get_selection_bounds()
+					sel_end.backward_char()
+					buffer_.select_range(sel_start, sel_end)
 			mark = buffer_.create_mark(None, end_iter, left_gravity=True)
 			self.marks_queue.put(mark)
 		if not mark:
@@ -1166,9 +1191,7 @@ class ConversationTextview(gobject.GObject):
 				self.last_time_printout = time.mktime(tim)
 				end_iter = buffer_.get_end_iter()
 				if gajim.config.get('print_time_fuzzy') > 0:
-					fc = FuzzyClock()
-					fc.setTime(time.strftime('%H:%M', tim))
-					ft = fc.getFuzzyTime(gajim.config.get('print_time_fuzzy'))
+					ft = self.fc.fuzzy_time(gajim.config.get('print_time_fuzzy'), tim)
 					tim_format = ft.decode(locale.getpreferredencoding())
 				else:
 					tim_format = self.get_time_to_show(tim)
@@ -1267,22 +1290,17 @@ class ConversationTextview(gobject.GObject):
 			try:
 				if name and (text.startswith('/me ') or text.startswith('/me\n')):
 					xhtml = xhtml.replace('/me', '<i>* %s</i>' % (name,), 1)
-				self.tv.display_html(xhtml.encode('utf-8'))
+				self.tv.display_html(xhtml.encode('utf-8'), self)
 				return
 			except Exception, e:
 				gajim.log.debug(str('Error processing xhtml') + str(e))
 				gajim.log.debug(str('with |' + xhtml + '|'))
 
-		buffer_ = self.tv.get_buffer()
 		# /me is replaced by name if name is given
 		if name and (text.startswith('/me ') or text.startswith('/me\n')):
 			text = '* ' + name + text[3:]
 			text_tags.append('italic')
 		# detect urls formatting and if the user has it on emoticons
-		index = self.detect_and_print_special_text(text, text_tags)
-
-		# add the rest of text located in the index and after
-		end_iter = buffer_.get_end_iter()
-		buffer_.insert_with_tags_by_name(end_iter, text[index:], *text_tags)
+		self.detect_and_print_special_text(text, text_tags)
 
 # vim: se ts=3:

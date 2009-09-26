@@ -832,6 +832,11 @@ class ConnectionDisco:
 	def _DiscoverInfoErrorCB(self, con, iq_obj):
 		log.debug('DiscoverInfoErrorCB')
 		jid = helpers.get_full_jid_from_iq(iq_obj)
+		id_ = iq_obj.getID()
+		if id_[:6] == 'Gajim_':
+			if not self.privacy_rules_requested:
+				self.privacy_rules_requested = True
+				self._request_privacy()
 		self.dispatch('AGENT_ERROR_INFO', (jid))
 
 	def _DiscoverInfoCB(self, con, iq_obj):
@@ -894,9 +899,11 @@ class ConnectionDisco:
 							track = listener.get_playing_track()
 							if gajim.config.get_per('accounts', self.name,
 							'publish_tune'):
-								gajim.interface.roster.music_track_changed(listener,
-										track, self.name)
+								gajim.interface.music_track_changed(listener, track,
+									self.name)
 						break
+			if features.__contains__(common.xmpp.NS_VCARD):
+				self.vcard_supported = True
 			if features.__contains__(common.xmpp.NS_PUBSUB):
 				self.pubsub_supported = True
 				if features.__contains__(common.xmpp.NS_PUBSUB_PUBLISH_OPTIONS):
@@ -1136,10 +1143,6 @@ class ConnectionVcard:
 				# We do as if it comes from the fake_jid
 				frm = groupchat_jid
 			our_jid = gajim.get_jid_from_account(self.name)
-			if iq_obj.getType() == 'error' and jid == our_jid:
-				# our server doesn't support vcard
-				log.debug('xxx error xxx')
-				self.vcard_supported = False
 			if not iq_obj.getTag('vCard') or iq_obj.getType() == 'error':
 				if frm and frm != our_jid:
 					# Write an empty file
@@ -2350,13 +2353,14 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 
 		if ptype == 'subscribe':
 			log.debug('subscribe request from %s' % who)
-			if gajim.config.get('alwaysauth') or who.find("@") <= 0 or \
-			jid_stripped in self.jids_for_auto_auth or transport_auto_auth:
+			if gajim.config.get_per('accounts', self.name, 'autoauth') or \
+			who.find('@') <= 0 or jid_stripped in self.jids_for_auto_auth or \
+			transport_auto_auth:
 				if self.connection:
 					p = common.xmpp.Presence(who, 'subscribed')
 					p = self.add_sha(p)
 					self.connection.send(p)
-				if who.find("@") <= 0 or transport_auto_auth:
+				if who.find('@') <= 0 or transport_auto_auth:
 					self.dispatch('NOTIFY', (jid_stripped, 'offline', 'offline',
 						resource, prio, keyID, timestamp, None))
 				if transport_auto_auth:
@@ -2479,7 +2483,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 
 	def _MucAdminCB(self, con, iq_obj):
 		log.debug('MucAdminCB')
-		items = iq_obj.getTag('query', namespace = common.xmpp.NS_MUC_ADMIN).getTags('item')
+		items = iq_obj.getTag('query', namespace=common.xmpp.NS_MUC_ADMIN).\
+			getTags('item')
 		users_dict = {}
 		for item in items:
 			if item.has_attr('jid') and item.has_attr('affiliation'):
@@ -2487,7 +2492,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					jid = helpers.parse_jid(item.getAttr('jid'))
 				except common.helpers.InvalidFormat:
 					log.warn('Invalid JID: %s, ignoring it' % item.getAttr('jid'))
-					return
+					continue
 				affiliation = item.getAttr('affiliation')
 				users_dict[jid] = {'affiliation': affiliation}
 				if item.has_attr('nick'):
@@ -2499,7 +2504,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					users_dict[jid]['reason'] = reason
 
 		self.dispatch('GC_AFFILIATION', (helpers.get_full_jid_from_iq(iq_obj),
-															users_dict))
+			users_dict))
 
 	def _MucErrorCB(self, con, iq_obj):
 		log.debug('MucErrorCB')
@@ -2611,9 +2616,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		if sign_msg and not signed:
 			signed = self.get_signed_presence(msg)
 			if signed is None:
-				self.dispatch('ERROR', (_('OpenPGP passphrase was not given'),
-					#%s is the account name here
-					_('You will be connected to %s without OpenPGP.') % self.name))
+				self.dispatch('BAD_PASSPHRASE', ())
 				self.USE_GPG = False
 				signed = ''
 		self.connected = gajim.SHOW_LIST.index(show)
@@ -2638,8 +2641,9 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			self.connection.send(p)
 			self.priority = priority
 		self.dispatch('STATUS', show)
-		# ask our VCard
-		self.request_vcard(None)
+		if self.vcard_supported:
+			# ask our VCard
+			self.request_vcard(None)
 
 		# Get bookmarks from private namespace
 		self.get_bookmarks()

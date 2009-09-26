@@ -200,6 +200,10 @@ class OptionsParser:
 			self.update_config_to_01215()
 		if old < [0, 12, 3, 1] and new >= [0, 12, 3, 1]:
 			self.update_config_to_01231()
+		if old < [0, 12, 5, 1] and new >= [0, 12, 5, 1]:
+			self.update_config_to_01251()
+		if old < [0, 12, 5, 2] and new >= [0, 12, 5, 2]:
+			self.update_config_to_01252()
 
 		gajim.logger.init_vars()
 		gajim.config.set('version', new_version)
@@ -657,9 +661,10 @@ class OptionsParser:
 	def update_config_to_01214(self):
 		for status in ['online', 'chat', 'away', 'xa', 'dnd', 'invisible',
 		'offline']:
-			gajim.config.add_per('statusmsg', '_last_' + status)
-			gajim.config.set_per('statusmsg', '_last_' + status, 'message',
-				self.old_values['last_status_msg_' + status])
+			if 'last_status_msg_' + status in self.old_values:
+				gajim.config.add_per('statusmsg', '_last_' + status)
+				gajim.config.set_per('statusmsg', '_last_' + status, 'message',
+					self.old_values['last_status_msg_' + status])
 		gajim.config.set('version', '0.12.1.4')
 
 	def update_config_to_01215(self):
@@ -705,7 +710,30 @@ class OptionsParser:
 		con.close()
 		gajim.config.set('version', '0.12.3.1')
 
+	def update_config_to_01251(self):
+		back = os.getcwd()
+		os.chdir(logger.LOG_DB_FOLDER)
+		con = sqlite.connect(logger.LOG_DB_FILE)
+		os.chdir(back)
+		cur = con.cursor()
+		try:
+			cur.executescript(
+				'''
+				ALTER TABLE unread_messages
+				ADD shown BOOLEAN default 0;
+				'''
+			)
+			con.commit()
+		except sqlite.OperationalError:
+			pass
+		con.close()
+		gajim.config.set('version', '0.12.5.1')
 
-
+	def update_config_to_01252(self):
+		if 'alwaysauth' in self.old_values:
+			val = self.old_values['alwaysauth']
+			for account in gajim.config.get_per('accounts'):
+				gajim.config.set_per('accounts', account, 'autoauth', val)
+		gajim.config.set('version', '0.12.5.2')
 
 # vim: se ts=3:

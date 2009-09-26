@@ -86,6 +86,10 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 		'''dispatch a received <message> stanza'''
 		msg_type = msg.getType()
 		subject = msg.getSubject()
+		if self.jid != full_jid_with_resource:
+			self.resource = gajim.get_nick_from_fjid(full_jid_with_resource)
+			if self.control and self.control.resource:
+				self.control.change_resource(self.resource)
 
 		if not msg_type or msg_type not in ('chat', 'groupchat', 'error'):
 			msg_type = 'normal'
@@ -246,7 +250,7 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 
 		if self.control:
 			parent_win = self.control.parent_win
-			if self.control == parent_win.get_active_control() and \
+			if parent_win and self.control == parent_win.get_active_control() and \
 			parent_win.window.has_focus:
 				focused = True
 

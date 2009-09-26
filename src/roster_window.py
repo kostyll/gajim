@@ -62,7 +62,6 @@ from message_window import MessageWindowMgr
 
 from common import dbus_support
 if dbus_support.supported:
-	from music_track_listener import MusicTrackListener
 	import dbus
 
 from common.xmpp.protocol import NS_COMMANDS, NS_FILE, NS_MUC
@@ -813,6 +812,11 @@ class RosterWindow:
 			gajim.contacts.add_contact(account, contact)
 			self.add_contact(jid, account)
 		else:
+			if jid not in gajim.interface.minimized_controls[account]:
+				# there is a window that we can minimize
+				gc_control = gajim.interface.msg_win_mgr.get_gc_control(jid,
+					account)
+				gajim.interface.minimized_controls[account][jid] = gc_control
 			contact.show = show
 			contact.status = status
 			self.adjust_and_draw_contact_context(jid, account)
@@ -1114,7 +1118,9 @@ class RosterWindow:
 			if c.show not in ('error', 'offline'):
 				nb_connected_contact += 1
 		if nb_connected_contact > 1:
-			name += ' (' + unicode(nb_connected_contact) + ')'
+			# switch back to default writing direction
+			name += i18n.paragraph_direction_mark(unicode(name))
+			name += u' (%d)' % nb_connected_contact
 
 		# show (account_name) if there are 2 contact with same jid
 		# in merged mode
@@ -1659,7 +1665,9 @@ class RosterWindow:
 		results = gajim.logger.get_unread_msgs()
 		for result in results:
 			jid = result[4]
-			if gajim.contacts.get_first_contact_from_jid(account, jid):
+			shown = result[5]
+			if gajim.contacts.get_first_contact_from_jid(account, jid) and not \
+			shown:
 				# We have this jid in our contacts list
 				# XXX unread messages should probably have their session saved with
 				# them
@@ -1668,6 +1676,7 @@ class RosterWindow:
 				tim = time.localtime(float(result[2]))
 				session.roster_message(jid, result[1], tim, msg_type='chat',
 					msg_id=result[0])
+				gajim.logger.set_shown_unread_msgs(result[0])
 
 			elif (time.time() - result[2]) > 2592000:
 				# ok, here we see that we have a message in unread messages table
@@ -1738,64 +1747,6 @@ class RosterWindow:
 			if chat_control:
 				chat_control.contact = contact1
 
-	def _change_awn_icon_status(self, status):
-		if not dbus_support.supported:
-			# do nothing if user doesn't have D-Bus bindings
-			return
-		try:
-			bus = dbus.SessionBus()
-			if not 'com.google.code.Awn' in bus.list_names():
-				# Awn is not installed
-				return
-		except Exception:
-			return
-		iconset = gajim.config.get('iconset')
-		prefix = os.path.join(helpers.get_iconset_path(iconset), '32x32')
-		if status in ('chat', 'away', 'xa', 'dnd', 'invisible', 'offline'):
-			status = status + '.png'
-		elif status == 'online':
-			prefix = os.path.join(gajim.DATA_DIR, 'pixmaps')
-			status = 'gajim.png'
-		path = os.path.join(prefix, status)
-		try:
-			obj = bus.get_object('com.google.code.Awn', '/com/google/code/Awn')
-			awn = dbus.Interface(obj, 'com.google.code.Awn')
-			awn.SetTaskIconByName('Gajim', os.path.abspath(path))
-		except Exception:
-			pass
-
-	def music_track_changed(self, unused_listener, music_track_info,
-	account=''):
-		if account == '':
-			accounts = gajim.connections.keys()
-		if music_track_info is None:
-			artist = ''
-			title = ''
-			source = ''
-		elif hasattr(music_track_info, 'paused') and music_track_info.paused == 0:
-			artist = ''
-			title = ''
-			source = ''
-		else:
-			artist = music_track_info.artist
-			title = music_track_info.title
-			source = music_track_info.album
-		if account == '':
-			for account in accounts:
-				if not gajim.account_is_connected(account):
-					continue
-				if not gajim.connections[account].pep_supported:
-					continue
-				if gajim.connections[account].music_track_info == music_track_info:
-					continue
-				pep.user_send_tune(account, artist, title, source)
-				gajim.connections[account].music_track_info = music_track_info
-		elif account in gajim.connections and \
-		gajim.connections[account].pep_supported:
-			if gajim.connections[account].music_track_info != music_track_info:
-				pep.user_send_tune(account, artist, title, source)
-				gajim.connections[account].music_track_info = music_track_info
-
 	def connected_rooms(self, account):
 		if account in gajim.gc_connected[account].values():
 			return True
@@ -1843,7 +1794,7 @@ class RosterWindow:
 			gajim.events.remove_events(account, jid, event)
 			return True
 		elif event.type_ in ('file-error', 'file-stopped'):
-			msg_error = ''
+			msg_err = ''
 			if data['error'] == -1:
 				msg_err = _('Remote contact stopped transfer')
 			elif data['error'] == -6:
@@ -2006,7 +1957,8 @@ class RosterWindow:
 			if status == 'online' and gajim.interface.sleeper.getState() != \
 			common.sleepy.STATE_UNKNOWN:
 				gajim.sleeper_state[account] = 'online'
-			elif gajim.sleeper_state[account] not in ('autoaway', 'autoxa'):
+			elif gajim.sleeper_state[account] not in ('autoaway', 'autoxa') or \
+			status == 'offline':
 				gajim.sleeper_state[account] = 'off'
 
 		if to:
@@ -2196,7 +2148,7 @@ class RosterWindow:
 			liststore.prepend([status_combobox_text,
 				gajim.interface.jabber_state_images['16'][show], show, False])
 			self.status_combobox.set_active(0)
-		self._change_awn_icon_status(show)
+		gajim.interface._change_awn_icon_status(show)
 		self.combobox_callback_active = True
 		if gajim.interface.systray_enabled:
 			gajim.interface.systray.change_status(show)
@@ -2643,7 +2595,24 @@ class RosterWindow:
 					connection.set_default_list('block')
 				connection.get_privacy_list('block')
 
-		self.get_status_message('offline', on_continue, show_pep=False)
+		def _block_it(is_checked=None):
+			if is_checked is not None: # dialog has been shown
+				if is_checked: # user does not want to be asked again
+					gajim.config.set('confirm_block', 'no')
+				else:
+					gajim.config.set('confirm_block', 'yes')
+			self.get_status_message('offline', on_continue, show_pep=False)
+
+		confirm_block = gajim.config.get('confirm_block')
+		if confirm_block == 'no':
+			_block_it()
+			return
+		pritext = _('You are about to block a contact. Are you sure you want'
+			' to continue?')
+		sectext = _('This contact will see you offline and you will not receive '
+			'messages he will send you.')
+		dlg = dialogs.ConfirmationDialogCheck(pritext, sectext,
+			_('Do _not ask me again'), on_response_ok=_block_it)
 
 	def on_unblock(self, widget, list_, group=None):
 		''' When clicked on the 'unblock' button in context menu. '''
@@ -2895,8 +2864,15 @@ class RosterWindow:
 			ctrl.got_disconnected()
 		self.remove_groupchat(jid, account)
 
+	def on_reconnect(self, widget, jid, account):
+		'''When disconnect menuitem is activated: disconect from room'''
+		if jid in gajim.interface.minimized_controls[account]:
+			ctrl = gajim.interface.minimized_controls[account][jid]
+		gajim.interface.join_gc_room(account, jid, ctrl.nick,
+			gajim.gc_passwords.get(jid, ''))
+
 	def on_send_single_message_menuitem_activate(self, widget, account,
-	contact = None):
+	contact=None):
 		if contact is None:
 			dialogs.SingleMessageWindow(account, action='send')
 		elif isinstance(contact, list):
@@ -2946,7 +2922,7 @@ class RosterWindow:
 				break
 
 	def on_invite_to_room(self, widget, list_, room_jid, room_account,
-		resource = None):
+		resource=None):
 		''' resource parameter MUST NOT be used if more than one contact in
 		list '''
 		for e in list_:
@@ -2963,6 +2939,12 @@ class RosterWindow:
 	def on_groupchat_maximized(self, widget, jid, account):
 		'''When a groupchat is maximised'''
 		if not jid in gajim.interface.minimized_controls[account]:
+			# Already opened?
+			gc_control = gajim.interface.msg_win_mgr.get_gc_control(jid, account)
+			if gc_control:
+				mw = gajim.interface.msg_win_mgr.get_window(jid, account)
+				mw.set_active_tab(gc_control)
+				mw.window.window.focus(gtk.get_current_event_time())
 			return
 		ctrl = gajim.interface.minimized_controls[account][jid]
 		mw = gajim.interface.msg_win_mgr.get_window(jid, account)
@@ -2972,7 +2954,7 @@ class RosterWindow:
 		ctrl.parent_win = mw
 		mw.new_tab(ctrl)
 		mw.set_active_tab(ctrl)
-		mw.window.window.focus()
+		mw.window.window.focus(gtk.get_current_event_time())
 		self.remove_groupchat(jid, account)
 
 	def on_edit_account(self, widget, account):
@@ -3252,8 +3234,26 @@ class RosterWindow:
 					jid += '/' + contact.resource
 				self.send_status(account, show, message, to=jid)
 
-		self.get_status_message(show, on_response, show_pep=False,
-			always_ask=True)
+		def send_it(is_checked=None):
+			if is_checked is not None: # dialog has been shown
+				if is_checked: # user does not want to be asked again
+					gajim.config.set('confirm_custom_status', 'no')
+				else:
+					gajim.config.set('confirm_custom_status', 'yes')
+			self.get_status_message(show, on_response, show_pep=False,
+				always_ask=True)
+
+		confirm_custom_status = gajim.config.get('confirm_custom_status')
+		if confirm_custom_status == 'no':
+			send_it()
+			return
+		pritext = _('You are about to send a custom status. Are you sure you want'
+			' to continue?')
+		sectext = _('This contact will temporarily see you as %(status)s, '
+			'but only until you change your status. Then he will see your global '
+			'status.') % {'status': show}
+		dlg = dialogs.ConfirmationDialogCheck(pritext, sectext,
+			_('Do _not ask me again'), on_response_ok=send_it)
 
 	def on_status_combobox_changed(self, widget):
 		'''When we change our status via the combobox'''
@@ -3363,21 +3363,14 @@ class RosterWindow:
 		act = widget.get_active()
 		gajim.config.set_per('accounts', account, 'publish_tune', act)
 		if act:
-			listener = MusicTrackListener.get()
-			if not self.music_track_changed_signal:
-				self.music_track_changed_signal = listener.connect(
-					'music-track-changed', self.music_track_changed)
-			track = listener.get_playing_track()
-			self.music_track_changed(listener, track)
+			gajim.interface.enable_music_listener()
 		else:
 			# disable it only if no other account use it
 			for acct in gajim.connections:
 				if gajim.config.get_per('accounts', acct, 'publish_tune'):
 					break
 			else:
-				listener = MusicTrackListener.get()
-				listener.disconnect(self.music_track_changed_signal)
-				self.music_track_changed_signal = None
+				gajim.interface.disable_music_listener()
 
 			if gajim.connections[account].pep_supported:
 				# As many implementations don't support retracting items, we send a
@@ -3590,9 +3583,9 @@ class RosterWindow:
 
 		type_ = model[titer][C_TYPE]
 		if type_ == 'group':
+			group = model[titer][C_JID].decode('utf-8')
 			child_model[child_iter][C_IMG] = gajim.interface.jabber_state_images[
 				'16']['opened']
-			group = model[titer][C_JID].decode('utf-8')
 			for account in accounts:
 				if group in gajim.groups[account]: # This account has this group
 					gajim.groups[account][group]['expand'] = True
@@ -4010,6 +4003,8 @@ class RosterWindow:
 				return
 			c_dest = gajim.contacts.get_contact_with_highest_priority(account_dest,
 				jid_dest)
+			if not gajim.capscache.is_supported(c_dest, NS_FILE):
+				return
 			uri = data.strip()
 			uri_splitted = uri.split() # we may have more than one file dropped
 			try:
@@ -5328,6 +5323,7 @@ class RosterWindow:
 				'zeroconf_contact_context_menu')
 
 			start_chat_menuitem = xml.get_widget('start_chat_menuitem')
+			execute_command_menuitem = xml.get_widget('execute_command_menuitem')
 			rename_menuitem = xml.get_widget('rename_menuitem')
 			edit_groups_menuitem = xml.get_widget('edit_groups_menuitem')
 			send_file_menuitem = xml.get_widget('send_file_menuitem')
@@ -5386,6 +5382,9 @@ class RosterWindow:
 					self.on_send_file_menuitem_activate, contact, account)
 			else:
 				send_file_menuitem.set_sensitive(False)
+
+			execute_command_menuitem.connect('activate',
+				self.on_execute_command, contact, account)
 
 			rename_menuitem.connect('activate', self.on_rename, 'contact', jid,
 				account)
@@ -5935,6 +5934,13 @@ class RosterWindow:
 				jid, account)
 			menu.append(maximize_menuitem)
 
+		if not gajim.gc_connected[account].get(jid, False):
+			connect_menuitem = gtk.ImageMenuItem(_('_Reconnect'))
+			connect_icon = gtk.image_new_from_stock(gtk.STOCK_CONNECT, \
+				gtk.ICON_SIZE_MENU)
+			connect_menuitem.set_image(connect_icon)
+			connect_menuitem.connect('activate', self.on_reconnect, jid, account)
+			menu.append(connect_menuitem)
 		disconnect_menuitem = gtk.ImageMenuItem(_('_Disconnect'))
 		disconnect_icon = gtk.image_new_from_stock(gtk.STOCK_DISCONNECT, \
 			gtk.ICON_SIZE_MENU)
@@ -6259,7 +6265,6 @@ class RosterWindow:
 		self.xml = gtkgui_helpers.get_glade('roster_window.glade')
 		self.window = self.xml.get_widget('roster_window')
 		self.hpaned = self.xml.get_widget('roster_hpaned')
-		self.music_track_changed_signal = None
 		gajim.interface.msg_win_mgr = MessageWindowMgr(self.window, self.hpaned)
 		gajim.interface.msg_win_mgr.connect('window-delete',
 			self.on_message_window_delete)
@@ -6479,16 +6484,6 @@ class RosterWindow:
 		# Workaroung: For strange reasons signal is behaving like row-changed
 		self._toggeling_row = False
 		self.setup_and_draw_roster()
-
-		for account in gajim.connections:
-			if gajim.config.get_per('accounts', account, 'publish_tune') and \
-			dbus_support.supported:
-				listener = MusicTrackListener.get()
-				self.music_track_changed_signal = listener.connect(
-					'music-track-changed', self.music_track_changed)
-				track = listener.get_playing_track()
-				self.music_track_changed(listener, track)
-				break
 
 		if gajim.config.get('show_roster_on_startup'):
 			self.window.show_all()

@@ -187,7 +187,7 @@ class Connection(ConnectionHandlers):
 		self.muc_jid = {} # jid of muc server for each transport type
 		self.available_transports = {} # list of available transports on this
 		# server {'icq': ['icq.server.com', 'icq2.server.com'], }
-		self.vcard_supported = True
+		self.vcard_supported = False
 		self.private_storage_supported = True
 		self.streamError = ''
 	# END __init__
@@ -219,7 +219,7 @@ class Connection(ConnectionHandlers):
 
 	# We are doing disconnect at so many places, better use one function in all
 	def disconnect(self, on_purpose=False):
-		gajim.interface.roster.music_track_changed(None, None, self.name)
+		gajim.interface.music_track_changed(None, None, self.name)
 		self.on_purpose = on_purpose
 		self.connected = 0
 		self.time_to_reconnect = None
@@ -1199,7 +1199,7 @@ class Connection(ConnectionHandlers):
 		msgenc = ''
 
 		if session:
-			fjid = str(session.jid)
+			fjid = session.get_to()
 
 		if keyID and self.USE_GPG:
 			xhtml = None
@@ -1746,8 +1746,19 @@ class Connection(ConnectionHandlers):
 		self.add_lang(p)
 		if not change_nick:
 			t = p.setTag(common.xmpp.NS_MUC + ' x')
-		if password:
-			t.setTagData('password', password)
+			last_date = gajim.logger.get_last_date_that_has_logs(room_jid,
+				self.name, is_room=True)
+			if last_date is None:
+				last_date = time.time() - gajim.config.get(
+					'muc_restore_timeout') * 60
+			else:
+				last_time = min(last_date, time.time() - gajim.config.get(
+					'muc_restore_timeout') * 60)
+			last_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(last_date))
+			t.setTag('history', {'maxstanzas': gajim.config.get(
+				'muc_restore_lines'), 'since': last_date})
+			if password:
+				t.setTagData('password', password)
 		self.connection.send(p)
 
 		# last date/time in history to avoid duplicate
@@ -1942,8 +1953,15 @@ class Connection(ConnectionHandlers):
 				hostname = gajim.config.get_per('accounts', self.name, 'hostname')
 				iq = common.xmpp.Iq(typ = 'set', to = hostname)
 				iq.setTag(common.xmpp.NS_REGISTER + ' query').setTag('remove')
-				con.send(iq)
-				on_remove_success(True)
+				def _on_answer(result):
+					if result.getType() == 'result':
+						on_remove_success(True)
+						return
+					self.dispatch('ERROR', (_('Unregister failed'),
+						_('Unregistration with server %(server)s failed: %(error)s') \
+						% {'server': hostname, 'error': result.getErrorMsg()}))
+					on_remove_success(False)
+				con.SendAndCallForResponse(iq, _on_answer)
 				return
 			on_remove_success(False)
 		if self.connected == 0:

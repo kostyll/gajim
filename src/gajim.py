@@ -164,6 +164,7 @@ except exceptions.DatabaseMalformed:
 else:
 	from common import dbus_support
 	if dbus_support.supported:
+		from music_track_listener import MusicTrackListener
 		import dbus
 
 	if os.name == 'posix': # dl module is Unix Only
@@ -243,6 +244,15 @@ from chat_control import ChatControlBase
 from chat_control import ChatControl
 from groupchat_control import GroupchatControl
 from groupchat_control import PrivateChatControl
+
+# Here custom adhoc processors should be loaded. At this point there is
+# everything they need to function properly. The next line loads custom exmple
+# adhoc processors. Technically, they could be loaded earlier as host processors
+# themself does not depend on the chat controls, but that should not be done
+# uless there is a really good reason for that..
+#
+# from commands import custom
+
 from atom_window import AtomWindow
 from session import ChatControlSession
 
@@ -257,6 +267,7 @@ from common import helpers
 from common import optparser
 from common import dataforms
 from common import passwords
+from common import pep
 
 gajimpaths = common.configpaths.gajimpaths
 
@@ -1260,6 +1271,7 @@ class Interface:
 		fjid = room_jid + '/' + nick
 		show = array[1]
 		status = array[2]
+		conn = gajim.connections[account]
 
 		# Get the window and control for the updated status, this may be a
 		# PrivateChatControl
@@ -1292,6 +1304,13 @@ class Interface:
 				c = gajim.contacts.contact_from_gc_contact(gc_c)
 				ctrl.gc_contact = gc_c
 				ctrl.contact = c
+				if ctrl.session:
+					# stop e2e
+					if ctrl.session.enable_encryption:
+						thread_id = ctrl.session.thread_id
+						ctrl.session.terminate_e2e()
+						conn.delete_session(fjid, thread_id)
+						ctrl.no_autonegotiation = False
 				ctrl.draw_banner()
 				old_jid = room_jid + '/' + nick
 				new_jid = room_jid + '/' + new_nick
@@ -1524,10 +1543,15 @@ class Interface:
 		if use_gpg_agent:
 			sectext = _('You configured Gajim to use GPG agent, but there is no '
 			'GPG agent running or it returned a wrong passphrase.\n')
-		sectext += _('You are currently connected without your OpenPGP key.')
+			sectext += _('You are currently connected without your OpenPGP key.')
+			dialogs.WarningDialog(_('Your passphrase is incorrect'), sectext)
+		else:
+			path = os.path.join(gajim.DATA_DIR, 'pixmaps', 'warning.png')
+			notify.popup('warning', account, account, 'warning', path,
+				_('OpenGPG Passphrase Incorrect'),
+				_('You are currently connected without your OpenPGP key.'))
 		keyID = gajim.config.get_per('accounts', account, 'keyid')
 		self.forget_gpg_passphrase(keyID)
-		dialogs.WarningDialog(_('Your passphrase is incorrect'), sectext)
 
 	def handle_event_gpg_password_required(self, account, array):
 		#('GPG_PASSWORD_REQUIRED', account, (callback,))
@@ -2528,7 +2552,7 @@ class Interface:
 			self.roster.draw_contact(jid, account)
 		if w:
 			w.set_active_tab(ctrl)
-			w.window.window.focus()
+			w.window.window.focus(gtk.get_current_event_time())
 			# Using isinstance here because we want to catch all derived types
 			if isinstance(ctrl, ChatControlBase):
 				tv = ctrl.conv_textview
@@ -2978,6 +3002,93 @@ class Interface:
 ### Other Methods
 ################################################################################
 
+	def _change_awn_icon_status(self, status):
+		if not dbus_support.supported:
+			# do nothing if user doesn't have D-Bus bindings
+			return
+		try:
+			bus = dbus.SessionBus()
+			if not 'com.google.code.Awn' in bus.list_names():
+				# Awn is not installed
+				return
+		except Exception:
+			return
+		iconset = gajim.config.get('iconset')
+		prefix = os.path.join(helpers.get_iconset_path(iconset), '32x32')
+		if status in ('chat', 'away', 'xa', 'dnd', 'invisible', 'offline'):
+			status = status + '.png'
+		elif status == 'online':
+			prefix = os.path.join(gajim.DATA_DIR, 'pixmaps')
+			status = 'gajim.png'
+		path = os.path.join(prefix, status)
+		try:
+			obj = bus.get_object('com.google.code.Awn', '/com/google/code/Awn')
+			awn = dbus.Interface(obj, 'com.google.code.Awn')
+			awn.SetTaskIconByName('Gajim', os.path.abspath(path))
+		except Exception:
+			pass
+
+	def enable_music_listener(self):
+		listener = MusicTrackListener.get()
+		if not self.music_track_changed_signal:
+			self.music_track_changed_signal = listener.connect(
+				'music-track-changed', self.music_track_changed)
+		track = listener.get_playing_track()
+		self.music_track_changed(listener, track)
+
+	def disable_music_listener(self):
+		listener = MusicTrackListener.get()
+		listener.disconnect(self.music_track_changed_signal)
+		self.music_track_changed_signal = None
+
+	def music_track_changed(self, unused_listener, music_track_info, account=''):
+		if account == '':
+			accounts = gajim.connections.keys()
+		else:
+			accounts = [account]
+		if music_track_info is None:
+			artist = ''
+			title = ''
+			source = ''
+		elif hasattr(music_track_info, 'paused') and music_track_info.paused == 0:
+			artist = ''
+			title = ''
+			source = ''
+		else:
+			artist = music_track_info.artist
+			title = music_track_info.title
+			source = music_track_info.album
+		for acct in accounts:
+			if acct not in gajim.connections:
+				continue
+			if not gajim.account_is_connected(acct):
+				continue
+			if not gajim.connections[acct].pep_supported:
+				continue
+			if gajim.connections[acct].music_track_info == music_track_info:
+				continue
+			pep.user_send_tune(acct, artist, title, source)
+			gajim.connections[acct].music_track_info = music_track_info
+
+	def get_bg_fg_colors(self):
+		def gdkcolor_to_rgb (gdkcolor):
+			return [c / 65535. for c in (gdkcolor.red, gdkcolor.green,
+				gdkcolor.blue)]
+
+		def format_rgb (r, g, b):
+			return ' '.join([str(c) for c in ('rgb', r, g, b)])
+
+		def format_gdkcolor (gdkcolor):
+			return format_rgb (*gdkcolor_to_rgb (gdkcolor))
+		
+		# get style colors and create string for dvipng
+		dummy = gtk.Invisible()
+		dummy.ensure_style()
+		style = dummy.get_style()
+		bg_str = format_gdkcolor(style.base[gtk.STATE_NORMAL])
+		fg_str = format_gdkcolor(style.text[gtk.STATE_NORMAL])
+		return (bg_str, fg_str)
+
 	def read_sleepy(self):
 		'''Check idle status and change that status if needed'''
 		if not self.sleeper.poll():
@@ -3261,6 +3372,49 @@ class Interface:
 		view.updateNamespace({'gajim': gajim})
 		gajim.ipython_window = window
 
+	def run(self):
+		if self.systray_capabilities and gajim.config.get('trayicon') != 'never':
+			self.show_systray()
+
+		self.roster = roster_window.RosterWindow()
+		for account in gajim.connections:
+			gajim.connections[account].load_roster_from_db()
+
+		# get instances for windows/dialogs that will show_all()/hide()
+		self.instances['file_transfers'] = dialogs.FileTransfersWindow()
+
+		gobject.timeout_add(100, self.autoconnect)
+		timeout, in_seconds = gajim.idlequeue.PROCESS_TIMEOUT
+		if in_seconds:
+			gobject.timeout_add_seconds(timeout, self.process_connections)
+		else:
+			gobject.timeout_add(timeout, self.process_connections)
+		gobject.timeout_add_seconds(gajim.config.get(
+			'check_idle_every_foo_seconds'), self.read_sleepy)
+
+		# when using libasyncns we need to process resolver in regular intervals
+		if resolver.USE_LIBASYNCNS:
+			gobject.timeout_add(200, gajim.resolver.process)
+
+		# setup the indicator
+		if gajim.HAVE_INDICATOR:
+			notify.setup_indicator_server()
+
+		def remote_init():
+			if gajim.config.get('remote_control'):
+				try:
+					import remote_control
+					self.remote_ctrl = remote_control.Remote()
+				except Exception:
+					pass
+		gobject.timeout_add_seconds(5, remote_init)
+
+		for account in gajim.connections:
+			if gajim.config.get_per('accounts', account, 'publish_tune') and \
+			dbus_support.supported:
+				self.enable_music_listener()
+				break
+
 	def __init__(self):
 		gajim.interface = self
 		gajim.thread_interface = ThreadInterface
@@ -3284,6 +3438,7 @@ class Interface:
 		}
 
 		cfg_was_read = parser.read()
+		gajim.logger.reset_shown_unread_messages()
 		# override logging settings from config (don't take care of '-q' option)
 		if gajim.config.get('verbose'):
 			logging_helpers.set_verbose()
@@ -3474,15 +3629,8 @@ class Interface:
 		# set the icon to all windows
 		gtk.window_set_default_icon(pix)
 
-		self.roster = roster_window.RosterWindow()
-		for account in gajim.connections:
-			gajim.connections[account].load_roster_from_db()
-
 		self.init_emoticons()
 		self.make_regexps()
-
-		# get instances for windows/dialogs that will show_all()/hide()
-		self.instances['file_transfers'] = dialogs.FileTransfersWindow()
 
 		# get transports type from DB
 		gajim.transport_type = gajim.logger.get_transports_type()
@@ -3511,31 +3659,7 @@ class Interface:
 
 		self.last_ftwindow_update = 0
 
-		gobject.timeout_add(100, self.autoconnect)
-		timeout, in_seconds = gajim.idlequeue.PROCESS_TIMEOUT
-		if in_seconds:
-			gobject.timeout_add_seconds(timeout, self.process_connections)
-		else:
-			gobject.timeout_add(timeout, self.process_connections)
-		gobject.timeout_add_seconds(gajim.config.get(
-			'check_idle_every_foo_seconds'), self.read_sleepy)
-
-		# when using libasyncns we need to process resolver in regular intervals
-		if resolver.USE_LIBASYNCNS:
-			gobject.timeout_add(200, gajim.resolver.process)
-
-		# setup the indicator
-		if gajim.HAVE_INDICATOR:
-			notify.setup_indicator_server()
-
-		def remote_init():
-			if gajim.config.get('remote_control'):
-				try:
-					import remote_control
-					self.remote_ctrl = remote_control.Remote()
-				except Exception:
-					pass
-		gobject.timeout_add_seconds(5, remote_init)
+		self.music_track_changed_signal = None
 
 if __name__ == '__main__':
 	def sigint_cb(num, stack):
@@ -3580,7 +3704,8 @@ if __name__ == '__main__':
 		except Exception:
 			pass
 
-	Interface()
+	interface = Interface()
+	interface.run()
 
 	try:
 		if os.name != 'nt':
