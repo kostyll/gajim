@@ -945,7 +945,7 @@ class ConversationTextview(gobject.GObject):
 				helpers.launch_browser_mailer(kind, href)
 
 
-	def detect_and_print_special_text(self, otext, other_tags):
+	def detect_and_print_special_text(self, otext, other_tags, graphics=True):
 		'''detects special text (emots & links & formatting)
 		prints normal text before any special text it founts,
 		then print special text (that happens many times until
@@ -959,7 +959,7 @@ class ConversationTextview(gobject.GObject):
 		# detect_and_print_special_text() is also used by 
 		# HtmlHandler.handle_specials() and there tags is gtk.TextTag objects,
 		# not strings
-		if len(other_tags) > 0 and isinstance(other_tags[0], gtk.TextTag):
+		if other_tags and isinstance(other_tags[0], gtk.TextTag):
 			insert_tags_func = buffer_.insert_with_tags
 
 		index = 0
@@ -970,7 +970,8 @@ class ConversationTextview(gobject.GObject):
 		specials_limit = 100
 
 		# basic: links + mail + formatting is always checked (we like that)
-		if gajim.config.get('emoticons_theme'): # search for emoticons & urls
+		if gajim.config.get('emoticons_theme') and graphics:
+			# search for emoticons & urls
 			iterator = gajim.interface.emot_and_basic_re.finditer(otext)
 		else: # search for just urls + mail + formatting
 			iterator = gajim.interface.basic_pattern_re.finditer(otext)
@@ -985,7 +986,7 @@ class ConversationTextview(gobject.GObject):
 			index = end # update index
 
 			# now print it
-			self.print_special_text(special_text, other_tags)
+			self.print_special_text(special_text, other_tags, graphics=graphics)
 			specials_limit -= 1
 			if specials_limit <= 0:
 				break
@@ -996,7 +997,7 @@ class ConversationTextview(gobject.GObject):
 		
 		return buffer_.get_end_iter()
 
-	def print_special_text(self, special_text, other_tags):
+	def print_special_text(self, special_text, other_tags, graphics=True):
 		'''is called by detect_and_print_special_text and prints
 		special text (emots, links, formatting)'''
 		tags = []
@@ -1014,7 +1015,7 @@ class ConversationTextview(gobject.GObject):
 
 		possible_emot_ascii_caps = special_text.upper() # emoticons keys are CAPS
 		if gajim.config.get('emoticons_theme') and \
-		possible_emot_ascii_caps in gajim.interface.emoticons.keys():
+		possible_emot_ascii_caps in gajim.interface.emoticons.keys() and graphics:
 			# it's an emoticon
 			emot_ascii = possible_emot_ascii_caps
 			end_iter = buffer_.get_end_iter()
@@ -1090,7 +1091,7 @@ class ConversationTextview(gobject.GObject):
 				if not show_ascii_formatting_chars:
 					special_text = special_text[1:-1] # remove _ _
 		elif gajim.HAVE_LATEX and special_text.startswith('$$') and \
-		special_text.endswith('$$'):
+		special_text.endswith('$$') and graphics:
 			try:
 				imagepath = latex.latex_to_image(special_text[2:-2])
 			except LatexError, e:
@@ -1118,9 +1119,13 @@ class ConversationTextview(gobject.GObject):
 			# It's nothing special
 			if use_other_tags:
 				end_iter = buffer_.get_end_iter()
-				buffer_.insert_with_tags_by_name(end_iter, special_text, *other_tags)
+				insert_tags_func = buffer_.insert_with_tags_by_name
+				if other_tags and isinstance(other_tags[0], gtk.TextTag):
+					insert_tags_func = buffer_.insert_with_tags
 
-		if len(tags) > 0:
+				insert_tags_func(end_iter, special_text, *other_tags)
+
+		if tags:
 			end_iter = buffer_.get_end_iter()
 			all_tags = tags[:]
 			if use_other_tags:
@@ -1134,7 +1139,7 @@ class ConversationTextview(gobject.GObject):
 
 	def print_conversation_line(self, text, jid, kind, name, tim,
 	other_tags_for_name=[], other_tags_for_time=[], other_tags_for_text=[],
-	subject=None, old_kind=None, xhtml=None, simple=False):
+	subject=None, old_kind=None, xhtml=None, simple=False, graphics=True):
 		'''prints 'chat' type messages'''
 		buffer_ = self.tv.get_buffer()
 		buffer_.begin_user_action()
@@ -1215,7 +1220,7 @@ class ConversationTextview(gobject.GObject):
 			else:
 				self.print_name(name, kind, other_tags_for_name)
 		self.print_subject(subject)
-		self.print_real_text(text, text_tags, name, xhtml)
+		self.print_real_text(text, text_tags, name, xhtml, graphics=graphics)
 
 		# scroll to the end of the textview
 		if at_the_end or kind == 'outgoing':
@@ -1284,7 +1289,8 @@ class ConversationTextview(gobject.GObject):
 			buffer_.insert(end_iter, subject)
 			self.print_empty_line()
 
-	def print_real_text(self, text, text_tags=[], name=None, xhtml=None):
+	def print_real_text(self, text, text_tags=[], name=None, xhtml=None,
+	graphics=True):
 		'''this adds normal and special text. call this to add text'''
 		if xhtml:
 			try:
@@ -1293,14 +1299,14 @@ class ConversationTextview(gobject.GObject):
 				self.tv.display_html(xhtml.encode('utf-8'), self)
 				return
 			except Exception, e:
-				gajim.log.debug(str('Error processing xhtml') + str(e))
-				gajim.log.debug(str('with |' + xhtml + '|'))
+				gajim.log.debug('Error processing xhtml' + str(e))
+				gajim.log.debug('with |' + xhtml + '|')
 
 		# /me is replaced by name if name is given
 		if name and (text.startswith('/me ') or text.startswith('/me\n')):
 			text = '* ' + name + text[3:]
 			text_tags.append('italic')
 		# detect urls formatting and if the user has it on emoticons
-		self.detect_and_print_special_text(text, text_tags)
+		self.detect_and_print_special_text(text, text_tags, graphics=graphics)
 
 # vim: se ts=3:

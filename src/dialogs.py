@@ -1975,7 +1975,7 @@ class JoinGroupchatWindow:
 			self.xml.get_widget('join_button').set_sensitive(False)
 
 		if account and not gajim.connections[account].private_storage_supported:
-			self.xml.get_widget('auto_join_checkbutton').set_sensitive(False)
+			self.xml.get_widget('bookmark_checkbutton').set_sensitive(False)
 
 		self.window.show_all()
 
@@ -2014,6 +2014,13 @@ class JoinGroupchatWindow:
 	def on_cancel_button_clicked(self, widget):
 		'''When Cancel button is clicked'''
 		self.window.destroy()
+
+	def on_bookmark_checkbutton_toggled(self, widget):
+		auto_join_checkbutton = self.xml.get_widget('auto_join_checkbutton')
+		if widget.get_active():
+			auto_join_checkbutton.set_sensitive(True)
+		else:
+			auto_join_checkbutton.set_sensitive(False)
 
 	def on_join_button_clicked(self, widget):
 		'''When Join button is clicked'''
@@ -2058,10 +2065,14 @@ class JoinGroupchatWindow:
 		gajim.config.set('recently_groupchat',
 			' '.join(self.recently_groupchat))
 
-		if self.xml.get_widget('auto_join_checkbutton').get_active():
+		if self.xml.get_widget('bookmark_checkbutton').get_active():
+			if self.xml.get_widget('auto_join_checkbutton').get_active():
+				autojoin = '1'
+			else:
+				autojoin = '0'
 			# Add as bookmark, with autojoin and not minimized
 			name = gajim.get_nick_from_jid(room_jid)
-			gajim.interface.add_gc_bookmark(self.account, name, room_jid, '1', \
+			gajim.interface.add_gc_bookmark(self.account, name, room_jid, autojoin,
 				'0', password, nickname)
 
 		if self.automatic:
@@ -2505,6 +2516,9 @@ class SingleMessageWindow:
 		self.instances.remove(self)
 		c = gajim.contacts.get_contact_with_highest_priority(self.account,
 			self.from_whom)
+		if not c:
+			# Groupchat is maybe already destroyed
+			return
 		if c.is_groupchat() and not self.from_whom in \
 		gajim.interface.minimized_controls[self.account] and self.action == \
 		'receive' and gajim.events.get_nb_roster_events(self.account,
@@ -2812,6 +2826,8 @@ class RosterItemExchangeWindow:
 		self.message_body = message_body
 		self.jid_from = jid_from
 
+		show_dialog = False
+
 		# Connect to glade
 		self.xml = gtkgui_helpers.get_glade('roster_item_exchange_window.glade')
 		self.window = self.xml.get_widget('roster_item_exchange_window')
@@ -2880,6 +2896,7 @@ class RosterItemExchangeWindow:
 					else:
 						groups = groups + group + ', '
 				if not is_in_roster:
+					show_dialog = True
 					iter = model.append()
 					model.set(iter, 0, True, 1, jid, 2, name, 3, groups)
 
@@ -2912,6 +2929,7 @@ class RosterItemExchangeWindow:
 					else:
 						groups = groups + group + ', '
 				if not is_right and is_in_roster:
+					show_dialog = True
 					iter = model.append()
 					model.set(iter, 0, True, 1, jid, 2, name, 3, groups)
 
@@ -2937,6 +2955,7 @@ class RosterItemExchangeWindow:
 					else:
 						groups = groups + group + ', '
 				if is_in_roster:
+					show_dialog = True
 					iter = model.append()
 					model.set(iter, 0, True, 1, jid, 2, name, 3, groups)
 
@@ -2945,9 +2964,9 @@ class RosterItemExchangeWindow:
 				get_children()[0].get_children()[1]
 			accept_button_label.set_label(_('Delete'))
 
-		self.window.show_all()
-
-		self.xml.signal_autoconnect(self)
+		if show_dialog:
+			self.window.show_all()
+			self.xml.signal_autoconnect(self)
 
 	def toggled_callback(self, cell, path):
 		model = self.items_list_treeview.get_model()

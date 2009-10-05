@@ -51,7 +51,13 @@ from common.pep import MOODS, ACTIVITIES
 from common.xmpp.protocol import NS_XHTML, NS_XHTML_IM, NS_FILE, NS_MUC
 from common.xmpp.protocol import NS_RECEIPTS, NS_ESESSION
 
-from commands.implementation import CommonCommands, ChatCommands
+from command_system.implementation.middleware import ChatCommandProcessor
+from command_system.implementation.middleware import CommandTools
+from command_system.implementation.hosts import ChatCommands
+
+# Here we load the module with the standard commands, so they are being detected
+# and dispatched.
+import command_system.implementation.standard
 
 try:
 	import gtkspell
@@ -81,7 +87,7 @@ if gajim.config.get('use_speller') and HAS_GTK_SPELL:
 	del tv
 
 ################################################################################
-class ChatControlBase(MessageControl, CommonCommands):
+class ChatControlBase(MessageControl, ChatCommandProcessor, CommandTools):
 	'''A base class containing a banner, ConversationTextview, MessageTextView
 	'''
 
@@ -704,7 +710,8 @@ class ChatControlBase(MessageControl, CommonCommands):
 
 	def print_conversation_line(self, text, kind, name, tim,
 	other_tags_for_name=[], other_tags_for_time=[], other_tags_for_text=[],
-	count_as_new=True, subject=None, old_kind=None, xhtml=None, simple=False, xep0184_id = None):
+	count_as_new=True, subject=None, old_kind=None, xhtml=None, simple=False,
+	xep0184_id=None, graphics=True):
 		'''prints 'chat' type messages'''
 		jid = self.contact.jid
 		full_jid = self.get_full_jid()
@@ -714,7 +721,7 @@ class ChatControlBase(MessageControl, CommonCommands):
 			end = True
 		textview.print_conversation_line(text, jid, kind, name, tim,
 			other_tags_for_name, other_tags_for_time, other_tags_for_text,
-			subject, old_kind, xhtml, simple=simple)
+			subject, old_kind, xhtml, simple=simple, graphics=graphics)
 
 		if xep0184_id is not None:
 			textview.show_xep0184_warning(xep0184_id)
@@ -1163,12 +1170,14 @@ class ChatControlBase(MessageControl, CommonCommands):
 		# FIXME: Set sensitivity for toolbar
 
 ################################################################################
-class ChatControl(ChatControlBase, ChatCommands):
+class ChatControl(ChatControlBase):
 	'''A control for standard 1-1 chat'''
 	TYPE_ID = message_control.TYPE_CHAT
 	old_msg_kind = None # last kind of the printed message
 
-	DISPATCHED_BY = ChatCommands
+	# Set a command host to bound to. Every command given through a chat will be
+	# processed with this command host.
+	COMMAND_HOST = ChatCommands
 
 	def __init__(self, parent_win, contact, acct, session, resource = None):
 		ChatControlBase.__init__(self, self.TYPE_ID, parent_win,
@@ -2130,7 +2139,8 @@ class ChatControl(ChatControlBase, ChatCommands):
 		# XXX: Once we have fallback to disco, remove notexistant check
 		if not gajim.HAVE_PYCRYPTO or \
 		not gajim.capscache.is_supported(contact, NS_ESESSION) or \
-		gajim.capscache.is_supported(contact, 'notexistant'):
+		gajim.capscache.is_supported(contact, 'notexistant') or \
+		not gajim.config.get_per('accounts', self.account, 'enable_esessions'):
 			toggle_e2e_menuitem.set_sensitive(False)
 		else:
 			toggle_e2e_menuitem.set_active(e2e_is_active)

@@ -1603,6 +1603,16 @@ class Connection(ConnectionHandlers):
 		iq2.addChild(name='gajim', namespace='gajim:prefs')
 		self.connection.send(iq)
 
+	def _request_bookmarks_xml(self):
+		iq = common.xmpp.Iq(typ='get')
+		iq2 = iq.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
+		iq2.addChild(name='storage', namespace='storage:bookmarks')
+		self.connection.send(iq)
+
+	def _check_bookmarks_received(self):
+		if not self.bookmarks:
+			self._request_bookmarks_xml()
+
 	def get_bookmarks(self, storage_type=None):
 		'''Get Bookmarks from storage or PubSub if supported as described in
 		XEP 0048
@@ -1611,11 +1621,11 @@ class Connection(ConnectionHandlers):
 			return
 		if self.pubsub_supported and storage_type != 'xml':
 			self.send_pb_retrieve('', 'storage:bookmarks')
+			# some server (ejabberd) are so slow to answer that we request via XML
+			# if we don't get answer in the next 30 seconds
+			gajim.idlequeue.set_alarm(self._check_bookmarks_received, 30)
 		else:
-			iq = common.xmpp.Iq(typ='get')
-			iq2 = iq.addChild(name='query', namespace=common.xmpp.NS_PRIVATE)
-			iq2.addChild(name='storage', namespace='storage:bookmarks')
-			self.connection.send(iq)
+			self._request_bookmarks_xml()
 
 	def store_bookmarks(self, storage_type=None):
 		''' Send bookmarks to the storage namespace or PubSub if supported
@@ -1744,27 +1754,6 @@ class Connection(ConnectionHandlers):
 		if show == 'invisible':
 			# Never join a room when invisible
 			return
-		p = common.xmpp.Presence(to = '%s/%s' % (room_jid, nick),
-			show = show, status = self.status)
-		if gajim.config.get('send_sha_in_gc_presence'):
-			p = self.add_sha(p)
-		self.add_lang(p)
-		if not change_nick:
-			t = p.setTag(common.xmpp.NS_MUC + ' x')
-			last_date = gajim.logger.get_last_date_that_has_logs(room_jid,
-				self.name, is_room=True)
-			if last_date is None:
-				last_date = time.time() - gajim.config.get(
-					'muc_restore_timeout') * 60
-			else:
-				last_time = min(last_date, time.time() - gajim.config.get(
-					'muc_restore_timeout') * 60)
-			last_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(last_date))
-			t.setTag('history', {'maxstanzas': gajim.config.get(
-				'muc_restore_lines'), 'since': last_date})
-			if password:
-				t.setTagData('password', password)
-		self.connection.send(p)
 
 		# last date/time in history to avoid duplicate
 		if room_jid not in self.last_history_time:
@@ -1777,12 +1766,33 @@ class Connection(ConnectionHandlers):
 				if last_log is None:
 					# Not in special table, get it from messages DB
 					last_log = gajim.logger.get_last_date_that_has_logs(room_jid,
-						is_room = True)
+						is_room=True)
 			# Create self.last_history_time[room_jid] even if not logging,
 			# could be used in connection_handlers
 			if last_log is None:
 				last_log = 0
-			self.last_history_time[room_jid]= last_log
+			self.last_history_time[room_jid] = last_log
+
+		p = common.xmpp.Presence(to = '%s/%s' % (room_jid, nick),
+			show = show, status = self.status)
+		if gajim.config.get('send_sha_in_gc_presence'):
+			p = self.add_sha(p)
+		self.add_lang(p)
+		if not change_nick:
+			t = p.setTag(common.xmpp.NS_MUC + ' x')
+			last_date = self.last_history_time[room_jid]
+			if last_date == 0:
+				last_date = time.time() - gajim.config.get(
+					'muc_restore_timeout') * 60
+			else:
+				last_time = min(last_date, time.time() - gajim.config.get(
+					'muc_restore_timeout') * 60)
+			last_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(last_date))
+			t.setTag('history', {'maxstanzas': gajim.config.get(
+				'muc_restore_lines'), 'since': last_date})
+			if password:
+				t.setTagData('password', password)
+		self.connection.send(p)
 
 	def send_gc_message(self, jid, msg, xhtml = None):
 		if not self.connection:

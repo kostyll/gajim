@@ -166,14 +166,22 @@ else:
 	if dbus_support.supported:
 		from music_track_listener import MusicTrackListener
 		import dbus
+		
+	from ctypes import CDLL
+	from ctypes.util import find_library
+	import platform
+	
+	sysname = platform.system()
+	libc = CDLL(find_library('c'))
 
-	if os.name == 'posix': # dl module is Unix Only
-		try: # rename the process name to gajim
-			import dl
-			libc = dl.open('/lib/libc.so.6')
-			libc.call('prctl', 15, 'gajim\0', 0, 0, 0)
-		except Exception:
-			pass
+	# The constant defined in <linux/prctl.h> which is used to set the name of
+	# the process.
+	PR_SET_NAME = 15
+	
+	if sysname == 'Linux':
+		libc.prctl(PR_SET_NAME, 'gajim')
+	elif sysname in ('FreeBSD', 'OpenBSD', 'NetBSD'):
+		libc.setproctitle('gajim')
 
 	if gtk.pygtk_version < (2, 12, 0):
 		pritext = _('Gajim needs PyGTK 2.12 or above')
@@ -244,14 +252,6 @@ from chat_control import ChatControlBase
 from chat_control import ChatControl
 from groupchat_control import GroupchatControl
 from groupchat_control import PrivateChatControl
-
-# Here custom adhoc processors should be loaded. At this point there is
-# everything they need to function properly. The next line loads custom exmple
-# adhoc processors. Technically, they could be loaded earlier as host processors
-# themself does not depend on the chat controls, but that should not be done
-# uless there is a really good reason for that..
-#
-# from commands import custom
 
 from atom_window import AtomWindow
 from session import ChatControlSession
@@ -916,6 +916,11 @@ class Interface:
 		full_jid_with_resource = array[0]
 		jids = full_jid_with_resource.split('/', 1)
 		jid = jids[0]
+
+		if array[1] == '503':
+			# If we get server-not-found error, stop sending chatstates
+			for contact in gajim.contacts.get_contacts(account, jid):
+				contact.composing_xep = False
 
 		session = None
 		if len(array) > 5:
