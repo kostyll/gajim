@@ -166,22 +166,23 @@ else:
 	if dbus_support.supported:
 		from music_track_listener import MusicTrackListener
 		import dbus
-		
+
 	from ctypes import CDLL
 	from ctypes.util import find_library
 	import platform
-	
-	sysname = platform.system()
-	libc = CDLL(find_library('c'))
 
-	# The constant defined in <linux/prctl.h> which is used to set the name of
-	# the process.
-	PR_SET_NAME = 15
-	
-	if sysname == 'Linux':
-		libc.prctl(PR_SET_NAME, 'gajim')
-	elif sysname in ('FreeBSD', 'OpenBSD', 'NetBSD'):
-		libc.setproctitle('gajim')
+	sysname = platform.system()
+	if sysname in ('Linux', 'FreeBSD', 'OpenBSD', 'NetBSD'):
+		libc = CDLL(find_library('c'))
+
+		# The constant defined in <linux/prctl.h> which is used to set the name of
+		# the process.
+		PR_SET_NAME = 15
+
+		if sysname == 'Linux':
+			libc.prctl(PR_SET_NAME, 'gajim')
+		elif sysname in ('FreeBSD', 'OpenBSD', 'NetBSD'):
+			libc.setproctitle('gajim')
 
 	if gtk.pygtk_version < (2, 12, 0):
 		pritext = _('Gajim needs PyGTK 2.12 or above')
@@ -771,9 +772,9 @@ class Interface:
 					lcontact.append(contact1)
 				elif contact1.show in statuss:
 					old_show = statuss.index(contact1.show)
-				# FIXME: What am I?
 				if (resources != [''] and (len(lcontact) != 1 or \
 				lcontact[0].show != 'offline')) and jid.find('@') > 0:
+					# Another resource of an existing contact connected
 					old_show = 0
 					contact1 = gajim.contacts.copy_contact(contact1)
 					lcontact.append(contact1)
@@ -908,6 +909,7 @@ class Interface:
 			ctrl = self.msg_win_mgr.get_control(jid, account)
 
 			if ctrl:
+				ctrl.no_autonegotiation = False
 				ctrl.set_session(None)
 				ctrl.contact = highest
 
@@ -2970,7 +2972,6 @@ class Interface:
 
 	def on_open_chat_window(self, widget, contact, account, resource=None,
 	session=None):
-
 		# Get the window containing the chat
 		fjid = contact.jid
 
@@ -3511,11 +3512,13 @@ class Interface:
 		gajim.proxy65_manager = proxy65_manager.Proxy65Manager(gajim.idlequeue)
 		gajim.default_session_type = ChatControlSession
 		self.register_handlers()
-		if gajim.config.get('enable_zeroconf') and gajim.HAVE_ZEROCONF:
+		if gajim.config.get_per('accounts', gajim.ZEROCONF_ACC_NAME, 'active') \
+		and gajim.HAVE_ZEROCONF:
 			gajim.connections[gajim.ZEROCONF_ACC_NAME] = \
 				connection_zeroconf.ConnectionZeroconf(gajim.ZEROCONF_ACC_NAME)
 		for account in gajim.config.get_per('accounts'):
-			if not gajim.config.get_per('accounts', account, 'is_zeroconf'):
+			if not gajim.config.get_per('accounts', account, 'is_zeroconf') and \
+			gajim.config.get_per('accounts', account, 'active'):
 				gajim.connections[account] = common.connection.Connection(account)
 
 		# gtk hooks

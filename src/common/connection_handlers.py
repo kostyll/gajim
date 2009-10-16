@@ -34,6 +34,7 @@ import socket
 import sys
 import operator
 import hashlib
+import hmac
 
 from time import (altzone, daylight, gmtime, localtime, mktime, strftime,
 	time as time_time, timezone, tzname)
@@ -351,7 +352,7 @@ class ConnectionBytestream:
 		file_props['hash'] = hash_id
 		return
 
-	def _connect_error(self, to, _id, sid, code = 404):
+	def _connect_error(self, to, _id, sid, code=404):
 		''' cb, when there is an error establishing BS connection, or
 		when connection is rejected'''
 		if not self.connection or self.connected < 2:
@@ -1408,12 +1409,11 @@ sent a message to.'''
 
 		if chat_sessions:
 			# return the session that we last sent a message in
-			return sorted(chat_sessions,
-				key=operator.attrgetter("last_send"))[-1]
+			return sorted(chat_sessions, key=operator.attrgetter("last_send"))[-1]
 		else:
 			return None
 
-	def find_controlless_session(self, jid):
+	def find_controlless_session(self, jid, resource=None):
 		'''find an active session that doesn't have a control attached'''
 
 		try:
@@ -1424,6 +1424,9 @@ sent a message to.'''
 				gajim.default_session_type)]
 
 			orphaned = [s for s in chat_sessions if not s.control]
+
+			if resource:
+				orphaned = [s for s in orphaned if s.resource == resource]
 
 			return orphaned[0]
 		except (KeyError, IndexError):
@@ -2184,7 +2187,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 		ptype = prs.getType()
 		if ptype == 'available':
 			ptype = None
-		rfc_types = ('unavailable', 'error', 'subscribe', 'subscribed', 'unsubscribe', 'unsubscribed')
+		rfc_types = ('unavailable', 'error', 'subscribe', 'subscribed',
+			'unsubscribe', 'unsubscribed')
 		if ptype and not ptype in rfc_types:
 			ptype = None
 		log.debug('PresenceCB: %s' % ptype)
@@ -2204,6 +2208,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			return
 		jid_stripped, resource = gajim.get_room_and_nick_from_fjid(who)
 		timestamp = None
+		id_ = prs.getID()
 		is_gc = False # is it a GC presence ?
 		sigTag = None
 		ns_muc_user_x = None
@@ -2243,6 +2248,13 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				if self.connection.getRoster().getItem(agent): # to be sure it's a transport contact
 					transport_auto_auth = True
 
+		if not is_gc and id_ and id_.startswith('gajim_muc_') and \
+		ptype == 'error':
+			# Error presences may not include sent stanza, so we don't detect it's
+			# a muc preence. So detect it by ID
+			h = hmac.new(self.secret_hmac, jid_stripped).hexdigest()[:6]
+			if id_.split('_')[-1] == h:
+				is_gc = True
 		status = prs.getStatus() or ''
 		show = prs.getShow()
 		if not show in gajim.SHOW_LIST:
@@ -2270,6 +2282,17 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				errmsg = prs.getErrorMsg()
 				errcode = prs.getErrorCode()
 				room_jid, nick = gajim.get_room_and_nick_from_fjid(who)
+
+				gc_control = gajim.interface.msg_win_mgr.get_gc_control(room_jid,
+						self.name)
+				
+				# If gc_control is missing - it may be minimized. Try to get it from
+				# there. If it's not there - then it's missing anyway and will
+				# remain set to None.
+				if gc_control is None:
+					minimized = gajim.interface.minimized_controls[self.name]
+					gc_control = minimized.get(room_jid)
+
 				if errcode == '502':
 					# Internal Timeout:
 					self.dispatch('NOTIFY', (jid_stripped, 'error', errmsg, resource,
@@ -2287,9 +2310,10 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					self.dispatch('ERROR', (_('Unable to join group chat'),
 						_('You are banned from group chat %s.') % room_jid))
 				elif (errcode == '404') or (errcon == 'item-not-found'):
-					# group chat does not exist
-					self.dispatch('ERROR', (_('Unable to join group chat'),
-						_('Group chat %s does not exist.') % room_jid))
+					if gc_control is None or gc_control.autorejoin is None:
+						# group chat does not exist
+						self.dispatch('ERROR', (_('Unable to join group chat'),
+							_('Group chat %s does not exist.') % room_jid))
 				elif (errcode == '405') or (errcon == 'not-allowed'):
 					self.dispatch('ERROR', (_('Unable to join group chat'),
 						_('Group chat creation is restricted.')))
@@ -2432,19 +2456,22 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				self.dispatch('NOTIFY', (jid_stripped, 'error', errmsg, resource,
 					prio, keyID, timestamp, None))
 
-		if ptype == 'unavailable' and jid_stripped in self.sessions:
-			# automatically terminate sessions that they haven't sent a thread ID
-			# in, only if other part support thread ID
-			for sess in self.sessions[jid_stripped].values():
-				if not sess.received_thread_id:
-					contact = gajim.contacts.get_contact(self.name, jid_stripped)
+		if ptype == 'unavailable':
+			for jid in [jid_stripped, who]:
+				if jid not in self.sessions:
+					continue
+				# automatically terminate sessions that they haven't sent a thread
+				# ID in, only if other part support thread ID
+				for sess in self.sessions[jid].values():
+					if not sess.received_thread_id:
+						contact = gajim.contacts.get_contact(self.name, jid)
 
-					session_supported = gajim.capscache.is_supported(contact,
-						common.xmpp.NS_SSN) or gajim.capscache.is_supported(contact,
-						common.xmpp.NS_ESESSION)
-					if session_supported:
-						sess.terminate()
-						del self.sessions[jid_stripped][sess.thread_id]
+						session_supported = gajim.capscache.is_supported(contact,
+							common.xmpp.NS_SSN) or gajim.capscache.is_supported(
+							contact, common.xmpp.NS_ESESSION)
+						if session_supported:
+							sess.terminate()
+							del self.sessions[jid][sess.thread_id]
 
 		if avatar_sha is not None and ptype != 'error':
 			if jid_stripped not in self.vcard_shas:

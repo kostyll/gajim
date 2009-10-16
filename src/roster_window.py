@@ -854,7 +854,7 @@ class RosterWindow:
 		self.remove_contact(jid, account, force=True, backend=True)
 		return True
 		
-	def rename_group(self, old_name, new_name):
+	def rename_group(self, old_name, new_name, account):
 		"""
 		rename a roster group
 		"""
@@ -2409,7 +2409,7 @@ class RosterWindow:
 			else: # user is running svn
 				helpers.exec_command('%s history_manager.py' % sys.executable)
 		else: # Unix user
-			helpers.exec_command('%s history_manager.py &' % sys.executable)
+			helpers.exec_command('%s history_manager.py' % sys.executable)
 
 	def on_info(self, widget, contact, account):
 		'''Call vcard_information_window class to display contact's information'''
@@ -2769,7 +2769,7 @@ class RosterWindow:
 					win.show_title()
 			elif row_type == 'group':
 				# in C_JID column, we hold the group name (which is not escaped)
-				self.rename_group(old_text, new_text)
+				self.rename_group(old_text, new_text, account)
 
 		def on_canceled():
 			if 'rename' in gajim.interface.instances:
