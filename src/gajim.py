@@ -628,10 +628,10 @@ class Interface:
 	def unblock_signed_in_notifications(self, account):
 		gajim.block_signed_in_notifications[account] = False
 
-	def handle_event_status(self, account, status): # OUR status
-		#('STATUS', account, status)
+	def handle_event_status(self, account, show): # OUR status
+		#('STATUS', account, show)
 		model = self.roster.status_combobox.get_model()
-		if status in ('offline', 'error'):
+		if show in ('offline', 'error'):
 			for name in self.instances[account]['online_dialog'].keys():
 				# .keys() is needed to not have a dictionary length changed during
 				# iteration error
@@ -643,7 +643,7 @@ class Interface:
 			# .keys() is needed because dict changes during loop
 			for account in self.pass_dialog.keys():
 				self.pass_dialog[account].window.destroy()
-		if status == 'offline':
+		if show == 'offline':
 			# sensitivity for this menuitem
 			if gajim.get_number_of_connected_accounts() == 0:
 				model[self.roster.status_message_menuitem_iter][3] = False
@@ -664,7 +664,7 @@ class Interface:
 			ctrls += self.minimized_controls[account].values()
 		for ctrl in ctrls:
 			if ctrl.account == account:
-				if status == 'offline' or (status == 'invisible' and \
+				if show == 'offline' or (show == 'invisible' and \
 				gajim.connections[account].is_zeroconf):
 					ctrl.got_disconnected()
 				else:
@@ -674,12 +674,12 @@ class Interface:
 				if ctrl.parent_win:
 					ctrl.parent_win.redraw_tab(ctrl)
 
-		self.roster.on_status_changed(account, status)
-		if account in self.show_vcard_when_connect and status not in ('offline',
+		self.roster.on_status_changed(account, show)
+		if account in self.show_vcard_when_connect and show not in ('offline',
 		'error'):
 			self.edit_own_details(account)
 		if self.remote_ctrl:
-			self.remote_ctrl.raise_signal('AccountPresence', (status, account))
+			self.remote_ctrl.raise_signal('AccountPresence', (show, account))
 
 	def edit_own_details(self, account):
 		jid = gajim.get_jid_from_account(account)
@@ -2122,9 +2122,11 @@ class Interface:
 			gajim.config.set_per('accounts', account, 'resource', new_resource)
 			self.roster.send_status(account, gajim.connections[account].old_show,
 				gajim.connections[account].status)
-		dlg = dialogs.InputDialog(_('Resource Conflict'),
-			_('You are already connected to this account with the same resource. Please type a new one'), input_str = gajim.connections[account].server_resource,
-			is_modal = False, ok_handler = on_ok)
+		proposed_resource = gajim.connections[account].server_resource
+		proposed_resource += gajim.config.get('gc_proposed_nick_char')
+		dlg = dialogs.ResourceConflictDialog(_('Resource Conflict'),
+			_('You are already connected to this account with the same resource. '
+			'Please type a new one'), resource=proposed_resource, ok_handler=on_ok)
 
 	def handle_event_pep_config(self, account, data):
 		# ('PEP_CONFIG', account, (node, form))
@@ -2384,7 +2386,17 @@ class Interface:
 			'PUBSUB_NODE_REMOVED': self.handle_event_pubsub_node_removed,
 			'PUBSUB_NODE_NOT_REMOVED': self.handle_event_pubsub_node_not_removed,
 		}
-		gajim.handlers = self.handlers
+	
+	def dispatch(self, event, account, data):
+		'''
+		Dispatches an network event to the event handlers of this class
+		'''
+		if event not in self.handlers:
+			log.warning('Unknown event %s dispatched to GUI: %s' % (event, data))
+		else:
+			log.debug('Event %s distpached to GUI: %s' % (event, data))
+			self.handlers[event](account, data)
+		
 
 ################################################################################
 ### Methods dealing with gajim.events

@@ -52,7 +52,7 @@ except ImportError:
 # so they can do dialog.GajimThemesWindow() for example
 from filetransfers_window import FileTransfersWindow
 from gajim_themes_window import GajimThemesWindow
-from advanced import AdvancedConfigurationWindow
+from advanced_configuration_window import AdvancedConfigurationWindow
 
 from common import gajim
 from common import helpers
@@ -522,15 +522,50 @@ class ChangeMoodDialog:
 	def on_cancel_button_clicked(self, widget):
 		self.window.destroy()
 
-class ChangeStatusMessageDialog:
+class TimeoutDialog:
+	'''
+	Class designed to be derivated to create timeout'd dialogs (dialogs that
+	closes automatically after a timeout)
+	'''
+	def __init__(self, timeout, on_timeout):
+		self.countdown_left = timeout
+		self.countdown_enabled = True
+		self.title_text = ''
+		self.on_timeout = on_timeout
+
+	def run_timeout(self):
+		if self.countdown_left > 0:
+			self.countdown()
+			gobject.timeout_add_seconds(1, self.countdown)
+
+	def on_timeout():
+		'''To be implemented in derivated classes'''
+		pass
+
+	def countdown(self):
+		if self.countdown_enabled:
+			if self.countdown_left <= 0:
+				self.on_timeout()
+				return False
+			self.dialog.set_title('%s [%s]' % (self.title_text,
+				str(self.countdown_left)))
+			self.countdown_left -= 1
+			return True
+		else:
+			self.dialog.set_title(self.title_text)
+			return False
+
+class ChangeStatusMessageDialog(TimeoutDialog):
 	def __init__(self, on_response, show=None, show_pep=True):
+		countdown_time = gajim.config.get('change_status_window_timeout')
+		TimeoutDialog.__init__(self, countdown_time, self.on_timeout)
 		self.show = show
 		self.pep_dict = {}
 		self.show_pep = show_pep
 		self.on_response = on_response
 		self.xml = gtkgui_helpers.get_glade('change_status_message_dialog.glade')
-		self.window = self.xml.get_widget('change_status_message_dialog')
-		self.window.set_transient_for(gajim.interface.roster.window)
+		self.dialog = self.xml.get_widget('change_status_message_dialog')
+		self.dialog.set_transient_for(gajim.interface.roster.window)
 		msg = None
 		if show:
 			uf_show = helpers.get_uf_show(show)
@@ -549,12 +584,11 @@ class ChangeStatusMessageDialog:
 															  '_last_' + self.show, 'mood_text')
 		else:
 			self.title_text = _('Status Message')
-		self.window.set_title(self.title_text)
+		self.dialog.set_title(self.title_text)
 
 		message_textview = self.xml.get_widget('message_textview')
 		self.message_buffer = message_textview.get_buffer()
-		self.message_buffer.connect('changed',
-									self.toggle_sensitiviy_of_save_as_preset)
+		self.message_buffer.connect('changed', self.on_message_buffer_changed)
 		if not msg:
 			msg = ''
 		msg = helpers.from_one_line(msg)
@@ -572,10 +606,6 @@ class ChangeStatusMessageDialog:
 			opts[0] = helpers.from_one_line(opts[0])
 			self.preset_messages_dict[msg_name] = opts
 		sorted_keys_list = helpers.get_sorted_keys(self.preset_messages_dict)
-
-		countdown_time = gajim.config.get('change_status_window_timeout')
-		self.countdown_left = countdown_time
-		self.countdown_enabled = True
 
 		self.message_liststore = gtk.ListStore(str) # msg_name
 		self.message_combobox = self.xml.get_widget('message_combobox')
@@ -601,12 +631,10 @@ class ChangeStatusMessageDialog:
 			self.xml.get_widget('mood_button').hide()
 
 		self.xml.signal_autoconnect(self)
-		if countdown_time > 0:
-			self.countdown()
-			gobject.timeout_add(1000, self.countdown)
-		self.window.connect('response', self.on_dialog_response)
-		self.window.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
-		self.window.show_all()
+		self.run_timeout()
+		self.dialog.connect('response', self.on_dialog_response)
+		self.dialog.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
+		self.dialog.show_all()
 
 	def draw_activity(self):
 		'''Set activity button'''
@@ -646,26 +674,16 @@ class ChangeStatusMessageDialog:
 			img.set_from_pixbuf(None)
 			label.set_text('')
 
-	def countdown(self):
-		if self.countdown_enabled:
-			if self.countdown_left <= 0:
-				# Prevent GUI freeze when the combobox menu is opened on close
-				self.message_combobox.popdown()
-				self.window.response(gtk.RESPONSE_OK)
-				return False
-			self.window.set_title('%s [%s]' % (self.title_text,
-											   str(self.countdown_left)))
-			self.countdown_left -= 1
-			return True
-		else:
-			self.window.set_title(self.title_text)
-			return False
+	def on_timeout(self):
+		# Prevent GUI freeze when the combobox menu is opened on close
+		self.message_combobox.popdown()
+		self.dialog.response(gtk.RESPONSE_OK)
 
 	def on_dialog_response(self, dialog, response):
 		if response == gtk.RESPONSE_OK:
 			beg, end = self.message_buffer.get_bounds()
 			message = self.message_buffer.get_text(beg, end).decode('utf-8')\
-					.strip()
+				.strip()
 			message = helpers.remove_invalid_xml_chars(message)
 			msg = helpers.to_one_line(message)
 			if self.show:
@@ -684,7 +702,7 @@ class ChangeStatusMessageDialog:
 						'mood_text', self.pep_dict['mood_text'])
 		else:
 			message = None # user pressed Cancel button or X wm button
-		self.window.destroy()
+		self.dialog.destroy()
 		self.on_response(message, self.pep_dict)
 
 	def on_message_combobox_changed(self, widget):
@@ -708,11 +726,15 @@ class ChangeStatusMessageDialog:
 		if event.keyval == gtk.keysyms.Return or \
 		   event.keyval == gtk.keysyms.KP_Enter: # catch CTRL+ENTER
 			if (event.state & gtk.gdk.CONTROL_MASK):
-				self.window.response(gtk.RESPONSE_OK)
+				self.dialog.response(gtk.RESPONSE_OK)
 				# Stop the event
 				return True
 
-	def toggle_sensitiviy_of_save_as_preset(self, widget):
+	def on_message_buffer_changed(self, widget):
+		self.countdown_enabled = False
+		self.toggle_sensitiviy_of_save_as_preset()
+
+	def toggle_sensitiviy_of_save_as_preset(self):
 		btn = self.xml.get_widget('save_as_preset_button')
 		if self.message_buffer.get_char_count() == 0:
 			btn.set_sensitive(False)
@@ -3066,20 +3088,20 @@ class PrivacyListWindow:
 		# Add Widgets
 
 		for widget_to_add in ('title_hbox', 'privacy_lists_title_label',
-							  'list_of_rules_label', 'add_edit_rule_label', 'delete_open_buttons_hbox',
-							  'privacy_list_active_checkbutton', 'privacy_list_default_checkbutton',
-							  'list_of_rules_combobox', 'delete_open_buttons_hbox',
-							  'delete_rule_button', 'open_rule_button', 'edit_allow_radiobutton',
-							  'edit_deny_radiobutton', 'edit_type_jabberid_radiobutton',
-							  'edit_type_jabberid_entry', 'edit_type_group_radiobutton',
-							  'edit_type_group_combobox', 'edit_type_subscription_radiobutton',
-							  'edit_type_subscription_combobox', 'edit_type_select_all_radiobutton',
-							  'edit_queries_send_checkbutton', 'edit_send_messages_checkbutton',
-							  'edit_view_status_checkbutton', 'edit_order_spinbutton',
-							  'new_rule_button', 'save_rule_button', 'privacy_list_refresh_button',
-							  'privacy_list_close_button', 'edit_send_status_checkbutton',
-							  'add_edit_vbox', 'privacy_list_active_checkbutton',
-							  'privacy_list_default_checkbutton'):
+		'list_of_rules_label', 'add_edit_rule_label', 'delete_open_buttons_hbox',
+		'privacy_list_active_checkbutton', 'privacy_list_default_checkbutton',
+		'list_of_rules_combobox', 'delete_open_buttons_hbox',
+		'delete_rule_button', 'open_rule_button', 'edit_allow_radiobutton',
+		'edit_deny_radiobutton', 'edit_type_jabberid_radiobutton',
+		'edit_type_jabberid_entry', 'edit_type_group_radiobutton',
+		'edit_type_group_combobox', 'edit_type_subscription_radiobutton',
+		'edit_type_subscription_combobox', 'edit_type_select_all_radiobutton',
+		'edit_queries_send_checkbutton', 'edit_send_messages_checkbutton',
+		'edit_view_status_checkbutton', 'edit_all_checkbutton',
+		'edit_order_spinbutton', 'new_rule_button', 'save_rule_button',
+		'privacy_list_refresh_button', 'privacy_list_close_button',
+		'edit_send_status_checkbutton', 'add_edit_vbox',
+		'privacy_list_active_checkbutton', 'privacy_list_default_checkbutton'):
 			self.__dict__[widget_to_add] = self.xml.get_widget(widget_to_add)
 
 		self.privacy_lists_title_label.set_label(
@@ -3144,12 +3166,12 @@ class PrivacyListWindow:
 		for rule in rules:
 			if 'type' in rule:
 				text_item = _('Order: %(order)s, action: %(action)s, type: %(type)s'
-							  ', value: %(value)s') % {'order': rule['order'],
-													   'action': rule['action'], 'type': rule['type'],
-													   'value': rule['value']}
+					', value: %(value)s') % {'order': rule['order'],
+					'action': rule['action'], 'type': rule['type'],
+					'value': rule['value']}
 			else:
 				text_item = _('Order: %(order)s, action: %(action)s') % \
-						  {'order': rule['order'], 'action': rule['action']}
+					{'order': rule['order'], 'action': rule['action']}
 			self.global_rules[text_item] = rule
 			self.list_of_rules_combobox.append_text(text_item)
 		if len(rules) == 0:
@@ -3230,14 +3252,17 @@ class PrivacyListWindow:
 			self.edit_queries_send_checkbutton.set_active(False)
 			self.edit_view_status_checkbutton.set_active(False)
 			self.edit_send_status_checkbutton.set_active(False)
-			for child in rule_info['child']:
-				if child == 'presence-out':
+			self.edit_all_checkbutton.set_active(False)
+			if not rule_info['child']:
+				self.edit_all_checkbutton.set_active(True)
+			else:
+				if 'presence-out' in rule_info['child']:
 					self.edit_send_status_checkbutton.set_active(True)
-				elif child == 'presence-in':
+				if 'presence-in' in rule_info['child']:
 					self.edit_view_status_checkbutton.set_active(True)
-				elif child == 'iq':
+				if 'iq' in rule_info['child']:
 					self.edit_queries_send_checkbutton.set_active(True)
-				elif child == 'message':
+				if 'message' in rule_info['child']:
 					self.edit_send_messages_checkbutton.set_active(True)
 
 			if rule_info['action'] == 'allow':
@@ -3245,6 +3270,26 @@ class PrivacyListWindow:
 			else:
 				self.edit_deny_radiobutton.set_active(True)
 		self.add_edit_vbox.show()
+
+	def on_edit_all_checkbutton_toggled(self, widget):
+		if widget.get_active():
+			self.edit_send_messages_checkbutton.set_active(True)
+			self.edit_queries_send_checkbutton.set_active(True)
+			self.edit_view_status_checkbutton.set_active(True)
+			self.edit_send_status_checkbutton.set_active(True)
+			self.edit_send_messages_checkbutton.set_sensitive(False)
+			self.edit_queries_send_checkbutton.set_sensitive(False)
+			self.edit_view_status_checkbutton.set_sensitive(False)
+			self.edit_send_status_checkbutton.set_sensitive(False)
+		else:
+			self.edit_send_messages_checkbutton.set_active(False)
+			self.edit_queries_send_checkbutton.set_active(False)
+			self.edit_view_status_checkbutton.set_active(False)
+			self.edit_send_status_checkbutton.set_active(False)
+			self.edit_send_messages_checkbutton.set_sensitive(True)
+			self.edit_queries_send_checkbutton.set_sensitive(True)
+			self.edit_view_status_checkbutton.set_sensitive(True)
+			self.edit_send_status_checkbutton.set_sensitive(True)
 
 	def on_privacy_list_active_checkbutton_toggled(self, widget):
 		if widget.get_active():
@@ -3273,6 +3318,7 @@ class PrivacyListWindow:
 		self.edit_queries_send_checkbutton.set_active(False)
 		self.edit_view_status_checkbutton.set_active(False)
 		self.edit_send_status_checkbutton.set_active(False)
+		self.edit_all_checkbutton.set_active(False)
 		self.edit_order_spinbutton.set_value(1)
 		self.edit_type_group_combobox.set_active(0)
 		self.edit_type_subscription_combobox.set_active(0)
@@ -3299,14 +3345,15 @@ class PrivacyListWindow:
 		else:
 			edit_deny = 'deny'
 		child = []
-		if self.edit_send_messages_checkbutton.get_active():
-			child.append('message')
-		if self.edit_queries_send_checkbutton.get_active():
-			child.append('iq')
-		if self.edit_send_status_checkbutton.get_active():
-			child.append('presence-out')
-		if self.edit_view_status_checkbutton.get_active():
-			child.append('presence-in')
+		if not self.edit_all_checkbutton.get_active():
+			if self.edit_send_messages_checkbutton.get_active():
+				child.append('message')
+			if self.edit_queries_send_checkbutton.get_active():
+				child.append('iq')
+			if self.edit_send_status_checkbutton.get_active():
+				child.append('presence-out')
+			if self.edit_view_status_checkbutton.get_active():
+				child.append('presence-in')
 		if edit_type != '':
 			return {'order': edit_order, 'action': edit_deny,
 					'type': edit_type, 'value': edit_value, 'child': child}
@@ -4466,5 +4513,16 @@ class GPGInfoWindow:
 
 	def on_close_button_clicked(self, widget):
 		self.window.destroy()
+
+class ResourceConflictDialog(TimeoutDialog, InputDialog):
+	def __init__(self, title, text, resource, ok_handler):
+		TimeoutDialog.__init__(self, 15, self.on_timeout)
+		InputDialog.__init__(self, title, text, input_str=resource,
+			is_modal=False, ok_handler=ok_handler)
+		self.title_text = title
+		self.run_timeout()
+
+	def on_timeout(self):
+		self.on_okbutton_clicked(None)
 
 # vim: se ts=3:
