@@ -897,13 +897,6 @@ class ConnectionDisco:
 					if identity['category'] == 'pubsub' and identity.get('type') == \
 					'pep':
 						self.pep_supported = True
-						if dbus_support.supported:
-							listener = MusicTrackListener.get()
-							track = listener.get_playing_track()
-							if gajim.config.get_per('accounts', self.name,
-							'publish_tune'):
-								gajim.interface.music_track_changed(listener, track,
-									self.name)
 						break
 			if features.__contains__(common.xmpp.NS_VCARD):
 				self.vcard_supported = True
@@ -2309,7 +2302,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					# we are banned
 					self.dispatch('ERROR', (_('Unable to join group chat'),
 						_('You are banned from group chat %s.') % room_jid))
-				elif (errcode == '404') or (errcon == 'item-not-found'):
+				elif (errcode == '404') or (errcon in ('item-not-found',
+				'remote-server-not-found')):
 					if gc_control is None or gc_control.autorejoin is None:
 						# group chat does not exist
 						self.dispatch('ERROR', (_('Unable to join group chat'),

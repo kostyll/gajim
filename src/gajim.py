@@ -1967,6 +1967,10 @@ class Interface:
 			nick = gc_control.nick
 			password = gajim.gc_passwords.get(room_jid, '')
 			gajim.connections[account].join_gc(nick, room_jid, password)
+		# send currently played music
+		if gajim.connections[account].pep_supported and dbus_support.supported \
+		and gajim.config.get_per('accounts', account, 'publish_tune'):
+			self.enable_music_listener()
 
 	def handle_event_metacontacts(self, account, tags_list):
 		gajim.contacts.define_metacontacts(account, tags_list)
@@ -2667,7 +2671,7 @@ class Interface:
 		#detects eg. *b* *bold* *bold bold* test *bold* *bold*! (*bold*)
 		#doesn't detect (it's a feature :P) * bold* *bold * * bold * test*bold*
 		formatting = r'|(?<!\w)' r'\*[^\s*]' r'([^*]*[^\s*])?' r'\*(?!\w)|'\
-			r'(?<!\w|\<)' r'/[^\s/]' r'([^/]*[^\s/])?' r'/(?!\w)|'\
+			r'(?<!\S)' r'/[^\s/]' r'([^/]*[^\s/])?' r'/(?!\S)|'\
 			r'(?<!\w)' r'_[^\s_]' r'([^_]*[^\s_])?' r'_(?!\w)'
 
 		latex = r'|\$\$[^$\\]*?([\]\[0-9A-Za-z()|+*/-]|[\\][\]\[0-9A-Za-z()|{}$])(.*?[^\\])?\$\$'
@@ -3426,12 +3430,6 @@ class Interface:
 				except Exception:
 					pass
 		gobject.timeout_add_seconds(5, remote_init)
-
-		for account in gajim.connections:
-			if gajim.config.get_per('accounts', account, 'publish_tune') and \
-			dbus_support.supported:
-				self.enable_music_listener()
-				break
 
 	def __init__(self):
 		gajim.interface = self
