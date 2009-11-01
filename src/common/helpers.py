@@ -39,6 +39,7 @@ import select
 import base64
 import hashlib
 import caps
+import sys
 
 from encodings.punycode import punycode_encode
 
