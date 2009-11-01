@@ -52,6 +52,14 @@ from common import exceptions
 from common.commands import ConnectionCommands
 from common.pubsub import ConnectionPubSub
 from common.caps import ConnectionCaps
+if gajim.HAVE_FARSIGHT:
+	from common.jingle import ConnectionJingle
+else:
+	class ConnectionJingle():
+		def __init__(self):
+			pass
+		def _JingleCB(self, con, stanza):
+			pass
 
 from common import dbus_support
 if dbus_support.supported:
@@ -1445,12 +1453,13 @@ sent a message to.'''
 
 		return sess
 
-class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco, ConnectionCommands, ConnectionPubSub, ConnectionCaps, ConnectionHandlersBase):
+class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco, ConnectionCommands, ConnectionPubSub, ConnectionCaps, ConnectionHandlersBase, ConnectionJingle):
 	def __init__(self):
 		ConnectionVcard.__init__(self)
 		ConnectionBytestream.__init__(self)
 		ConnectionCommands.__init__(self)
 		ConnectionPubSub.__init__(self)
+		ConnectionJingle.__init__(self)
 		ConnectionHandlersBase.__init__(self)
 		self.gmail_url = None
 
@@ -2250,7 +2259,7 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 				is_gc = True
 		status = prs.getStatus() or ''
 		show = prs.getShow()
-		if not show in gajim.SHOW_LIST:
+		if show not in ('chat', 'away', 'xa', 'dnd'):
 			show = '' # We ignore unknown show
 		if not ptype and not show:
 			show = 'online'
@@ -2460,9 +2469,8 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 					if not sess.received_thread_id:
 						contact = gajim.contacts.get_contact(self.name, jid)
 
-						session_supported = gajim.capscache.is_supported(contact,
-							common.xmpp.NS_SSN) or gajim.capscache.is_supported(
-							contact, common.xmpp.NS_ESESSION)
+						session_supported = contact.supports(common.xmpp.NS_SSN) or \
+							contact.supports(common.xmpp.NS_ESESSION)
 						if session_supported:
 							sess.terminate()
 							del self.sessions[jid][sess.thread_id]
@@ -2807,6 +2815,10 @@ class ConnectionHandlers(ConnectionVcard, ConnectionBytestream, ConnectionDisco,
 			common.xmpp.NS_PRIVACY)
 		con.RegisterHandler('iq', self._PubSubCB, 'result')
 		con.RegisterHandler('iq', self._PubSubErrorCB, 'error')
+		con.RegisterHandler('iq', self._JingleCB, 'result')
+		con.RegisterHandler('iq', self._JingleCB, 'error')
+		con.RegisterHandler('iq', self._JingleCB, 'set',
+			common.xmpp.NS_JINGLE)
 		con.RegisterHandler('iq', self._ErrorCB, 'error')
 		con.RegisterHandler('iq', self._IqCB)
 		con.RegisterHandler('iq', self._StanzaArrivedCB)

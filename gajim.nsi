@@ -255,11 +255,6 @@ SectionGroupEnd
 
 SectionGroup $(NAME_Iconsets)
 
-Section "crystal" SecIconsetsCrystal
-	SetOutPath "$INSTDIR\data\iconsets"
-	File /r "data\iconsets\crystal"
-SectionEnd
-
 Section "dcraven" SecIconsetsDcraven
 	SectionIn RO
 	SetOutPath "$INSTDIR\data\iconsets"
@@ -276,11 +271,6 @@ Section "goojim" SecIconsetsGoojim
 	File /r "data\iconsets\goojim"
 SectionEnd
 
-Section "gossip" SecIconsetsGossip
-	SetOutPath "$INSTDIR\data\iconsets"
-	File /r "data\iconsets\gossip"
-SectionEnd
-
 Section "gota" SecIconsetsGota
 	SetOutPath "$INSTDIR\data\iconsets"
 	File /r "data\iconsets\gota"
@@ -291,24 +281,14 @@ Section "jabberbulb" SecIconsetsJabberbulb
 	File /r "data\iconsets\jabberbulb"
 SectionEnd
 
-Section "nuvola" SecIconsetsNuvola
-	SetOutPath "$INSTDIR\data\iconsets"
-	File /r "data\iconsets\nuvola"
-SectionEnd
-
-Section "simplebulb" SecIconsetsSimplebulb
-	SetOutPath "$INSTDIR\data\iconsets"
-	File /r "data\iconsets\simplebulb"
-SectionEnd
-
-Section "stellar" SecIconsetsStellar
-	SetOutPath "$INSTDIR\data\iconsets"
-	File /r "data\iconsets\stellar"
-SectionEnd
-
 Section "sun" SecIconsetsSun
 	SetOutPath "$INSTDIR\data\iconsets"
 	File /r "data\iconsets\sun"
+SectionEnd
+
+Section "wroop" SecIconsetsSun
+	SetOutPath "$INSTDIR\data\iconsets"
+	File /r "data\iconsets\wroop"
 SectionEnd
 
 Section "transports" SecIconsetsTransports
@@ -711,17 +691,13 @@ Section "Uninstall"
 	RMDir /r "$INSTDIR\data\emoticons\static"
 	RMDir /r "$INSTDIR\data\emoticons\static-big"
 	RMDir "$INSTDIR\data\emoticons"
-	RMDir /r "$INSTDIR\data\iconsets\crystal"
 	RMDir /r "$INSTDIR\data\iconsets\dcraven"
 	RMDir /r "$INSTDIR\data\iconsets\gnome"
 	RMDir /r "$INSTDIR\data\iconsets\goojim"
-	RMDir /r "$INSTDIR\data\iconsets\gossip"
 	RMDir /r "$INSTDIR\data\iconsets\gota"
 	RMDir /r "$INSTDIR\data\iconsets\jabberbulb"
-	RMDir /r "$INSTDIR\data\iconsets\nuvola"
-	RMDir /r "$INSTDIR\data\iconsets\simplebulb"
-	RMDir /r "$INSTDIR\data\iconsets\stellar"
 	RMDir /r "$INSTDIR\data\iconsets\sun"
+	RMDir /r "$INSTDIR\data\iconsets\wroop"
 	RMDir /r "$INSTDIR\data\iconsets\transports"
 	RMDir "$INSTDIR\data\iconsets"
 	RMDir "$INSTDIR\data"

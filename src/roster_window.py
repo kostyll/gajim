@@ -4048,7 +4048,7 @@ class RosterWindow:
 		path_dest, position = drop_info
 
 		if position == gtk.TREE_VIEW_DROP_BEFORE and len(path_dest) == 2 \
-			and path_dest[1] == 0: # dropped before the first group
+		and path_dest[1] == 0: # dropped before the first group
 			return
 		if position == gtk.TREE_VIEW_DROP_BEFORE and len(path_dest) == 2:
 			# dropped before a group: we drop it in the previous group every time
@@ -4074,7 +4074,7 @@ class RosterWindow:
 				return
 			c_dest = gajim.contacts.get_contact_with_highest_priority(account_dest,
 				jid_dest)
-			if not gajim.capscache.is_supported(c_dest, NS_FILE):
+			if not c_dest.supports(NS_FILE):
 				return
 			uri = data.strip()
 			uri_splitted = uri.split() # we may have more than one file dropped
@@ -4188,19 +4188,29 @@ class RosterWindow:
 			return
 
 		# Is the contact we drag a meta contact?
-		accounts = (self.regroup and gajim.contacts.get_accounts()) or account_source
-		is_big_brother = gajim.contacts.is_big_brother(account_source, jid_source, accounts)
+		accounts = (self.regroup and gajim.contacts.get_accounts()) or \
+			account_source
+		is_big_brother = gajim.contacts.is_big_brother(account_source, jid_source,
+			accounts)
 
-		# Contact drop on group row or between two contacts
-		if type_dest == 'group' or position == gtk.TREE_VIEW_DROP_BEFORE or \
-				position == gtk.TREE_VIEW_DROP_AFTER:
+		drop_in_middle_of_meta = False
+		if type_dest == 'contact':
+			if position == gtk.TREE_VIEW_DROP_BEFORE and len(path_dest) == 4:
+				drop_in_middle_of_meta = True
+			if position == gtk.TREE_VIEW_DROP_AFTER and (len(path_dest) == 4 or \
+			self.modelfilter.iter_has_child(iter_dest)):
+				drop_in_middle_of_meta = True
+		# Contact drop on group row or between two contacts that are
+		# not metacontacts
+		if (type_dest == 'group' or position in (gtk.TREE_VIEW_DROP_BEFORE,
+		gtk.TREE_VIEW_DROP_AFTER)) and not drop_in_middle_of_meta:
 			self.on_drop_in_group(None, account_source, c_source, grp_dest,
 				is_big_brother, context, etime, grp_source)
 			return
 
 		# Contact drop on another contact, make meta contacts
 		if position == gtk.TREE_VIEW_DROP_INTO_OR_AFTER or \
-				position == gtk.TREE_VIEW_DROP_INTO_OR_BEFORE:
+		position == gtk.TREE_VIEW_DROP_INTO_OR_BEFORE or drop_in_middle_of_meta:
 			c_dest = gajim.contacts.get_contact_with_highest_priority(account_dest,
 				jid_dest)
 			if not c_dest:
@@ -4224,8 +4234,6 @@ class RosterWindow:
 			menu.connect('selection-done', gtkgui_helpers.destroy_widget)
 			menu.show_all()
 			menu.popup(None, None, None, 1, etime)
-#			self.on_drop_in_contact(treeview, account_source, c_source,
-#				account_dest, c_dest, is_big_brother, context, etime)
 
 ################################################################################
 ### Everything about images and icons....
@@ -5173,17 +5181,6 @@ class RosterWindow:
 
 			zeroconf_properties_menuitem.connect('activate',
 				self.on_zeroconf_properties, account)
-			#gc_sub_menu = gtk.Menu() # gc is always a submenu
-			#join_group_chat_menuitem.set_submenu(gc_sub_menu)
-			#self.add_bookmarks_list(gc_sub_menu, account)
-			#new_message_menuitem.connect('activate',
-			#	self.on_new_message_menuitem_activate, account)
-
-			# make some items insensitive if account is offline
-			#if gajim.connections[account].connected < 2:
-			#	for widget in [join_group_chat_menuitem, new_message_menuitem]:
-			#		widget.set_sensitive(False)
-			#	new_message_menuitem.set_sensitive(False)
 
 		return account_context_menu
 

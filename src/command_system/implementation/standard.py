@@ -22,6 +22,7 @@ from common import gajim
 from common import helpers
 from common.exceptions import GajimGeneralException
 
+from ..errors import CommandError
 from ..framework import CommandContainer, command, documentation
 from ..mapping import generate_usage
 
@@ -168,7 +169,7 @@ class StandardGroupchatCommands(CommandContainer):
             gajim.interface.instances[self.account]['join_gc'].window.present()
         except KeyError:
             try:
-                dialogs.JoinGroupchatWindow(account=None, room_jid=jid, nick=nick)
+                dialogs.JoinGroupchatWindow(account=self.account, room_jid=jid, nick=nick)
             except GajimGeneralException:
                 pass
 

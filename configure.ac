@@ -1,5 +1,5 @@
 AC_INIT([Gajim - A Jabber Instant Messager],
-		[0.12.5.6-dev],[http://trac.gajim.org/],[gajim])
+		[0.12.5.7-dev],[http://trac.gajim.org/],[gajim])
 AC_PREREQ([2.59])
 AC_CONFIG_MACRO_DIR(m4)
 AC_CONFIG_SRCDIR(src)

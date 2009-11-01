@@ -31,6 +31,7 @@ def build_resources_submenu(contacts, account, action, room_jid=None,
 room_account=None, cap=None):
 	''' Build a submenu with contact's resources.
 	room_jid and room_account are for action self.on_invite_to_room '''
+	roster = gajim.interface.roster
 	sub_menu = gtk.Menu()
 
 	iconset = gajim.config.get('iconset')
@@ -54,7 +55,7 @@ room_account=None, cap=None):
 		else: # start_chat, execute_command, send_file
 			item.connect('activate', action, c, account, c.resource)
 
-		if cap and not gajim.capscache.is_supported(c, cap):
+		if cap and not c.supports(cap):
 			item.set_sensitive(False)
 
 	return sub_menu
@@ -91,7 +92,7 @@ def build_invite_submenu(invite_menuitem, list_):
 	if len(contact_list) > 1: # several resources
 		invite_to_new_room_menuitem.set_submenu(build_resources_submenu(
 			contact_list, account, roster.on_invite_to_new_room, cap=NS_MUC))
-	elif len(list_) == 1 and gajim.capscache.is_supported(contact, NS_MUC):
+	elif len(list_) == 1 and contact.supports(NS_MUC):
 		invite_menuitem.set_sensitive(True)
 		# use resource if it's self contact
 		if contact.jid == gajim.get_jid_from_account(account):
@@ -221,14 +222,14 @@ control=None):
 	else:
 		start_chat_menuitem.connect('activate',
 			gajim.interface.on_open_chat_window, contact, account)
-		if gajim.capscache.is_supported(contact, NS_FILE):
+		if contact.supports(NS_FILE):
 			send_file_menuitem.set_sensitive(True)
 			send_file_menuitem.connect('activate',
 				roster.on_send_file_menuitem_activate, contact, account)
 		else:
 			send_file_menuitem.set_sensitive(False)
 
-		if gajim.capscache.is_supported(contact, NS_COMMANDS):
+		if contact.supports(NS_COMMANDS):
 			execute_command_menuitem.set_sensitive(True)
 			execute_command_menuitem.connect('activate', roster.on_execute_command,
 				contact, account, contact.resource)
@@ -238,6 +239,12 @@ control=None):
 	rename_menuitem.connect('activate', roster.on_rename, 'contact', jid,
 		account)
 	history_menuitem.connect('activate', roster.on_history, contact, account)
+
+	if control:
+		convert_to_gc_menuitem.connect('activate',
+			control._on_convert_to_gc_menuitem_activate)
+	else:
+		items_to_hide.append(convert_to_gc_menuitem)
 
 	if _('Not in Roster') not in contact.get_shown_groups():
 		# contact is in normal group
@@ -261,7 +268,7 @@ control=None):
 	# Unsensitive many items when account is offline
 	if gajim.account_is_disconnected(account):
 		for widget in (start_chat_menuitem,	rename_menuitem,
-		edit_groups_menuitem, send_file_menuitem):
+		edit_groups_menuitem, send_file_menuitem, convert_to_gc_menuitem):
 			widget.set_sensitive(False)
 
 	if not show_start_chat:
@@ -283,18 +290,19 @@ control=None):
 			toggle_gpg_menuitem.set_sensitive(control.gpg_is_active or \
 				not e2e_is_active)
 			toggle_gpg_menuitem.set_active(control.gpg_is_active)
+			toggle_gpg_menuitem.connect('activate',
+				control._on_toggle_gpg_menuitem_activate)
 
 		# disable esessions if we or the other client don't support them
-		# XXX: Once we have fallback to disco, remove notexistant check
-		if not gajim.HAVE_PYCRYPTO or \
-		not gajim.capscache.is_supported(contact, NS_ESESSION) or \
-		gajim.capscache.is_supported(contact, 'notexistant') or \
+		if not gajim.HAVE_PYCRYPTO or not contact.supports(NS_ESESSION) or \
 		not gajim.config.get_per('accounts', account, 'enable_esessions'):
 			toggle_e2e_menuitem.set_sensitive(False)
 		else:
 			toggle_e2e_menuitem.set_active(e2e_is_active)
 			toggle_e2e_menuitem.set_sensitive(e2e_is_active or \
 				not control.gpg_is_active)
+			toggle_e2e_menuitem.connect('activate',
+				control._on_toggle_e2e_menuitem_activate)
 
 	if not show_buttonbar_items:
 		items_to_hide += [history_menuitem, send_file_menuitem,
@@ -312,7 +320,7 @@ control=None):
 		for item in (send_custom_status_menuitem, send_single_message_menuitem,
 		invite_menuitem, block_menuitem, unblock_menuitem, ignore_menuitem,
 		unignore_menuitem, set_custom_avatar_menuitem, subscription_menuitem,
-		manage_contact_menuitem):
+		manage_contact_menuitem, convert_to_gc_menuitems):
 			item.set_no_show_all(True)
 			item.hide()
 

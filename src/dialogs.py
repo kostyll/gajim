@@ -32,6 +32,7 @@
 import gtk
 import gobject
 import os
+from weakref import WeakValueDictionary
 
 import gtkgui_helpers
 import vcard
@@ -344,7 +345,7 @@ class ChangeActivityDialog:
 			item = self.xml.get_widget(category + '_image')
 			item.set_from_pixbuf(
 				gtkgui_helpers.load_activity_icon(category).get_pixbuf())
-			gtk.Tooltips().set_tip(item, pep.ACTIVITIES[category]['category'])
+			item.set_tooltip_text(pep.ACTIVITIES[category]['category'])
 
 			vbox = self.xml.get_widget(category + '_vbox')
 			vbox.set_border_width(5)
@@ -477,7 +478,7 @@ class ChangeMoodDialog:
 			self.mood_buttons[mood].set_mode(False)
 			self.mood_buttons[mood].add(gtkgui_helpers.load_mood_icon(mood))
 			self.mood_buttons[mood].set_relief(gtk.RELIEF_NONE)
-			gtk.Tooltips().set_tip(self.mood_buttons[mood], pep.MOODS[mood])
+			self.mood_buttons[mood].set_tooltip_text(pep.MOODS[mood])
 			self.mood_buttons[mood].connect('clicked',
 				self.on_mood_button_clicked, mood)
 			table.attach(self.mood_buttons[mood], x, x + 1, y, y + 1)
@@ -650,7 +651,7 @@ class ChangeStatusMessageDialog(TimeoutDialog):
 			else:
 				img.set_from_pixbuf(gtkgui_helpers.load_activity_icon(
 					self.pep_dict['activity']).get_pixbuf())
-#			gtk.Tooltips().set_tip(item, pep.ACTIVITIES[category]['category'])
+#			item.set_tooltip_text(pep.ACTIVITIES[category]['category'])
 			if self.pep_dict['activity_text']:
 				label.set_text(self.pep_dict['activity_text'])
 			else:
@@ -1921,7 +1922,7 @@ class JoinGroupchatWindow:
 		'''automatic is a dict like {'invities': []}
 		If automatic is not empty, this means room must be automaticaly configured
 		and when done, invities must be automatically invited'''
-		self.xml = gtkgui_helpers.get_glade('join_groupchat_window.glade')
+
 		if account:
 			if room_jid != '' and room_jid in gajim.gc_connected[account] and\
 		   gajim.gc_connected[account][room_jid]:
@@ -1933,21 +1934,27 @@ class JoinGroupchatWindow:
 				ErrorDialog(_('You are not connected to the server'),
 					_('You can not join a group chat unless you are connected.'))
 				raise GajimGeneralException, 'You must be connected to join a groupchat'
-		else:
-			account_label = self.xml.get_widget('account_label')
-			account_combobox = self.xml.get_widget('account_combobox')
-			account_label.set_no_show_all(False)
-			account_combobox.set_no_show_all(False)
-			liststore = gtk.ListStore(str)
-			account_combobox.set_model(liststore)
-			cell = gtk.CellRendererText()
-			account_combobox.pack_start(cell, True)
-			account_combobox.add_attribute(cell, 'text', 0)
-			for acct in [a for a in gajim.connections if \
-			gajim.account_is_connected(a)]:
-				account_combobox.append_text(acct)
-			account_combobox.set_active(-1)
 
+		self.xml = gtkgui_helpers.get_glade('join_groupchat_window.glade')
+		
+		account_label = self.xml.get_widget('account_label')
+		account_combobox = self.xml.get_widget('account_combobox')
+		account_label.set_no_show_all(False)
+		account_combobox.set_no_show_all(False)
+		liststore = gtk.ListStore(str)
+		account_combobox.set_model(liststore)
+		cell = gtk.CellRendererText()
+		account_combobox.pack_start(cell, True)
+		account_combobox.add_attribute(cell, 'text', 0)
+		account_combobox.set_active(-1)
+		
+		# Add accounts, set current as active if it matches 'account'
+		for acct in [a for a in gajim.connections if \
+		gajim.account_is_connected(a)]:
+			account_combobox.append_text(acct)
+			if account and account == acct:
+				account_combobox.set_active(liststore.iter_n_children(None)-1)
+		
 		self.account = account
 		self.automatic = automatic
 		self._empty_required_widgets = []
@@ -2063,7 +2070,7 @@ class JoinGroupchatWindow:
 		user, server, resource = helpers.decompose_jid(room_jid)
 		if not user or not server or resource:
 			ErrorDialog(_('Invalid group chat Jabber ID'),
-				_('The group chat Jabber ID has not allowed characters.'))
+				_('Please enter the group chat Jabber ID as room@server.'))
 			return
 		try:
 			room_jid = helpers.parse_jid(room_jid)
@@ -4345,7 +4352,7 @@ class TransformChatToMUC:
 		gajim.automatic_rooms[self.account][room_jid]['invities'] = guest_list
 		gajim.automatic_rooms[self.account][room_jid]['continue_tag'] = True
 		gajim.interface.join_gc_room(self.account, room_jid,
-									 gajim.nicks[self.account], None, is_continued=True)
+			gajim.nicks[self.account], None, is_continued=True)
 		self.window.destroy()
 
 	def on_cancel_button_clicked(self, widget):
@@ -4353,8 +4360,8 @@ class TransformChatToMUC:
 
 	def unique_room_id_error(self, server):
 		self.unique_room_id_supported(server,
-									  gajim.nicks[self.account].lower().replace(' ','') + str(randrange(
-										  9999999)))
+			gajim.nicks[self.account].lower().replace(' ','') + str(randrange(
+			9999999)))
 
 class DataFormWindow(Dialog):
 	def __init__(self, form, on_response_ok):
@@ -4514,6 +4521,8 @@ class GPGInfoWindow:
 	def on_close_button_clicked(self, widget):
 		self.window.destroy()
 
+
+
 class ResourceConflictDialog(TimeoutDialog, InputDialog):
 	def __init__(self, title, text, resource, ok_handler):
 		TimeoutDialog.__init__(self, 15, self.on_timeout)
@@ -4524,5 +4533,107 @@ class ResourceConflictDialog(TimeoutDialog, InputDialog):
 
 	def on_timeout(self):
 		self.on_okbutton_clicked(None)
+
+
+
+class VoIPCallReceivedDialog(object):
+	instances = {}
+	def __init__(self, account, contact_jid, sid, content_types):
+		self.instances[(contact_jid, sid)] = self
+		self.account = account
+		self.fjid = contact_jid
+		self.sid = sid
+		self.content_types = content_types
+
+		xml = gtkgui_helpers.get_glade('voip_call_received_dialog.glade')
+		xml.signal_autoconnect(self)
+
+		jid = gajim.get_jid_without_resource(self.fjid)
+		contact = gajim.contacts.get_first_contact_from_jid(account, jid)
+		if contact and contact.name:
+			self.contact_text = '%s (%s)' % (contact.name, jid)
+		else:
+			self.contact_text = contact_jid
+
+		self.dialog = xml.get_widget('voip_call_received_messagedialog')
+		self.set_secondary_text()
+
+		self.dialog.show_all()
+
+	@classmethod
+	def get_dialog(cls, jid, sid):
+		if (jid, sid) in cls.instances:
+			return cls.instances[(jid, sid)]
+		else:
+			return None
+
+	def set_secondary_text(self):
+		if 'audio' in self.content_types and 'video' in self.content_types:
+			types_text = _('an audio and video')
+		elif 'audio' in self.content_types:
+			types_text = _('an audio')
+		elif 'video' in self.content_types:
+			types_text = _('a video')
+
+		# do the substitution
+		self.dialog.set_property('secondary-text',
+			_('%(contact)s wants to start %(type)s session with you. Do you want '
+			'to answer the call?') % {'contact': self.contact_text, 'type': types_text})
+
+	def add_contents(self, content_types):
+		for type_ in content_types:
+			if type_ not in self.content_types:
+				self.content_types.add(type_)
+		self.set_secondary_text()
+
+	def on_voip_call_received_messagedialog_destroy(self, dialog):
+		if (self.fjid, self.sid) in self.instances:
+			del self.instances[(self.fjid, self.sid)]
+
+	def on_voip_call_received_messagedialog_close(self, dialog):
+		return self.on_voip_call_received_messagedialog_response(dialog,
+			gtk.RESPONSE_NO)
+
+	def on_voip_call_received_messagedialog_response(self, dialog, response):
+		# we've got response from user, either stop connecting or accept the call
+		session = gajim.connections[self.account].get_jingle_session(self.fjid,
+			self.sid)
+		if not session:
+			return
+		if response == gtk.RESPONSE_YES:
+			#TODO: Ensure that ctrl.contact.resource == resource
+			jid = gajim.get_jid_without_resource(self.fjid)
+			resource = gajim.get_resource_from_jid(self.fjid)
+			ctrl = gajim.interface.msg_win_mgr.get_control(self.fjid, self.account)
+			if not ctrl:
+				ctrl = gajim.interface.msg_win_mgr.get_control(jid, self.account)
+			if not ctrl:
+				# open chat control
+				contact = gajim.contacts.get_contact(self.account, jid, resource)
+				if not contact:
+					contact = gajim.contacts.get_contact(self.account, jid)
+				if not contact:
+					return
+				ctrl = gajim.interface.new_chat(contact, self.account)
+			# Chat control opened, update content's status
+			if session.get_content('audio'):
+				ctrl.set_audio_state('connecting', self.sid)
+			if session.get_content('video'):
+				ctrl.set_video_state('connecting', self.sid)
+			# Now, accept the content/sessions.
+			# This should be done after the chat control is running
+			if not session.accepted:
+				session.approve_session()
+			for content in self.content_types:
+				session.approve_content(content)
+		else: # response==gtk.RESPONSE_NO
+			if not session.accepted:
+				session.decline_session()
+			else:
+				for content in self.content_types:
+					session.reject_content(content)
+
+		dialog.destroy()
+
 
 # vim: se ts=3:

@@ -32,8 +32,6 @@ import logging
 import locale
 
 import config
-from contacts import Contacts
-from events import Events
 import xmpp
 
 try:
@@ -100,6 +98,9 @@ else:
 	LANG = LANG[:2] # en, fr, el etc..
 
 os_info = None # used to cache os information
+
+from contacts import Contacts
+from events import Events
 
 gmail_domains = ['gmail.com', 'googlemail.com']
 
@@ -189,6 +190,11 @@ try:
 except ImportError:
 	HAVE_INDICATOR = False
 
+HAVE_FARSIGHT = True
+try:
+	import farsight, gst
+except ImportError:
+	HAVE_FARSIGHT = False
 gajim_identity = {'type': 'pc', 'category': 'client', 'name': 'Gajim'}
 gajim_common_features = [xmpp.NS_BYTESTREAM, xmpp.NS_SI, xmpp.NS_FILE,
 	xmpp.NS_MUC, xmpp.NS_MUC_USER, xmpp.NS_MUC_ADMIN, xmpp.NS_MUC_OWNER,
@@ -203,6 +209,9 @@ gajim_optional_features = {}
 
 # Capabilities hash per account
 caps_hash = {}
+
+import caps
+caps.initialize(logger)
 
 def get_nick_from_jid(jid):
 	pos = jid.find('@')
