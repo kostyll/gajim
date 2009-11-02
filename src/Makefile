@@ -3,6 +3,7 @@ include ../extra.mk
 SUBDIRS = common ${TRAYMODULE} osx
 
 SRCS = adhoc_commands.py		\
+       advanced_configuration_window.py	\
        atom_window.py			\
        cell_renderer_image.py		\
        chat_control.py			\
@@ -21,6 +22,7 @@ SRCS = adhoc_commands.py		\
        groups.py			\
        gtkexcepthook.py			\
        gtkgui_helpers.py		\
+       gui_menu_builder.py		\
        history_manager.py		\
        history_window.py		\
        htmltextview.py			\

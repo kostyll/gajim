@@ -11,6 +11,7 @@ SRCS = __init__.py		\
        proxy_connectors.py	\
        roster_nb.py		\
        simplexml.py		\
+       stringprepare.py		\
        tls_nb.py		\
        transports_nb.py
 
