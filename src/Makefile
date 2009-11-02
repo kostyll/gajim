@@ -3,7 +3,6 @@ include ../extra.mk
 SUBDIRS = common ${TRAYMODULE} osx
 
 SRCS = adhoc_commands.py		\
-       advanced.py			\
        atom_window.py			\
        cell_renderer_image.py		\
        chat_control.py			\

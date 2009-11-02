@@ -199,7 +199,7 @@ class NullClientCaps(AbstractClientCaps):
 	def _lookup_in_cache(self, caps_cache):
 		# lookup something which does not exist to get a new CacheItem created
 		cache_item = caps_cache[('old', '')]
-		assert cache_item.queried == 0
+		#assert cache_item.queried == 0
 		return cache_item
 	
 	def _discover(self, connection, jid):

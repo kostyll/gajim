@@ -39,8 +39,7 @@ SRCS = GnuPG.py			\
        rst_xhtml_generator.py	\
        sleepy.py		\
        socks5.py		\
-       stanza_session.py	\
-       xmpp_stringprep.py
+       stanza_session.py
 
 include ../../buildsys.mk
 
