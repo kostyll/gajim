@@ -1,4 +1,4 @@
-# Copyright (C) 2009  red-agent <hell.director@gmail.com>
+# Copyright (C) 2009  Alexander Cherniuk <ts33kr@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -65,7 +65,9 @@ class CommandProcessor(object):
         Try to process text as a command. Returns True if it has been processed
         as a command and False otherwise.
         """
-        if not (text.startswith(self.COMMAND_PREFIX) and len(text) > 1):
+        prefix = text.startswith(self.COMMAND_PREFIX)
+        length = len(text) > len(self.COMMAND_PREFIX)
+        if not (prefix and length):
             return False
 
         body = text[len(self.COMMAND_PREFIX):]

@@ -29,18 +29,12 @@
 import os
 import locale
 import re
+from time import time
 from common import gajim
 from common import helpers
-from common import caps
+from common import caps_cache
 
-import exceptions
-try:
-	import sqlite3 as sqlite # python 2.5
-except ImportError:
-	try:
-		from pysqlite2 import dbapi2 as sqlite
-	except ImportError:
-		raise exceptions.PysqliteNotAvailable
+import sqlite3 as sqlite
 import logger
 
 class OptionsParser:
@@ -218,14 +212,18 @@ class OptionsParser:
 			self.update_config_to_01257()
 		if old < [0, 12, 5, 8] and new >= [0, 12, 5, 8]:
 			self.update_config_to_01258()
+		if old < [0, 13, 10, 0] and new >= [0, 13, 10, 0]:
+			self.update_config_to_013100()
 
 		gajim.logger.init_vars()
 		gajim.config.set('version', new_version)
 
-		caps.capscache.initialize_from_db()
+		caps_cache.capscache.initialize_from_db()
 
 	def assert_unread_msgs_table_exists(self):
-		'''create table unread_messages if there is no such table'''
+		"""
+		Create table unread_messages if there is no such table
+		"""
 		back = os.getcwd()
 		os.chdir(logger.LOG_DB_FOLDER)
 		con = sqlite.connect(logger.LOG_DB_FILE)
@@ -343,8 +341,10 @@ class OptionsParser:
 		gajim.config.set('version', '0.10.1.2')
 
 	def update_config_to_01013(self):
-		'''create table transports_cache if there is no such table'''
-		#FIXME see #2812
+		"""
+		Create table transports_cache if there is no such table
+		"""
+		# FIXME see #2812
 		back = os.getcwd()
 		os.chdir(logger.LOG_DB_FOLDER)
 		con = sqlite.connect(logger.LOG_DB_FILE)
@@ -366,9 +366,11 @@ class OptionsParser:
 		gajim.config.set('version', '0.10.1.3')
 
 	def update_config_to_01014(self):
-		'''apply indeces to the logs database'''
+		"""
+		Apply indeces to the logs database
+		"""
 		print _('migrating logs database to indices')
-		#FIXME see #2812
+		# FIXME see #2812
 		back = os.getcwd()
 		os.chdir(logger.LOG_DB_FOLDER)
 		con = sqlite.connect(logger.LOG_DB_FILE)
@@ -390,7 +392,9 @@ class OptionsParser:
 		gajim.config.set('version', '0.10.1.4')
 
 	def update_config_to_01015(self):
-		'''clean show values in logs database'''
+		"""
+		Clean show values in logs database
+		"""
 		#FIXME see #2812
 		back = os.getcwd()
 		os.chdir(logger.LOG_DB_FOLDER)
@@ -409,8 +413,10 @@ class OptionsParser:
 		gajim.config.set('version', '0.10.1.5')
 
 	def update_config_to_01016(self):
-		'''#2494 : Now we play gc_received_message sound even if
-		notify_on_all_muc_messages is false. Keep precedent behaviour.'''
+		"""
+		#2494 : Now we play gc_received_message sound even if
+		notify_on_all_muc_messages is false. Keep precedent behaviour
+		"""
 		if 'notify_on_all_muc_messages' in self.old_values and \
 		self.old_values['notify_on_all_muc_messages'] == 'False' and \
 		gajim.config.get_per('soundevents', 'muc_message_received', 'enabled'):
@@ -419,36 +425,45 @@ class OptionsParser:
 		gajim.config.set('version', '0.10.1.6')
 
 	def update_config_to_01017(self):
-		'''trayicon_notification_on_new_messages ->
-		trayicon_notification_on_events '''
+		"""
+		trayicon_notification_on_new_messages -> trayicon_notification_on_events
+		"""
 		if 'trayicon_notification_on_new_messages' in self.old_values:
 			gajim.config.set('trayicon_notification_on_events',
 				self.old_values['trayicon_notification_on_new_messages'])
 		gajim.config.set('version', '0.10.1.7')
 
 	def update_config_to_01018(self):
-		'''chat_state_notifications -> outgoing_chat_state_notifications'''
+		"""
+		chat_state_notifications -> outgoing_chat_state_notifications
+		"""
 		if 'chat_state_notifications' in self.old_values:
 			gajim.config.set('outgoing_chat_state_notifications',
 				self.old_values['chat_state_notifications'])
 		gajim.config.set('version', '0.10.1.8')
 
 	def update_config_to_01101(self):
-		'''fill time_stamp from before_time and after_time'''
+		"""
+		Fill time_stamp from before_time and after_time
+		"""
 		if 'before_time' in self.old_values:
 			gajim.config.set('time_stamp', '%s%%X%s ' % (
 				self.old_values['before_time'], self.old_values['after_time']))
 		gajim.config.set('version', '0.11.0.1')
 
 	def update_config_to_01102(self):
-		'''fill time_stamp from before_time and after_time'''
+		"""
+		Fill time_stamp from before_time and after_time
+		"""
 		if 'ft_override_host_to_send' in self.old_values:
 			gajim.config.set('ft_add_hosts_to_send',
 				self.old_values['ft_override_host_to_send'])
 		gajim.config.set('version', '0.11.0.2')
 
 	def update_config_to_01111(self):
-		'''always_hide_chatbuttons -> compact_view'''
+		"""
+		Always_hide_chatbuttons -> compact_view
+		"""
 		if 'always_hide_groupchat_buttons' in self.old_values and \
 		'always_hide_chat_buttons' in self.old_values:
 			gajim.config.set('compact_view', self.old_values['always_hide_groupchat_buttons'] and \
@@ -456,7 +471,9 @@ class OptionsParser:
 		gajim.config.set('version', '0.11.1.1')
 
 	def update_config_to_01112(self):
-		'''gtk+ theme is renamed to default'''
+		"""
+		GTK+ theme is renamed to default
+		"""
 		if 'roster_theme' in self.old_values and \
 		self.old_values['roster_theme'] == 'gtk+':
 			gajim.config.set('roster_theme', _('default'))
@@ -565,7 +582,9 @@ class OptionsParser:
 		gajim.config.set('version', '0.11.4.1')
 
 	def update_config_to_01142(self):
-		'''next_message_received sound event is splittedin 2 events'''
+		"""
+		next_message_received sound event is splittedin 2 events
+		"""
 		gajim.config.add_per('soundevents', 'next_message_received_focused')
 		gajim.config.add_per('soundevents', 'next_message_received_unfocused')
 		if gajim.config.get_per('soundevents', 'next_message_received'):
@@ -678,7 +697,9 @@ class OptionsParser:
 		gajim.config.set('version', '0.12.1.4')
 
 	def update_config_to_01215(self):
-		'''Remove hardcoded ../data/sounds from config'''
+		"""
+		Remove hardcoded ../data/sounds from config
+		"""
 		dirs = ('../data', gajim.gajimpaths.root, gajim.DATA_DIR)
 		for evt in gajim.config.get_per('soundevents'):
 			path = gajim.config.get_per('soundevents', evt ,'path')
@@ -816,5 +837,24 @@ class OptionsParser:
 			'proxy.jabber.cd.chalmers.se'], to_add=['proxy.eu.jabber.org',
 			'proxy.jabber.ru', 'proxy.jabbim.cz'])
 		gajim.config.set('version', '0.12.5.8')
+
+	def update_config_to_013100(self):
+		back = os.getcwd()
+		os.chdir(logger.LOG_DB_FOLDER)
+		con = sqlite.connect(logger.LOG_DB_FILE)
+		os.chdir(back)
+		cur = con.cursor()
+		try:
+			cur.executescript(
+				'''
+				ALTER TABLE caps_cache
+				ADD last_seen INTEGER default %d;
+				''' % int(time())
+			)
+			con.commit()
+		except sqlite.OperationalError:
+			pass
+		con.close()
+		gajim.config.set('version', '0.13.10.0')
 
 # vim: se ts=3:

@@ -25,6 +25,7 @@
 import os
 import sys
 import tempfile
+import defs
 
 # Note on path and filename encodings:
 #
@@ -46,7 +47,9 @@ import tempfile
 # not displayed to the user, Unicode is not really necessary here.
 
 def fse(s):
-	'''Convert from filesystem encoding if not already Unicode'''
+	"""
+	Convert from filesystem encoding if not already Unicode
+	"""
 	return unicode(s, sys.getfilesystemencoding())
 
 def windowsify(s):
@@ -118,6 +121,10 @@ class ConfigPaths:
 			self.add('DATA', fse(os.environ['GAJIM_DATADIR']))
 		else:
 			self.add('DATA', os.path.join(u'..', windowsify(u'data')))
+		if 'GAJIM_ICONDIR' in os.environ:
+			self.add('ICONS', fse(os.environ['GAJIM_ICONDIR']))
+		else
+			self.add('ICONS', os.path.join(u'..', windowsify(u'icons')))
 		self.add('HOME', fse(os.path.expanduser('~')))
 		try:
 			self.add('TMP', fse(tempfile.gettempdir()))

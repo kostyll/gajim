@@ -57,7 +57,9 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 		self.detach_from_control()
 
 	def get_chatstate(self, msg, msgtxt):
-		'''extracts chatstate from a <message/> stanza'''
+		"""
+		Extract chatstate from a <message/> stanza
+		"""
 		composing_xep = None
 		chatstate = None
 
@@ -83,7 +85,9 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 		return (composing_xep, chatstate)
 
 	def received(self, full_jid_with_resource, msgtxt, tim, encrypted, msg):
-		'''dispatch a received <message> stanza'''
+		"""
+		Dispatch a received <message> stanza
+		"""
 		msg_type = msg.getType()
 		subject = msg.getSubject()
 		resource = gajim.get_resource_from_jid(full_jid_with_resource)
@@ -203,7 +207,8 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 		if not contact:
 			# contact is not in the roster, create a fake one to display
 			# notification
-			contact = contacts.Contact(jid=jid, resource=resource)
+			contact = gajim.contacts.create_not_in_roster_contact(jid=jid,
+				account=self.conn.name, resource=resource)
 
 		advanced_notif_num = notify.get_advanced_notification('message_received',
 			self.conn.name, contact)
@@ -264,9 +269,11 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 				chatstate, msg_id, composing_xep, user_nick, xhtml, form_node]))
 
 	def roster_message(self, jid, msg, tim, encrypted=False, msg_type='',
-	subject=None, resource='', msg_id=None, user_nick='',
-	advanced_notif_num=None, xhtml=None, form_node=None):
-		'''display the message or show notification in the roster'''
+			subject=None, resource='', msg_id=None, user_nick='',
+			advanced_notif_num=None, xhtml=None, form_node=None):
+		"""
+		Display the message or show notification in the roster
+		"""
 		contact = None
 		# if chat window will be for specific resource
 		resource_for_chat = resource
@@ -381,7 +388,7 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 		family = gajim.contacts.get_metacontacts_family(self.conn.name, jid)
 		if family:
 			nearby_family, bb_jid, bb_account = \
-				gajim.interface.roster._get_nearby_family_and_big_brother(family,
+				gajim.contacts.get_nearby_family_and_big_brother(family,
 				self.conn.name)
 		else:
 			bb_jid, bb_account = jid, self.conn.name
@@ -506,7 +513,7 @@ class ChatControlSession(stanza_session.EncryptedStanzaSession):
 				contact = gajim.contacts.get_contact(account, self.jid, resource)
 
 				if not contact:
-					contact = gajim.contacts.create_contact(jid=jid,
+					contact = gajim.contacts.create_contact(jid=jid, account=account,
 						resource=resource, show=self.conn.get_status())
 
 				gajim.interface.new_chat(contact, account, resource=resource,

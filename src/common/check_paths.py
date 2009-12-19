@@ -27,18 +27,11 @@ import os
 import sys
 import stat
 
-import exceptions
 from common import gajim
 import logger
 
 # DO NOT MOVE ABOVE OF import gajim
-try:
-	import sqlite3 as sqlite # python 2.5
-except ImportError:
-	try:
-		from pysqlite2 import dbapi2 as sqlite
-	except ImportError:
-		raise exceptions.PysqliteNotAvailable
+import sqlite3 as sqlite
 
 def create_log_db():
 	print _('creating logs database')
@@ -91,7 +84,8 @@ def create_log_db():
 		CREATE TABLE caps_cache (
 			hash_method TEXT,
 			hash TEXT,
-			data BLOB);
+			data BLOB,
+			last_seen INTEGER);
 
 		CREATE TABLE rooms_last_message_time(
 			jid_id INTEGER PRIMARY KEY UNIQUE,

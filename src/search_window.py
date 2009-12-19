@@ -32,8 +32,9 @@ import dataforms_widget
 
 class SearchWindow:
 	def __init__(self, account, jid):
-		'''Create new window.'''
-
+		"""
+		Create new window
+		"""
 		# an account object
 		self.account = account
 		self.jid = jid
@@ -110,9 +111,7 @@ class SearchWindow:
 		if jid in gajim.interface.instances[self.account]['infos']:
 			gajim.interface.instances[self.account]['infos'][jid].window.present()
 		else:
-			contact = gajim.contacts.create_contact(jid = jid, name='', groups=[],
-				show='', status='', sub='', ask='', resource='', priority=0,
-				keyID='', our_chatstate=None, chatstate=None)
+			contact = gajim.contacts.create_contact(jid=jid, account=self.account)
 			gajim.interface.instances[self.account]['infos'][jid] = \
 				vcard.VcardWindow(contact, self.account)
 
@@ -232,6 +231,5 @@ class SearchWindow:
 		if self.data_form_widget.title:
 			self.window.set_title('%s - Search - Gajim' % \
 				self.data_form_widget.title)
-
 
 # vim: se ts=3:

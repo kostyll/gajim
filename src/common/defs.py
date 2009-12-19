@@ -37,7 +37,7 @@ if 'GAJIM_LOCALEDIR' in os.environ:
 else:
 	localedir = '../po'
 
-version = '0.12.5.8-dev'
+version = '0.13.10.0-dev'
 
 import sys, os.path
 for base in ('.', 'common'):

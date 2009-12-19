@@ -231,6 +231,7 @@ class Config:
 		'show_mood_in_roster': [opt_bool, True, '', True],
 		'show_activity_in_roster': [opt_bool, True, '', True],
 		'show_tunes_in_roster': [opt_bool, True, '', True],
+		'show_location_in_roster': [opt_bool, True, '', True],
 		'avatar_position_in_roster': [opt_str, 'right', _('Define the position of the avatar in roster. Can be left or right'), True],
 		'ask_avatars_on_startup': [opt_bool, True, _('If True, Gajim will ask for avatar each contact that did not have an avatar last time or has one cached that is too old.')],
 		'print_status_in_chats': [opt_bool, True, _('If False, Gajim will no longer print status line in chats when a contact changes his or her status and/or his or her status message.')],
@@ -278,6 +279,11 @@ class Config:
 		'ask_offline_status_on_connection': [ opt_bool, False, _('Ask offline status message to all offline contacts when connection to an accoutn is established. WARNING: This causes a lot of requests to be sent!') ],
 		'shell_like_completion': [ opt_bool, False, _('If True, completion in groupchats will be like a shell auto-completion')],
 		'show_self_contact': [opt_str, 'when_other_resource', _('When is self contact row displayed. Can be "always", "when_other_resource" or "never"'), True],
+		'audio_input_device': [opt_str, 'autoaudiosrc ! volume name=gajim_vol'],
+		'audio_output_device': [opt_str, 'autoaudiosink'],
+		'video_input_device': [opt_str, 'autovideosrc ! videoscale ! ffmpegcolorspace'],
+		'video_output_device': [opt_str, 'autovideosink'],
+		'stun_server': [opt_str, '', _('STUN server to use when using jingle')],
 	}
 
 	__options_per_key = {
@@ -350,10 +356,12 @@ class Config:
 			'answer_receipts' : [opt_bool, True, _('Answer to receipt requests')],
 			'request_receipt' : [opt_bool, True, _('Sent receipt requests')],
 			'publish_tune': [opt_bool, False],
+			'publish_location': [opt_bool, False],
 			'subscribe_mood': [opt_bool, True],
 			'subscribe_activity': [opt_bool, True],
 			'subscribe_tune': [opt_bool, True],
 			'subscribe_nick': [opt_bool, True],
+			'subscribe_location': [opt_bool, True],
 			'ignore_unknown_contacts': [ opt_bool, False ],
 			'send_os_info': [ opt_bool, True ],
 			'log_encrypted_sessions': [opt_bool, True, _('When negotiating an encrypted session, should Gajim assume you want your messages to be logged?')],
@@ -518,7 +526,9 @@ class Config:
 					cb(data, opt3, [opt, opt2], dict_[opt2][opt3])
 
 	def get_children(self, node=None):
-		''' Tree-like interface '''
+		"""
+		Tree-like interface
+		"""
 		if node is None:
 			for child, option in self.__options.iteritems():
 				yield (child, ), option
@@ -704,8 +714,9 @@ class Config:
 		return False
 
 	def should_log(self, account, jid):
-		'''should conversations between a local account and a remote jid be
-		logged?'''
+		"""
+		Should conversations between a local account and a remote jid be logged?
+		"""
 		no_log_for = self.get_per('accounts', account, 'no_log_for')
 
 		if not no_log_for:
