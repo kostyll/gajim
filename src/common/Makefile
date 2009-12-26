@@ -6,7 +6,6 @@ SRCS = GnuPG.py			\
        GnuPGInterface.py	\
        __init__.py		\
        atom.py			\
-       caps.py			\
        check_paths.py		\
        commands.py		\
        config.py		\

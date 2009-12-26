@@ -123,7 +123,7 @@ class ConfigPaths:
 			self.add('DATA', os.path.join(u'..', windowsify(u'data')))
 		if 'GAJIM_ICONDIR' in os.environ:
 			self.add('ICONS', fse(os.environ['GAJIM_ICONDIR']))
-		else
+		else:
 			self.add('ICONS', os.path.join(u'..', windowsify(u'icons')))
 		self.add('HOME', fse(os.path.expanduser('~')))
 		try:

@@ -3379,6 +3379,10 @@ class Interface:
 		import statusicon
 		self.systray = statusicon.StatusIcon()
 
+		if sys.platform == 'darwin':
+			import dock
+			self.dock = dock.Dock()
+
 		pix = gtkgui_helpers.get_icon_pixmap('gajim', 32)
 		# set the icon to all windows
 		gtk.window_set_default_icon(pix)

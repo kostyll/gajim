@@ -1,6 +1,6 @@
 include ../extra.mk
 
-SUBDIRS = common ${TRAYMODULE} osx
+SUBDIRS = common osx
 
 SRCS = adhoc_commands.py		\
        advanced_configuration_window.py	\
@@ -41,7 +41,6 @@ SRCS = adhoc_commands.py		\
        secrets.py			\
        session.py			\
        statusicon.py			\
-       systray.py			\
        tooltips.py			\
        vcard.py
 DISTCLEAN = trayicon.so
