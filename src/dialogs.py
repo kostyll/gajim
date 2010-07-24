@@ -5011,3 +5011,24 @@ class VoIPCallReceivedDialog(object):
                     session.reject_content(content)
 
         dialog.destroy()
+
+class SplashScreen:
+    def __init__(self):
+        xml = gtkgui_helpers.get_gtk_builder('splash_screen.ui')
+        self.window = xml.get_object('splash_window')
+        pixbuf = gtkgui_helpers.get_icon_pixmap('gajim-about', 128)
+        xml.get_object('image').set_from_pixbuf(pixbuf)
+        self.pb = xml.get_object('progressbar')
+        self.pb.set_text('Loading roster ...')
+        self.nb = 0
+        self.nb_max = 1
+        self.window.show_all()
+        self.window.window.process_updates(True)
+        
+    def set_nb_account(self, nb):
+        self.nb_max = nb
+
+    def inc_progressbar(self):
+        self.nb += 1
+        self.pb.set_fraction(float(self.nb) / self.nb_max)
+        self.window.window.process_updates(True)

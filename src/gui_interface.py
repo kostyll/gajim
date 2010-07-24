@@ -3245,12 +3245,16 @@ class Interface:
         if gajim.config.get('trayicon') != 'never':
             self.show_systray()
 
+        splash = dialogs.SplashScreen()
+        splash.set_nb_account(len(gajim.connections))
         self.roster = roster_window.RosterWindow()
         self.roster._before_fill()
         for account in gajim.connections:
             gajim.connections[account].load_roster_from_db()
+            splash.inc_progressbar()
         self.roster._after_fill()
-
+        splash.window.destroy()
+        
         # get instances for windows/dialogs that will show_all()/hide()
         self.instances['file_transfers'] = dialogs.FileTransfersWindow()
 
